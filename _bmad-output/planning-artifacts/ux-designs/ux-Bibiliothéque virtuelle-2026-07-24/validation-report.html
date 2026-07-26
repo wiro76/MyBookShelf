@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Validation UX — My BookShelf</title>
+<style>
+:root{--bg:#fafaf9;--surface:#fff;--border:#e7e5e4;--text:#1c1917;--muted:#78716c;--accent:#9a3412;--critical:#b91c1c;--high:#c2410c;--medium:#a16207;--low:#64748b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 system-ui,sans-serif}.container{max-width:960px;margin:auto;padding:32px 24px 64px}h1{font-size:24px;margin:0}header{border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:24px}.meta{color:var(--muted);font-size:13px}.synthesis,details{background:var(--surface);border:1px solid var(--border);border-radius:8px}.synthesis{border-left:4px solid var(--accent);padding:18px 22px;margin-bottom:20px}details{margin:12px 0}summary{cursor:pointer;padding:14px 18px;font-weight:700}.body{padding:0 18px 18px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px}.badge{display:inline-block;color:#fff;border-radius:999px;padding:2px 9px;font-size:11px}.critical{background:var(--critical)}.high{background:var(--high)}.medium{background:var(--medium)}.low{background:var(--low)}code{font-size:12px}footer{margin-top:32px;border-top:1px solid var(--border);padding-top:12px;color:var(--muted)}
+</style>
+</head>
+<body><main class="container">
+<header><h1>My BookShelf — Rapport de validation UX</h1><div class="meta">DESIGN.md + EXPERIENCE.md · 2026-07-26</div></header>
+<section class="synthesis"><p>La paire initiale était mécaniquement solide, mais non prête au handoff avant réconciliation du modèle de statut, ajout de l’authentification et formalisation de la navigation clavier du viewport spatial.</p><p>Les corrections issues des trois revues ont été intégrées le 2026-07-26. Une ultime vérification mécanique et éditoriale précède le statut final.</p></section>
+<div class="grid">
+<div class="card"><strong>Flow coverage</strong><br>strong</div><div class="card"><strong>Token completeness</strong><br>strong</div><div class="card"><strong>Component coverage</strong><br>strong</div><div class="card"><strong>State coverage</strong><br>adequate</div><div class="card"><strong>Visual references</strong><br>strong</div><div class="card"><strong>Inheritance</strong><br>broken avant correction</div><div class="card"><strong>Accessibilité</strong><br>non validable avant correction</div><div class="card"><strong>Cas limites</strong><br>26 branches corrigées</div>
+</div>
+<details open><summary><span class="badge critical">Critique · 1</span> Modèle normatif</summary><div class="body">Les trois bibliothèques avaient été décrites comme statuts d’Exemplaire. Elles sont désormais des projections spatiales des états de l’Œuvre et des Lectures ; la position reste portée par l’Exemplaire.</div></details>
+<details open><summary><span class="badge high">Haute · 4</span> Authentification, vocabulaire, focus et clavier</summary><div class="body"><ul><li>Connexion, session expirée et reprise de contexte ajoutées.</li><li>Table UI → modèle normatif ajoutée.</li><li>Focus à deux tons sur les visuels arbitraires.</li><li>Navigation composite statut > module > Étagère > Exemplaire.</li></ul></div></details>
+<details><summary><span class="badge medium">Moyenne · 9</span> États et accessibilité détaillée</summary><div class="body">États secondaires, références de tokens, barre contextuelle, dialogues, erreurs de formulaire, solde insuffisant, espacement du texte et régions défilantes ont reçu un contrat explicite.</div></details>
+<details><summary><span class="badge low">Basse · 2</span> Structure éditoriale</summary><div class="body">Les répétitions ont été condensées dans une table d’invariants et Inspiration &amp; Anti-patterns est remonté au niveau canonique.</div></details>
+<details><summary>Cas limites traités</summary><div class="body">Modules concurrents ou vides, À ranger, localisation périmée, visuels personnalisés, groupes concurrents, doublons légitimes, conflits multi-appareils, achats idempotents, scroll contre appui maintenu, portée du reflow, relecture, dates/pages invalides et ornements indisponibles.</div></details>
+<footer>Rapports sources : <code>review-rubric.md</code> · <code>review-accessibilite.md</code> · <code>review-cas-limites.md</code></footer>
+</main></body></html>

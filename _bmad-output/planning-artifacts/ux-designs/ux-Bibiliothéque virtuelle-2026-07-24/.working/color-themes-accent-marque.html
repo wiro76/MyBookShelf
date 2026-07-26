@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Exploration — couleur d’accent My BookShelf</title>
+<style>
+  :root { color-scheme: light dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#eceef1; color:#18202a; }
+  main { max-width:1480px; margin:auto; padding:36px 24px 60px; }
+  h1 { margin:0 0 8px; font-size:clamp(1.65rem,3vw,2.5rem); letter-spacing:-.035em; }
+  .lede { max-width:850px; margin:0 0 30px; color:#4b5563; line-height:1.55; }
+  .explore { display:inline-block; margin-bottom:12px; padding:5px 9px; border:1px solid #aeb4bd; border-radius:999px; background:#fff; color:#46505c; font-size:.76rem; font-weight:750; letter-spacing:.06em; text-transform:uppercase; }
+  .themes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; }
+  .theme { border:1px solid #c8cdd4; border-radius:18px; overflow:hidden; background:#fff; box-shadow:0 8px 24px rgb(20 28 38 / .07); }
+  .theme-head { padding:20px 20px 16px; border-bottom:1px solid #dfe2e7; }
+  .theme-head h2 { margin:0 0 5px; font-size:1.25rem; }
+  .theme-head p { margin:0; color:#5e6671; line-height:1.45; }
+  .modes { display:grid; grid-template-columns:1fr 1fr; }
+  .mode { min-width:0; padding:16px; background:var(--surface); color:var(--text); }
+  .mode + .mode { border-left:1px solid var(--border); }
+  .mode-label { margin:0 0 12px; color:var(--muted); font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+  .app { overflow:hidden; border:1px solid var(--border); border-radius:12px; background:var(--panel); box-shadow:0 5px 14px rgb(0 0 0 / .08); }
+  .nav { display:flex; gap:3px; padding:8px; border-bottom:1px solid var(--border); background:var(--surface); }
+  .nav span { flex:1; padding:8px 4px; border-radius:7px; color:var(--muted); font-size:.72rem; font-weight:700; text-align:center; }
+  .nav .active { background:var(--soft); color:var(--accent-text); box-shadow:inset 0 -2px var(--accent); }
+  .content { padding:14px; }
+  button { width:100%; border:0; border-radius:8px; padding:10px; background:var(--accent); color:var(--on-accent); font:inherit; font-size:.78rem; font-weight:750; }
+  .saved { display:flex; align-items:center; gap:7px; margin:12px 0; color:var(--success-text); font-size:.75rem; }
+  .saved::before { content:"✓"; display:grid; width:18px; height:18px; place-items:center; border-radius:50%; background:var(--success-soft); font-weight:900; }
+  .shop { display:grid; grid-template-columns:52px 1fr; gap:10px; align-items:center; padding:10px; border:1px solid var(--border); border-radius:9px; background:var(--surface); }
+  .product { display:grid; width:52px; height:52px; place-items:center; border-radius:7px; background:var(--soft); font-size:1.5rem; }
+  .shop strong { display:block; font-size:.78rem; }
+  .price { display:inline-block; margin-top:5px; color:var(--accent-text); font-size:.75rem; font-weight:800; }
+  .tokens { display:flex; flex-wrap:wrap; gap:6px; padding:13px 16px 16px; border-top:1px solid #dfe2e7; background:#fafafa; }
+  .tokens code { padding:4px 6px; border:1px solid #d8dce2; border-radius:6px; background:#fff; color:#39424e; font-size:.68rem; }
+
+  /* A — Bleu reliure
+     Clair: accent #175CD3, accent-texte #1849A9, doux #EAF2FF, sur-accent #FFFFFF.
+     Sombre: accent #84ADFF, accent-texte #B2CCFF, doux #102A56, sur-accent #102A56.
+     Le bouton clair blanc/#175CD3 dépasse 4,5:1; le bouton sombre #102A56/#84ADFF dépasse 4,5:1. */
+  .blue .light { --accent:#175CD3; --accent-text:#1849A9; --soft:#EAF2FF; --on-accent:#FFFFFF; }
+  .blue .dark  { --accent:#84ADFF; --accent-text:#B2CCFF; --soft:#102A56; --on-accent:#102A56; }
+  /* B — Vert bibliothèque
+     Clair: accent #067647, accent-texte #05603A, doux #E8F7EF, sur-accent #FFFFFF.
+     Sombre: accent #75E0A7, accent-texte #A6F4C5, doux #103D2D, sur-accent #102A22.
+     Les couples de bouton sont sélectionnés pour un contraste texte normal supérieur à 4,5:1. */
+  .green .light { --accent:#067647; --accent-text:#05603A; --soft:#E8F7EF; --on-accent:#FFFFFF; }
+  .green .dark  { --accent:#75E0A7; --accent-text:#A6F4C5; --soft:#103D2D; --on-accent:#102A22; }
+  /* C — Prune éditoriale
+     Clair: accent #6941C6, accent-texte #5925DC, doux #F1EDFF, sur-accent #FFFFFF.
+     Sombre: accent #BDB4FE, accent-texte #D9D6FE, doux #30245F, sur-accent #24134F.
+     Les couples de bouton sont sélectionnés pour un contraste texte normal supérieur à 4,5:1. */
+  .plum .light { --accent:#6941C6; --accent-text:#5925DC; --soft:#F1EDFF; --on-accent:#FFFFFF; }
+  .plum .dark  { --accent:#BDB4FE; --accent-text:#D9D6FE; --soft:#30245F; --on-accent:#24134F; }
+  /* D — Ambre cuivre
+     Clair: accent #9A3412, accent-texte #9A3412, doux #FFF0E6, sur-accent #FFFFFF.
+     Sombre: accent #FDBA74, accent-texte #FED7AA, doux #4A2415, sur-accent #431407.
+     Les couples de bouton sont sélectionnés pour un contraste texte normal supérieur à 4,5:1. */
+  .copper .light { --accent:#9A3412; --accent-text:#9A3412; --soft:#FFF0E6; --on-accent:#FFFFFF; }
+  .copper .dark  { --accent:#FDBA74; --accent-text:#FED7AA; --soft:#4A2415; --on-accent:#431407; }
+
+  .light { --surface:#F8FAFC; --panel:#FFFFFF; --text:#17202B; --muted:#5F6B7A; --border:#D5DAE1; --success-text:#246B45; --success-soft:#DDF4E7; }
+  .dark { --surface:#14181E; --panel:#1C222A; --text:#F1F4F7; --muted:#ADB6C1; --border:#3B444F; --success-text:#8CE6B3; --success-soft:#183B2A; }
+  @media (max-width:900px) { .themes { grid-template-columns:1fr; } }
+  @media (max-width:520px) { main{padding:24px 12px 40px}.modes{grid-template-columns:1fr}.mode+.mode{border-left:0;border-top:1px solid var(--border)} }
+</style>
+</head>
+<body>
+<main>
+  <span class="explore">Exploration — aucune décision prise</span>
+  <h1>Quelle couleur appartient à My BookShelf&nbsp;?</h1>
+  <p class="lede">Quatre accents fixes appliqués au même chrome neutre. Le meuble, les vraies Tranches et les finitions restent indépendants. Comparez surtout la sensation de marque, dans les deux modes.</p>
+  <section class="themes">
+    <article class="theme blue">
+      <header class="theme-head"><h2>A — Bleu reliure</h2><p>Fiable, clair et familier, avec une présence numérique assumée.</p></header>
+      <div class="modes">
+        <div class="mode light"><p class="mode-label">Mode clair</p><div class="app"><nav class="nav"><span>Envie de lire</span><span class="active">Terminés</span><span>En cours</span></nav><div class="content"><button>⌕&nbsp; Rechercher dans ma bibliothèque</button><div class="saved">Enregistré</div><div class="shop"><div class="product">🪴</div><div><strong>Petite plante</strong><span class="price">120 pièces</span></div></div></div></div></div>
+        <div class="mode dark"><p class="mode-label">Mode sombre</p><div class="app"><nav class="nav"><span>Envie de lire</span><span class="active">Terminés</span><span>En cours</span></nav><div class="content"><button>⌕&nbsp; Rechercher dans ma bibliothèque</button><div class="saved">Enregistré</div><div class="shop"><div class="product">🪴</div><div><strong>Petite plante</strong><span class="price">120 pièces</span></div></div></div></div></div>
+      </div>
+      <div class="tokens"><code>Clair #175CD3</code><code>Sombre #84ADFF</code><code>Doux #EAF2FF / #102A56</code></div>
+    </article>
+    <article class="theme green">
+      <header class="theme-head"><h2>B — Vert bibliothèque</h2><p>Calme, cultivé et vivant, sans imiter la matière du meuble.</p></header>
+      <div class="modes">
+        <div class="mode light"><p class="mode-label">Mode clair</p><div class="app"><nav class="nav"><span>Envie de lire</span><span class="active">Terminés</span><span>En cours</span></nav><div class="content"><button>⌕&nbsp; Rechercher dans ma bibliothèque</button><div class="saved">Enregistré</div><div class="shop"><div class="product">🪴</div><div><strong>Petite plante</strong><span class="price">120 pièces</span></div></div></div></div></div>
+        <div class="mode dark"><p class="mode-label">Mode sombre</p><div class="app"><nav class="nav"><span>Envie de lire</span><span class="active">Terminés</span><span>En cours</span></nav><div class="content"><button>⌕&nbsp; Rechercher dans ma bibliothèque</button><div class="saved">Enregistré</div><div class="shop"><div class="product">🪴</div><div><strong>Petite plante</strong><span class="price">120 pièces</span></div></div></div></div></div>
+      </div>
+      <div class="tokens"><code>Clair #067647</code><code>Sombre #75E0A7</code><code>Doux #E8F7EF / #103D2D</code></div>
+    </article>
+    <article class="theme plum">
+      <header class="theme-head"><h2>C — Prune éditoriale</h2><p>Singulière, culturelle et légèrement précieuse, sans devenir décorative.</p></header>
+      <div class="modes">
+        <div class="mode light"><p class="mode-label">Mode clair</p><div class="app"><nav class="nav"><span>Envie de lire</span><span class="active">Terminés</span><span>En cours</span></nav><div class="content"><button>⌕&nbsp; Rechercher dans ma bibliothèque</button><div class="saved">Enregistré</div><div class="shop"><div class="product">🪴</div><div><strong>Petite plante</strong><span class="price">120 pièces</span></div></div></div></div></div>
+        <div class="mode dark"><p class="mode-label">Mode sombre</p><div class="app"><nav class="nav"><span>Envie de lire</span><span class="active">Terminés</span><span>En cours</span></nav><div class="content"><button>⌕&nbsp; Rechercher dans ma bibliothèque</button><div class="saved">Enregistré</div><div class="shop"><div class="product">🪴</div><div><strong>Petite plante</strong><span class="price">120 pièces</span></div></div></div></div></div>
+      </div>
+      <div class="tokens"><code>Clair #6941C6</code><code>Sombre #BDB4FE</code><code>Doux #F1EDFF / #30245F</code></div>
+    </article>
+    <article class="theme copper">
+      <header class="theme-head"><h2>D — Ambre cuivre</h2><p>Chaleureuse et artisanale, avec une proximité subtile au monde du livre.</p></header>
+      <div class="modes">
+        <div class="mode light"><p class="mode-label">Mode clair</p><div class="app"><nav class="nav"><span>Envie de lire</span><span class="active">Terminés</span><span>En cours</span></nav><div class="content"><button>⌕&nbsp; Rechercher dans ma bibliothèque</button><div class="saved">Enregistré</div><div class="shop"><div class="product">🪴</div><div><strong>Petite plante</strong><span class="price">120 pièces</span></div></div></div></div></div>
+        <div class="mode dark"><p class="mode-label">Mode sombre</p><div class="app"><nav class="nav"><span>Envie de lire</span><span class="active">Terminés</span><span>En cours</span></nav><div class="content"><button>⌕&nbsp; Rechercher dans ma bibliothèque</button><div class="saved">Enregistré</div><div class="shop"><div class="product">🪴</div><div><strong>Petite plante</strong><span class="price">120 pièces</span></div></div></div></div></div>
+      </div>
+      <div class="tokens"><code>Clair #9A3412</code><code>Sombre #FDBA74</code><code>Doux #FFF0E6 / #4A2415</code></div>
+    </article>
+  </section>
+</main>
+</body>
+</html>

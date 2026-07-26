@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My BookShelf — Configurateur réaliste, proposition V2</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      color-scheme: light;
+      --ink: #282622;
+      --muted: #6a665e;
+      --paper: #f4f1ea;
+      --panel: #fffefa;
+      --line: #d9d4c9;
+      --accent: #245e54;
+      --accent-soft: #e8f1ee;
+      --wood-1: #93613e;
+      --wood-2: #74472c;
+      --wood-3: #4d2d1d;
+      --wood-edge: #3f2417;
+    }
+    body {
+      margin: 0;
+      min-width: 1180px;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 78% 8%, rgba(172, 133, 91, .17), transparent 34rem),
+        var(--paper);
+      font: 15px/1.45 Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible + span {
+      outline: 3px solid #147d70;
+      outline-offset: 3px;
+    }
+    .app {
+      width: min(1500px, calc(100vw - 40px));
+      margin: 20px auto;
+      overflow: hidden;
+      border: 1px solid #cec7bb;
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: 0 24px 70px rgba(57, 45, 31, .14);
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 68px;
+      padding: 0 26px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 254, 250, .96);
+    }
+    .brand { font-size: 19px; font-weight: 780; letter-spacing: -.025em; }
+    .progress { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; }
+    .progress b { color: var(--accent); }
+    .progress-bar { width: 100px; height: 6px; overflow: hidden; border-radius: 99px; background: #e5e0d7; }
+    .progress-bar::after { display: block; width: 58%; height: 100%; border-radius: inherit; background: var(--accent); content: ""; }
+    main { display: grid; grid-template-columns: 410px minmax(700px, 1fr); min-height: 790px; }
+    aside {
+      padding: 30px 30px 24px;
+      border-right: 1px solid var(--line);
+      background: #fff;
+    }
+    .eyebrow { color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: .075em; text-transform: uppercase; }
+    h1 { margin: 7px 0 8px; font: 750 30px/1.12 Georgia, "Times New Roman", serif; letter-spacing: -.02em; }
+    .intro { margin: 0 0 26px; color: var(--muted); }
+    fieldset { margin: 0; padding: 0; border: 0; }
+    fieldset + fieldset { margin-top: 26px; }
+    legend { width: 100%; margin-bottom: 5px; padding: 0; font-size: 16px; font-weight: 760; }
+    .step-number {
+      display: inline-grid;
+      width: 25px;
+      height: 25px;
+      margin-right: 9px;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      font-size: 12px;
+    }
+    .hint { margin: 0 0 11px 36px; color: var(--muted); font-size: 13px; }
+    .options { display: grid; gap: 8px; }
+    .option { position: relative; display: block; }
+    .option input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .option-card {
+      display: grid;
+      grid-template-columns: 58px 1fr 20px;
+      gap: 12px;
+      align-items: center;
+      min-height: 70px;
+      padding: 9px 11px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+    }
+    .option input:checked + .option-card {
+      border: 2px solid var(--accent);
+      padding: 8px 10px;
+      background: var(--accent-soft);
+      box-shadow: 0 0 0 1px rgba(36, 94, 84, .04);
+    }
+    .option-card strong, .option-card small { display: block; }
+    .option-card strong { font-size: 14px; }
+    .option-card small { margin-top: 2px; color: var(--muted); line-height: 1.25; }
+    .radio {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #aaa298;
+      border-radius: 50%;
+    }
+    input:checked + .option-card .radio { border: 5px solid var(--accent); background: white; }
+    .structure-icon { position: relative; width: 57px; height: 46px; border: 5px solid #775039; background: #d2b18d; box-shadow: inset 0 -3px rgba(58, 34, 22, .3); }
+    .structure-icon::before, .structure-icon::after { position: absolute; left: 0; right: 0; height: 4px; background: #67432d; content: ""; }
+    .structure-icon::before { top: 12px; }
+    .structure-icon::after { top: 27px; }
+    .structure-icon.open { border-width: 0; background: transparent; box-shadow: none; }
+    .structure-icon.open::before, .structure-icon.open::after { height: 6px; box-shadow: 0 2px 2px rgba(50, 30, 20, .3); }
+    .structure-icon.open::before { top: 14px; }
+    .structure-icon.open::after { top: 35px; }
+    .structure-icon.frame { border-width: 7px; background: #eee3d3; }
+    .finishes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-left: 36px; }
+    .finish { position: relative; }
+    .finish input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .finish span {
+      display: block;
+      padding: 8px 4px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: white;
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+    }
+    .finish input:checked + span { border: 2px solid var(--accent); padding: 7px 3px; background: var(--accent-soft); }
+    .swatch { display: block; width: 31px; height: 31px; margin: 0 auto 5px; border: 1px solid rgba(0,0,0,.22); border-radius: 50%; }
+    .swatch.white { background: linear-gradient(135deg, #fffefa, #ded9cf); }
+    .swatch.brown { background: linear-gradient(135deg, #a57450, #5e3825); }
+    .swatch.wood { background: repeating-linear-gradient(7deg, #bd8c62 0 4px, #9f6c46 5px 7px, #ca9a70 8px 12px); }
+    .note {
+      margin-top: 24px;
+      padding: 12px 13px;
+      border-left: 3px solid #b98a4d;
+      border-radius: 4px 9px 9px 4px;
+      background: #f5efe5;
+      color: #555047;
+      font-size: 12.5px;
+    }
+    .preview {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      padding: 25px 30px 24px;
+      overflow: hidden;
+      background: #e9e4da;
+    }
+    .preview-head { display: flex; align-items: center; justify-content: space-between; }
+    .preview-head strong { display: block; font-size: 16px; }
+    .preview-head span { color: var(--muted); font-size: 12px; }
+    .badge {
+      padding: 7px 10px;
+      border: 1px solid #d7c8a8;
+      border-radius: 7px;
+      background: #fff9e8;
+      color: #695424;
+      font-size: 11px;
+      font-weight: 750;
+    }
+    .room {
+      position: relative;
+      flex: 1;
+      min-height: 650px;
+      margin-top: 19px;
+      overflow: hidden;
+      border: 1px solid #d1c7b8;
+      border-radius: 10px;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.25), transparent 45%, rgba(81,63,46,.06)),
+        repeating-linear-gradient(0deg, transparent 0 31px, rgba(92,72,54,.025) 32px),
+        #ded6c8;
+      box-shadow: inset 0 -75px 80px rgba(83, 61, 42, .12);
+    }
+    .floor {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: 72px;
+      border-top: 1px solid rgba(83,60,42,.18);
+      background: repeating-linear-gradient(93deg, #b78c65 0 91px, #9f7552 93px 95px, #c39a73 97px 182px);
+      transform: perspective(500px) rotateX(55deg);
+      transform-origin: bottom;
+      box-shadow: inset 0 22px 38px rgba(73,45,27,.18);
+    }
+    .bookcase-shadow {
+      position: absolute;
+      left: 50%;
+      bottom: 51px;
+      width: 660px;
+      height: 38px;
+      border-radius: 50%;
+      background: rgba(42,28,19,.28);
+      filter: blur(17px);
+      transform: translateX(-50%);
+    }
+    .bookcase {
+      position: absolute;
+      top: 38px;
+      left: 50%;
+      width: 620px;
+      height: 536px;
+      padding: 25px 22px 28px;
+      border: 19px solid var(--wood-2);
+      border-bottom-width: 24px;
+      border-radius: 5px 5px 2px 2px;
+      background:
+        radial-gradient(ellipse at 56% 5%, rgba(255,255,255,.16), transparent 40%),
+        repeating-linear-gradient(87deg, rgba(88,49,27,.08) 0 2px, transparent 3px 19px),
+        linear-gradient(90deg, #9c6b48, #b17e58 44%, #8b5a3b);
+      box-shadow:
+        21px 27px 31px rgba(49,31,19,.25),
+        -7px 14px 18px rgba(49,31,19,.10),
+        inset 10px 0 11px rgba(59,34,20,.23),
+        inset -10px 0 12px rgba(255,225,189,.08);
+      transform: translateX(-50%);
+    }
+    .bookcase::before {
+      position: absolute;
+      top: -26px;
+      right: -26px;
+      left: -26px;
+      height: 13px;
+      border-radius: 3px 3px 1px 1px;
+      background: linear-gradient(#a87450, #674029 75%, #4b2b1c);
+      box-shadow: 0 3px 6px rgba(51,30,18,.28);
+      content: "";
+    }
+    .bookcase::after {
+      position: absolute;
+      right: -23px;
+      bottom: -36px;
+      left: -23px;
+      height: 14px;
+      border-radius: 1px;
+      background: linear-gradient(#75482d, #442718);
+      box-shadow: 0 8px 7px rgba(52,32,19,.2);
+      content: "";
+    }
+    .bay {
+      position: relative;
+      height: 146px;
+      padding: 0 11px 17px;
+      overflow: hidden;
+      border-right: 1px solid rgba(55,31,19,.22);
+      border-left: 1px solid rgba(255,230,198,.12);
+      background:
+        linear-gradient(90deg, rgba(41,23,14,.20), transparent 7%, transparent 92%, rgba(51,29,18,.15)),
+        linear-gradient(#795038, #936447 38%, #7f5238);
+      box-shadow: inset 0 12px 15px rgba(39,22,13,.25);
+    }
+    .bay + .bay { margin-top: 11px; }
+    .bay::after {
+      position: absolute;
+      right: -12px;
+      bottom: 0;
+      left: -12px;
+      height: 17px;
+      background:
+        linear-gradient(#9e6945 0 18%, #744328 22% 62%, #4b2a19 70% 100%);
+      box-shadow: 0 -2px rgba(255,214,168,.13), 0 5px 8px rgba(35,20,12,.35);
+      content: "";
+      z-index: 5;
+    }
+    .books {
+      position: absolute;
+      right: 11px;
+      bottom: 17px;
+      left: 11px;
+      display: flex;
+      align-items: flex-end;
+      height: 118px;
+      gap: 0;
+    }
+    .book {
+      position: relative;
+      flex: 1 1 0;
+      min-width: 21px;
+      max-width: 37px;
+      height: var(--h);
+      margin: 0;
+      border: 0;
+      border-radius: 1px 2px 0 0;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.22), transparent 16%, transparent 78%, rgba(0,0,0,.19)),
+        var(--c);
+      box-shadow:
+        inset 1px 0 rgba(255,255,255,.3),
+        inset -1px 0 rgba(0,0,0,.18),
+        1px 0 rgba(0,0,0,.22);
+      color: rgba(255,255,255,.93);
+      font-family: Georgia, serif;
+      font-size: 7.5px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      text-align: center;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+    }
+    .book::before, .book::after { position: absolute; right: 2px; left: 2px; height: 1px; background: rgba(255,230,188,.55); content: ""; }
+    .book::before { top: 5px; }
+    .book::after { bottom: 5px; }
+    .book.wide { flex-grow: 1.28; }
+    .book.slim { flex-grow: .73; }
+    .book em { margin: auto; overflow: hidden; max-height: calc(100% - 18px); font-style: normal; white-space: nowrap; }
+    .object-space {
+      position: relative;
+      flex: 0 0 83px;
+      height: 110px;
+      margin: 0;
+    }
+    .plant-pot {
+      position: absolute;
+      bottom: 0;
+      left: 19px;
+      width: 47px;
+      height: 42px;
+      border-radius: 4px 4px 13px 13px;
+      background: linear-gradient(90deg, #8b482d, #c6744b 54%, #814128);
+      box-shadow: inset 0 4px rgba(255,190,142,.24), 2px 3px 4px rgba(41,23,15,.32);
+    }
+    .leaf { position: absolute; bottom: 34px; left: 37px; width: 16px; height: 58px; border-radius: 100% 0 100% 0; background: linear-gradient(135deg, #66825d, #294c39); transform-origin: bottom; box-shadow: inset 3px 0 rgba(255,255,255,.11); }
+    .leaf.l1 { transform: rotate(-45deg); }
+    .leaf.l2 { transform: rotate(-17deg) scale(.9); }
+    .leaf.l3 { transform: rotate(18deg) scale(1.04); }
+    .leaf.l4 { transform: rotate(50deg) scale(.86); }
+    .hint-line {
+      position: absolute;
+      right: 24px;
+      bottom: 21px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 11px;
+      border: 1px solid rgba(77,62,49,.18);
+      border-radius: 7px;
+      background: rgba(255,254,250,.94);
+      color: #565149;
+      font-size: 11.5px;
+      box-shadow: 0 5px 16px rgba(57,43,29,.09);
+    }
+    .hint-line b { color: var(--accent); }
+    footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 69px;
+      padding: 0 26px;
+      border-top: 1px solid var(--line);
+      background: #fff;
+    }
+    footer p { margin: 0; color: var(--muted); font-size: 12.5px; }
+    .actions { display: flex; gap: 9px; }
+    .button { min-height: 42px; padding: 0 16px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); font-weight: 730; }
+    .button.primary { border-color: var(--accent); background: var(--accent); color: white; }
+  </style>
+</head>
+<body>
+  <section class="app" aria-label="Aperçu du parcours de personnalisation initiale">
+    <header>
+      <div class="brand">My BookShelf</div>
+      <div class="progress" aria-label="Étape 2 sur 3">
+        <b>Votre bibliothèque</b>
+        <div class="progress-bar" aria-hidden="true"></div>
+        <span>2 sur 3</span>
+      </div>
+    </header>
+
+    <main>
+      <aside aria-labelledby="page-title">
+        <div class="eyebrow">Première installation</div>
+        <h1 id="page-title">Créez votre bibliothèque</h1>
+        <p class="intro">Choisissez une structure, puis une finition. Vous pourrez tout modifier plus tard sans déranger vos livres.</p>
+
+        <fieldset>
+          <legend><span class="step-number">1</span>Choisissez la structure</legend>
+          <p class="hint">Toutes les structures offrent la même capacité.</p>
+          <div class="options">
+            <label class="option">
+              <input type="radio" name="structure" checked>
+              <span class="option-card">
+                <i class="structure-icon" aria-hidden="true"></i>
+                <span><strong>Meuble bibliothèque</strong><small>Un cadre complet, avec côtés et fond.</small></span>
+                <i class="radio" aria-hidden="true"></i>
+              </span>
+            </label>
+            <label class="option">
+              <input type="radio" name="structure">
+              <span class="option-card">
+                <i class="structure-icon open" aria-hidden="true"></i>
+                <span><strong>Étagères ouvertes</strong><small>Des tablettes légères contre le mur.</small></span>
+                <i class="radio" aria-hidden="true"></i>
+              </span>
+            </label>
+            <label class="option">
+              <input type="radio" name="structure">
+              <span class="option-card">
+                <i class="structure-icon frame" aria-hidden="true"></i>
+                <span><strong>Cadre modulaire</strong><small>Une structure sobre et contemporaine.</small></span>
+                <i class="radio" aria-hidden="true"></i>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend><span class="step-number">2</span>Choisissez la finition</legend>
+          <p class="hint">Ces trois finitions de base sont gratuites.</p>
+          <div class="finishes">
+            <label class="finish">
+              <input type="radio" name="finish">
+              <span><i class="swatch white" aria-hidden="true"></i>Blanc</span>
+            </label>
+            <label class="finish">
+              <input type="radio" name="finish" checked>
+              <span><i class="swatch brown" aria-hidden="true"></i>Marron</span>
+            </label>
+            <label class="finish">
+              <input type="radio" name="finish">
+              <span><i class="swatch wood" aria-hidden="true"></i>Effet bois</span>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="note"><strong>Les Pièces restent cosmétiques.</strong><br>Vos livres et vos étagères sont toujours extensibles gratuitement. Les Pièces permettent seulement d’ajouter plus tard des ornements et des décors.</div>
+      </aside>
+
+      <section class="preview" aria-labelledby="preview-title">
+        <div class="preview-head">
+          <div><strong id="preview-title">Aperçu grandeur nature</strong><span>Meuble bibliothèque · finition marron</span></div>
+          <div class="badge">Aperçu exploratoire</div>
+        </div>
+
+        <div class="room">
+          <div class="floor" aria-hidden="true"></div>
+          <div class="bookcase-shadow" aria-hidden="true"></div>
+          <div class="bookcase" aria-label="Bibliothèque réaliste présentant trois étagères de livres rangés tranche contre tranche">
+            <div class="bay">
+              <div class="books">
+                <span class="book wide" style="--h:101px;--c:#6f3d35"><em>Le Nom du vent</em></span>
+                <span class="book" style="--h:108px;--c:#355a68"><em>Fondation</em></span>
+                <span class="book slim" style="--h:97px;--c:#a96a34"><em>Dune</em></span>
+                <span class="book wide" style="--h:113px;--c:#374a31"><em>Le Hobbit</em></span>
+                <span class="book" style="--h:105px;--c:#7b3039"><em>Jane Eyre</em></span>
+                <span class="book slim" style="--h:99px;--c:#4d4570"><em>1984</em></span>
+                <span class="book wide" style="--h:111px;--c:#926b28"><em>Beloved</em></span>
+                <span class="book" style="--h:103px;--c:#294d5c"><em>Ubik</em></span>
+                <span class="book" style="--h:108px;--c:#5d6a39"><em>Sula</em></span>
+                <span class="book wide" style="--h:115px;--c:#814a2e"><em>La Horde</em></span>
+                <span class="book slim" style="--h:100px;--c:#394b72"><em>Emma</em></span>
+                <span class="book" style="--h:107px;--c:#7b6030"><em>Akira 1</em></span>
+                <span class="book" style="--h:104px;--c:#563741"><em>Akira 2</em></span>
+                <span class="book wide" style="--h:112px;--c:#355d4f"><em>Akira 3</em></span>
+                <span class="book" style="--h:98px;--c:#8b4b3e"><em>Akira 4</em></span>
+                <span class="book slim" style="--h:106px;--c:#455672"><em>Akira 5</em></span>
+              </div>
+            </div>
+            <div class="bay">
+              <div class="books">
+                <span class="book" style="--h:109px;--c:#324d43"><em>L'Étranger</em></span>
+                <span class="book wide" style="--h:103px;--c:#8e5738"><em>Les Misérables</em></span>
+                <span class="book slim" style="--h:113px;--c:#443a69"><em>Neuromancien</em></span>
+                <span class="book" style="--h:100px;--c:#765029"><em>Gatsby</em></span>
+                <span class="book wide" style="--h:108px;--c:#2f5264"><em>Solaris</em></span>
+                <span class="object-space" aria-label="Plante décorative intercalée entre les livres">
+                  <i class="leaf l1"></i><i class="leaf l2"></i><i class="leaf l3"></i><i class="leaf l4"></i><i class="plant-pot"></i>
+                </span>
+                <span class="book" style="--h:104px;--c:#7e3840"><em>Persuasion</em></span>
+                <span class="book slim" style="--h:111px;--c:#546636"><em>Le Procès</em></span>
+                <span class="book wide" style="--h:99px;--c:#9b6335"><em>Terremer</em></span>
+                <span class="book" style="--h:107px;--c:#3d4c6a"><em>Shōgun</em></span>
+                <span class="book" style="--h:115px;--c:#684431"><em>Frankenstein</em></span>
+                <span class="book wide" style="--h:103px;--c:#36584e"><em>La Route</em></span>
+              </div>
+            </div>
+            <div class="bay">
+              <div class="books">
+                <span class="book wide" style="--h:112px;--c:#2e5663"><em>Hypérion</em></span>
+                <span class="book" style="--h:104px;--c:#8b4435"><em>Orgueil</em></span>
+                <span class="book slim" style="--h:99px;--c:#4f653d"><em>It</em></span>
+                <span class="book" style="--h:108px;--c:#68416d"><em>Coraline</em></span>
+                <span class="book wide" style="--h:114px;--c:#aa6c32"><em>Notre-Dame</em></span>
+                <span class="book" style="--h:102px;--c:#334e70"><em>Watchmen</em></span>
+                <span class="book" style="--h:109px;--c:#744330"><em>Sandman 1</em></span>
+                <span class="book slim" style="--h:101px;--c:#4f5e34"><em>Sandman 2</em></span>
+                <span class="book wide" style="--h:113px;--c:#2c5860"><em>Sandman 3</em></span>
+                <span class="book" style="--h:106px;--c:#7c3744"><em>Sandman 4</em></span>
+                <span class="book" style="--h:98px;--c:#8f672d"><em>Sandman 5</em></span>
+                <span class="book wide" style="--h:111px;--c:#3a4d39"><em>Sandman 6</em></span>
+                <span class="book slim" style="--h:105px;--c:#51416c"><em>Sandman 7</em></span>
+                <span class="book" style="--h:102px;--c:#92513a"><em>Sandman 8</em></span>
+              </div>
+            </div>
+          </div>
+          <div class="hint-line"><b>Rangement préservé</b><span>Les livres restent jointifs autour du bibelot.</span></div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>Chaque choix est accessible au clavier et annoncé par son intitulé complet.</p>
+      <div class="actions">
+        <button class="button" type="button">Retour</button>
+        <button class="button primary" type="button">Continuer avec ce style</button>
+      </div>
+    </footer>
+  </section>
+</body>
+</html>
