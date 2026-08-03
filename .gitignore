@@ -6,4 +6,15 @@
 
 # Environment files
 .env*
+!.env.example
 
+# Next.js and Node.js
+/node_modules/
+/.next/
+/out/
+/build/
+/playwright-report/
+/test-results/
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*

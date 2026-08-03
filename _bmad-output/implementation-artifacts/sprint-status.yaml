@@ -1,5 +1,5 @@
 # generated: 2026-08-03T16:13:22Z
-# last_updated: 2026-08-03T16:23:29Z
+# last_updated: 2026-08-03T17:10:18Z
 # project: Bibiliothéque virtuelle
 # project_key: NOKEY
 # tracking_system: file-system
@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T16:13:22Z
-last_updated: 2026-08-03T16:23:29Z
+last_updated: 2026-08-03T17:10:18Z
 project: Bibiliothéque virtuelle
 project_key: NOKEY
 tracking_system: file-system
@@ -49,7 +49,7 @@ story_location: /Users/zan-missel/Documents/Bibiliothéque virtuelle/_bmad-outpu
 
 development_status:
   epic-1: in-progress
-  1-1-configurer-le-projet-initial-depuis-le-starter-officiel: in-progress
+  1-1-configurer-le-projet-initial-depuis-le-starter-officiel: done
   1-2-bloquer-une-livraison-qui-viole-les-garanties-du-mvp: backlog
   1-3-executer-les-traitements-differes-sans-perte-ni-doublon: backlog
   1-4-correler-les-incidents-sans-exposer-de-donnees-personnelles: backlog

@@ -1,0 +1,40 @@
+{
+  "name": "my-bookshelf",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "24.18.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "npm run typecheck && next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "node node_modules/typescript7/bin/tsc --project tsconfig.typecheck.json --noEmit",
+    "test": "node --test tests/**/*.test.mjs && npm run test:e2e",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "next": "16.2.12",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.12",
+    "tailwindcss": "^4",
+    "typescript": "6.0.2",
+    "typescript7": "npm:typescript@7.0.2"
+  },
+  "overrides": {
+    "@emnapi/core": "1.11.1",
+    "@emnapi/wasi-threads": "1.2.2",
+    "postcss": "8.5.18",
+    "sharp": "0.35.3"
+  }
+}

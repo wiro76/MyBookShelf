@@ -4,7 +4,7 @@ baseline_commit: ea9bbc0aaf5a3e874ef2d46943c5952600b146ea
 
 # Story 1.1 : Configurer le projet initial depuis le starter officiel
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -21,25 +21,34 @@ afin que chaque incrément du MVP fonctionne sur la même fondation ordinateur e
 
 ## Tâches / Sous-tâches
 
-- [ ] Générer le projet depuis le starter officiel à la racine du dépôt (AC 1, 2)
-  - [ ] Employer `create-next-app@16.2.12` en mode non interactif avec `--ts --tailwind --eslint --app --src-dir --turbopack --import-alias "@/*"` et un seul gestionnaire de paquets.
-  - [ ] Ne pas utiliser `latest`, un template tiers, Pages Router, Webpack ou plusieurs lockfiles.
-  - [ ] Fixer Node.js `24.18.0` LTS dans les métadonnées du projet et conserver un unique lockfile versionné.
-  - [ ] Vérifier après génération Next.js `16.2.12`, React `19.2.8`, TypeScript `7.0.2`, `strict: true` et la résolution `@/*` vers `src/*` ; corriger explicitement toute dérive du générateur puis régénérer le lockfile.
-- [ ] Installer la graine du monolithe modulaire hexagonal (AC 3)
-  - [ ] Créer `src/modules/{identity,library,reading,catalog,media,economy}/{domain,application,adapters}`.
-  - [ ] Créer `src/shared/{kernel,observability}`, `src/workers`, `supabase/migrations`, `tests/integration` et `tests/e2e`.
-  - [ ] Garder `src/app` limité à la composition web ; ne créer aucune règle métier, donnée privée, authentification, accès Supabase ou entité factice.
-  - [ ] Employer des marqueurs sobres pour versionner les répertoires vides, sans inventer d’API ni de dépendance envers une story future.
-- [ ] Remplacer la page de démonstration par un état initial utile et accessible (AC 4)
-  - [ ] Produire une page française, sémantique et sobre, adaptée à ordinateur et tablette, sans faux livre ni fausse donnée personnelle.
-  - [ ] Fournir au moins une cible clavier utile avec focus visible conforme et un état `loading` respectant la géométrie sans simuler de collection.
-  - [ ] Garder le DOM comme autorité ; ne pas introduire Canvas, glisser-déposer, animation obligatoire ou conception téléphone.
-- [ ] Ajouter les vérifications minimales propres au scaffold (AC 1–4)
-  - [ ] Prévoir des scripts séparés pour lint, vérification TypeScript sans émission et build ; ne pas supposer que `next build` exécute lint ou type-check via Turbopack.
-  - [ ] Vérifier installation reproductible depuis le lockfile, lint, type-check strict et build de production sous Node `24.18.0`.
-  - [ ] Vérifier ordinateur et tablette : contenu utile, navigation clavier, focus visible, zoom 200 %, reflow à 320 CSS px et absence de faux livre au chargement.
-  - [ ] Vérifier automatiquement ou par inspection reproductible la structure attendue et l’absence de logique métier dans `src/app`.
+- [x] Générer le projet depuis le starter officiel à la racine du dépôt (AC 1, 2)
+  - [x] Employer `create-next-app@16.2.12` en mode non interactif avec `--ts --tailwind --eslint --app --src-dir --turbopack --import-alias "@/*"` et un seul gestionnaire de paquets.
+  - [x] Ne pas utiliser `latest`, un template tiers, Pages Router, Webpack ou plusieurs lockfiles.
+  - [x] Fixer Node.js `24.18.0` LTS dans les métadonnées du projet et conserver un unique lockfile versionné.
+  - [x] Vérifier après génération Next.js `16.2.12`, React `19.2.8`, TypeScript `7.0.2`, `strict: true` et la résolution `@/*` vers `src/*` ; corriger explicitement toute dérive du générateur puis régénérer le lockfile.
+- [x] Installer la graine du monolithe modulaire hexagonal (AC 3)
+  - [x] Créer `src/modules/{identity,library,reading,catalog,media,economy}/{domain,application,adapters}`.
+  - [x] Créer `src/shared/{kernel,observability}`, `src/workers`, `supabase/migrations`, `tests/integration` et `tests/e2e`.
+  - [x] Garder `src/app` limité à la composition web ; ne créer aucune règle métier, donnée privée, authentification, accès Supabase ou entité factice.
+  - [x] Employer des marqueurs sobres pour versionner les répertoires vides, sans inventer d’API ni de dépendance envers une story future.
+- [x] Remplacer la page de démonstration par un état initial utile et accessible (AC 4)
+  - [x] Produire une page française, sémantique et sobre, adaptée à ordinateur et tablette, sans faux livre ni fausse donnée personnelle.
+  - [x] Fournir au moins une cible clavier utile avec focus visible conforme et un état `loading` respectant la géométrie sans simuler de collection.
+  - [x] Garder le DOM comme autorité ; ne pas introduire Canvas, glisser-déposer, animation obligatoire ou conception téléphone.
+- [x] Ajouter les vérifications minimales propres au scaffold (AC 1–4)
+  - [x] Prévoir des scripts séparés pour lint, vérification TypeScript sans émission et build ; ne pas supposer que `next build` exécute lint ou type-check via Turbopack.
+  - [x] Vérifier installation reproductible depuis le lockfile, lint, type-check strict et build de production sous Node `24.18.0`.
+  - [x] Vérifier ordinateur et tablette : contenu utile, navigation clavier, focus visible, zoom 200 %, reflow à 320 CSS px et absence de faux livre au chargement.
+  - [x] Vérifier automatiquement ou par inspection reproductible la structure attendue et l’absence de logique métier dans `src/app`.
+
+### Constats de revue
+
+- [x] [Review][Patch] Ajouter une preuve navigateur reproductible pour l’AC 4 — Les contrôles ordinateur/tablette, clavier, focus, zoom 200 % et reflow à 320 CSS px sont cochés, mais le journal indique que le navigateur n’a pas pu atteindre localhost et le test actuel ne fait que rechercher des motifs dans les sources [`tests/integration/scaffold.test.mjs`:51]
+- [x] [Review][Patch] Rendre l’arbre ESLint compatible tout en gardant TypeScript 7 comme compilateur canonique — Installer TypeScript 6 comme dépendance compatible de Next/ESLint et conserver TypeScript 7 sous alias pour le `typecheck` [`package.json`:26]
+- [x] [Review][Patch] Le build de production peut contourner le type-check strict [`package.json`:10]
+- [x] [Review][Patch] Les versions optionnelles WASM du lockfile ne satisfont pas les plages requises [`package-lock.json`:283]
+- [x] [Review][Patch] Le libellé de la CTA promet l’accès à la bibliothèque mais pointe vers un simple message d’état [`src/app/page.tsx`:10]
+- [x] [Review][Patch] L’annonce de chargement dynamique ne dispose pas d’un statut sémantique fiable [`src/app/loading.tsx`:3]
 
 ## Notes de développement
 
@@ -100,12 +109,51 @@ tests/{integration,e2e}/
 
 ### Modèle utilisé
 
-À renseigner par l’agent de développement.
+GPT-5.6
 
 ### Références du journal de débogage
+
+- Cycle RED : `node --test tests/integration/scaffold.test.mjs` échoue avant la création du scaffold.
+- Cycle GREEN : `npm test`, `npm run lint` et `npm run typecheck` réussissent.
+- Build : Next.js 16.2.12/Turbopack réussit sous Node.js 24.18.0.
+- Rendu local : la matrice Playwright Chromium valide ordinateur, tablette, clavier, focus, équivalent zoom 200 % et reflow à 320 CSS px.
+- Compatibilité : TypeScript 7 reste le compilateur canonique du `typecheck` ; TypeScript 6 est limité à la compatibilité Next/ESLint.
 
 ### Notes de complétion
 
 - Analyse exhaustive du contexte terminée ; guide d’implémentation complet créé.
+- Starter officiel intégré à la racine avec versions canoniques, lockfile unique et Node 24.18.0 déclaré.
+- Graine hexagonale complète créée sans logique métier ni anticipation des stories futures.
+- Page initiale française, sémantique, responsive et accessible avec focus visible et état de chargement sans faux livre.
+- Trois tests d’intégration et quatre scénarios navigateur couvrent versions/options, structure et garanties initiales d’interface.
+- Revue : six constats corrigés ; arbre npm valide, 0 vulnérabilité, lint, TypeScript 7, tests et build passent sous Node `24.18.0`.
 
 ### Liste des fichiers
+
+- `.gitignore`
+- `.nvmrc`
+- `eslint.config.mjs`
+- `next.config.ts`
+- `package-lock.json`
+- `package.json`
+- `postcss.config.mjs`
+- `playwright.config.ts`
+- `src/app/globals.css`
+- `src/app/layout.tsx`
+- `src/app/loading.tsx`
+- `src/app/page.tsx`
+- `src/modules/{catalog,economy,identity,library,media,reading}/{adapters,application,domain}/.gitkeep`
+- `src/shared/{kernel,observability}/.gitkeep`
+- `src/workers/.gitkeep`
+- `supabase/migrations/.gitkeep`
+- `tests/e2e/scaffold.spec.ts`
+- `tests/integration/scaffold.test.mjs`
+- `tsconfig.json`
+- `tsconfig.typecheck.json`
+- `_bmad-output/implementation-artifacts/1-1-configurer-le-projet-initial-depuis-le-starter-officiel.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+## Journal des changements
+
+- 2026-08-03 : scaffold officiel Next.js intégré, architecture initiale créée, interface d’accueil accessible ajoutée et validations complètes réussies.
+- 2026-08-03 : revue de code terminée ; six constats corrigés, preuve navigateur ajoutée et story validée.
