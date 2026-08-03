@@ -1,0 +1,103 @@
+# generated: 2026-08-03T16:13:22Z
+# last_updated: 2026-08-03T16:23:29Z
+# project: Bibiliothéque virtuelle
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: /Users/zan-missel/Documents/Bibiliothéque virtuelle/_bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; sprint-status surfaces open ones
+
+generated: 2026-08-03T16:13:22Z
+last_updated: 2026-08-03T16:23:29Z
+project: Bibiliothéque virtuelle
+project_key: NOKEY
+tracking_system: file-system
+story_location: /Users/zan-missel/Documents/Bibiliothéque virtuelle/_bmad-output/implementation-artifacts
+
+development_status:
+  epic-1: in-progress
+  1-1-configurer-le-projet-initial-depuis-le-starter-officiel: in-progress
+  1-2-bloquer-une-livraison-qui-viole-les-garanties-du-mvp: backlog
+  1-3-executer-les-traitements-differes-sans-perte-ni-doublon: backlog
+  1-4-correler-les-incidents-sans-exposer-de-donnees-personnelles: backlog
+  1-5-sauvegarder-et-prouver-une-restauration-complete: backlog
+  1-6-se-connecter-a-la-bibliotheque-privee: backlog
+  1-7-reprendre-le-dernier-contexte-confirme: backlog
+  1-8-percevoir-et-reprendre-chaque-sauvegarde: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-rechercher-une-oeuvre-par-titre-ou-auteur: backlog
+  2-2-comparer-et-choisir-une-edition: backlog
+  2-3-ajouter-ledition-choisie-comme-envie-de-lire: backlog
+  2-4-importer-et-preparer-une-couverture-personnelle-en-securite: backlog
+  2-5-creer-manuellement-une-edition-comme-envie-de-lire: backlog
+  2-6-gouverner-la-publication-et-la-revocation-des-medias: backlog
+  2-7-collecter-les-medias-revoques-sans-compromettre-les-sauvegardes: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-choisir-lapparence-initiale-du-meuble: backlog
+  3-2-parcourir-les-trois-bibliotheques-physiques: backlog
+  3-3-naviguer-entierement-au-clavier-et-avec-aides-techniques: backlog
+  3-4-gerer-lextension-des-modules-sans-limite-arbitraire: backlog
+  3-5-afficher-des-visuels-de-couverture-et-de-tranche-independants: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-deplacer-un-exemplaire-par-geste-ou-commande-visible: backlog
+  4-2-deplacer-atomiquement-une-selection: backlog
+  4-3-creer-des-groupes-themes-et-reperes-personnels: backlog
+  4-4-deplacer-les-membres-pertinents-dun-groupe-transversal: backlog
+  4-5-rechercher-et-localiser-un-exemplaire-sans-le-reordonner: backlog
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-gerer-lintention-de-lire-et-commencer-une-lecture: backlog
+  5-2-enregistrer-une-progression-sans-fin-automatique: backlog
+  5-3-terminer-explicitement-une-lecture: backlog
+  5-4-commencer-et-achever-une-relecture: backlog
+  5-5-crediter-une-recompense-unique-apres-la-fin: backlog
+  epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-consulter-lassortiment-cosmetique-initial: backlog
+  6-2-acheter-sans-double-debit-ni-culpabilisation: backlog
+  6-3-conserver-et-retrouver-les-objets-possedes: backlog
+  6-4-placer-un-bibelot-avec-reflow-local-atomique: backlog
+  6-5-deplacer-remplacer-ou-retirer-un-bibelot: backlog
+  6-6-modifier-les-choix-cosmetiques-sans-toucher-au-rangement: backlog
+  epic-6-retrospective: optional
