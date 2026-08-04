@@ -86,11 +86,24 @@ if (worker) {
    */
   const fauxClient = (reponses) => {
     const journal = [];
+    /**
+     * `journal` ne retient que le texte SQL : il ne permet pas de dire SUR QUEL message
+     * une requête a porté. Les preuves d'ordre par agrégat en ont besoin — « A2 est resté
+     * intact » veut dire « aucun delete, aucun set_vt, aucun effect_failures portant A2 ».
+     * `appels` conserve donc texte ET paramètres, sans rien changer à `journal`, dont les
+     * tests existants dépendent.
+     */
+    const appels = [];
+    const parametresDe = (fragment, position) =>
+      appels.filter((appel) => appel.texte.includes(fragment)).map((appel) => appel.parametres?.[position]);
     return {
       journal,
+      appels,
+      parametresDe,
       release() {},
       query(texte, parametres) {
         journal.push(texte);
+        appels.push({ texte, parametres });
         for (const [fragment, reponse] of reponses) {
           if (texte.includes(fragment)) {
             const resolue = typeof reponse === "function" ? reponse(parametres) : reponse;
@@ -621,5 +634,270 @@ if (worker) {
       client.journal.some((texte) => texte.includes("pg_advisory_unlock")),
       "le verrou doit être libéré malgré l'échec",
     );
+  });
+
+  // ── Invariant AD-1 : ordre par agrégat ─────────────────────────────────────
+
+  /**
+   * AD-1, verbatim : « livraison au moins une fois, ordre par agrégat et consommateurs
+   * idempotents ; aucun ordre global. » Ces tests prouvent la partie « ordre par agrégat »
+   * du lot : dès qu'un message n'aboutit pas, aucun message suivant du MÊME `aggregateId`
+   * n'est traité dans ce lot, et il reste STRICTEMENT intact en file — ce qu'on vérifie en
+   * inspectant les paramètres SQL réellement envoyés, pas seulement les compteurs rendus.
+   */
+
+  const enveloppeAgregat = (aggregateId, aggregateVersion) => enveloppeValide({ aggregateId, aggregateVersion });
+
+  /**
+   * Consigne dans `vus` les enveloppes qui atteignent RÉELLEMENT le handler, dans l'ordre.
+   * Les compteurs seuls ne prouvent pas l'ordre : un message écarté et un message traité
+   * puis annulé rendent le même `processed: 0`.
+   */
+  const handlerTracant = (vus, echouantSur = null) => (contexte) => {
+    const { envelope } = contexte.message;
+    if (echouantSur && envelope.messageId === echouantSur) {
+      return Promise.reject(Object.assign(new Error(`panne injectée sur ${echouantSur}`), { code: "TEST_PANNE" }));
+    }
+    vus.push(envelope);
+    return Promise.resolve();
+  };
+
+  test("ordre par agrégat : un échec écarte les messages suivants du même agrégat et les laisse intacts", async () => {
+    const agregatA = randomUUID();
+    const agregatB = randomUUID();
+    const a1 = enveloppeAgregat(agregatA, 1);
+    const a2 = enveloppeAgregat(agregatA, 2);
+    const b1 = enveloppeAgregat(agregatB, 1);
+    const client = clientDeConsommation([ligneQueue(a1, "1"), ligneQueue(a2, "2"), ligneQueue(b1, "3")]);
+    const vus = [];
+
+    const resultat = await processDeferredEffects({
+      connection: client,
+      jobId: createJobId(),
+      batchSize: 5,
+      retryBackoffSeconds: 60,
+      handler: handlerTracant(vus, a1.messageId),
+    });
+
+    assert.equal(resultat.read, 3, "les trois messages du lot sont bien lus");
+    assert.equal(resultat.failed, 1, "seul A1 échoue");
+    assert.equal(resultat.processed, 1, "seul B1 est traité");
+    assert.equal(resultat.skippedForOrder, 1, "A2 doit être écarté pour préserver l'ordre de son agrégat");
+    assert.deepEqual(
+      vus.map((enveloppe) => enveloppe.messageId),
+      [b1.messageId],
+      "A2 ne doit JAMAIS atteindre le handler : l'ordre prime sur le débit DE SON agrégat",
+    );
+    assert.equal(resultat.hasMore, true, "un message écarté est un message resté en file");
+
+    // A2 intact : ni consommé, ni revendiqué, ni compté en échec, ni pénalisé.
+    assert.deepEqual(client.parametresDe("pgmq.delete", 1), ["3"], "seul B1 doit quitter la file");
+    assert.deepEqual(
+      client.parametresDe("insert into deferred.processed_messages", 0),
+      [a1.messageId, b1.messageId],
+      "A2 ne doit même pas être revendiqué dans la table d'idempotence",
+    );
+    assert.deepEqual(
+      client.parametresDe("insert into deferred.effect_failures", 0),
+      [a1.messageId],
+      "A2 n'a pas échoué : rien ne doit être journalisé à son nom",
+    );
+    assert.deepEqual(
+      client.parametresDe("pgmq.set_vt", 1),
+      ["1"],
+      "seul le message réellement en échec subit le backoff : A2 n'est pas pénalisé",
+    );
+  });
+
+  test("ordre par agrégat : un agrégat bloqué ne bloque aucun autre, le débit est préservé", async () => {
+    const agregatA = randomUUID();
+    const agregatB = randomUUID();
+    const a1 = enveloppeAgregat(agregatA, 1);
+    const a2 = enveloppeAgregat(agregatA, 2);
+    const a3 = enveloppeAgregat(agregatA, 3);
+    const b1 = enveloppeAgregat(agregatB, 1);
+    const b2 = enveloppeAgregat(agregatB, 2);
+    const b3 = enveloppeAgregat(agregatB, 3);
+    const client = clientDeConsommation([
+      ligneQueue(a1, "1"),
+      ligneQueue(b1, "2"),
+      ligneQueue(a2, "3"),
+      ligneQueue(b2, "4"),
+      ligneQueue(a3, "5"),
+      ligneQueue(b3, "6"),
+    ]);
+    const vus = [];
+
+    const resultat = await processDeferredEffects({
+      connection: client,
+      jobId: createJobId(),
+      batchSize: 10,
+      handler: handlerTracant(vus, a1.messageId),
+    });
+
+    assert.equal(resultat.failed, 1);
+    assert.equal(resultat.skippedForOrder, 2, "A2 et A3 attendent leur prédécesseur");
+    assert.equal(resultat.processed, 3, "les trois messages de B passent malgré l'agrégat A bloqué");
+    assert.deepEqual(
+      vus.map((enveloppe) => enveloppe.messageId),
+      [b1.messageId, b2.messageId, b3.messageId],
+      "l'agrégat B est traité dans son propre ordre, sans être freiné par A",
+    );
+    assert.deepEqual(client.parametresDe("pgmq.delete", 1), ["2", "4", "6"], "seuls les messages de B quittent la file");
+  });
+
+  test("ordre par agrégat : deux messages qui aboutissent ne bloquent rien, un doublon non plus", async () => {
+    const agregat = randomUUID();
+    const a1 = enveloppeAgregat(agregat, 1);
+    const a2 = enveloppeAgregat(agregat, 2);
+    const client = fauxClient([
+      ["pg_try_advisory_lock", { rows: [{ acquired: true }] }],
+      ["from pgmq.read", { rows: [ligneQueue(a1, "1"), ligneQueue(a2, "2")] }],
+      // A1 est déjà connu de la table d'idempotence : c'est un doublon, PAS un échec.
+      [
+        "insert into deferred.processed_messages",
+        (parametres) => ({ rows: [], rowCount: parametres[0] === a1.messageId ? 0 : 1 }),
+      ],
+      ["pg_advisory_unlock", { rows: [{ released: true }] }],
+    ]);
+    const vus = [];
+
+    const resultat = await processDeferredEffects({
+      connection: client,
+      jobId: createJobId(),
+      batchSize: 5,
+      handler: handlerTracant(vus),
+    });
+
+    assert.equal(resultat.duplicated, 1, "A1 est reconnu comme doublon");
+    assert.equal(resultat.processed, 1, "A2 doit être traité derrière lui");
+    assert.equal(resultat.skippedForOrder, 0, "un doublon a abouti : il ne bloque pas son agrégat");
+    assert.deepEqual(
+      vus.map((enveloppe) => enveloppe.messageId),
+      [a2.messageId],
+      "le doublon n'appelle pas le handler, mais laisse passer le suivant",
+    );
+    assert.deepEqual(client.parametresDe("pgmq.delete", 1), ["1", "2"], "les deux messages quittent la file");
+  });
+
+  test("ordre par agrégat : un routage DLQ bloque aussi les successeurs du même agrégat", async () => {
+    const agregatA = randomUUID();
+    const agregatB = randomUUID();
+    const a1 = enveloppeAgregat(agregatA, 1);
+    const a2 = enveloppeAgregat(agregatA, 2);
+    const b1 = enveloppeAgregat(agregatB, 1);
+    // read_ct au-delà du seuil : routage DLQ SANS tentative de traitement.
+    const client = clientDeConsommation([
+      { ...ligneQueue(a1, "1"), read_ct: 6 },
+      ligneQueue(a2, "2"),
+      ligneQueue(b1, "3"),
+    ]);
+    const vus = [];
+
+    const resultat = await processDeferredEffects({
+      connection: client,
+      jobId: createJobId(),
+      batchSize: 5,
+      retryThreshold: 5,
+      handler: handlerTracant(vus),
+    });
+
+    assert.equal(resultat.deadLettered, 1, "A1 part en DLQ");
+    assert.equal(resultat.failed, 0, "le routage DLQ ne tente aucun traitement");
+    assert.equal(resultat.skippedForOrder, 1, "A2 doit attendre le rejeu de A1 depuis la DLQ");
+    assert.equal(resultat.processed, 1, "B1 passe normalement");
+    assert.deepEqual(
+      vus.map((enveloppe) => enveloppe.messageId),
+      [b1.messageId],
+      "A2 ne doit pas doubler un message parti en DLQ",
+    );
+    assert.deepEqual(
+      client.parametresDe("pgmq.delete", 1),
+      ["1", "3"],
+      "seuls le message routé en DLQ et B1 quittent la file",
+    );
+  });
+
+  test("ordre par agrégat : le lot est trié par msg_id NUMÉRIQUE, pas lexicographique", async () => {
+    const agregat = randomUUID();
+    const premier = enveloppeAgregat(agregat, 1);
+    const deuxieme = enveloppeAgregat(agregat, 2);
+    const troisieme = enveloppeAgregat(agregat, 3);
+    // pgmq rend ici les lignes dans le désordre. En tri lexicographique, "10" précéderait
+    // "2" et "9" : l'agrégat serait traité à l'envers tout en paraissant ordonné.
+    const client = clientDeConsommation([
+      ligneQueue(troisieme, "10"),
+      ligneQueue(premier, "2"),
+      ligneQueue(deuxieme, "9"),
+    ]);
+    const vus = [];
+
+    const resultat = await processDeferredEffects({
+      connection: client,
+      jobId: createJobId(),
+      batchSize: 5,
+      handler: handlerTracant(vus),
+    });
+
+    assert.equal(resultat.processed, 3);
+    assert.equal(resultat.skippedForOrder, 0);
+    assert.deepEqual(
+      vus.map((enveloppe) => enveloppe.aggregateVersion),
+      [1, 2, 3],
+      "l'ordre de traitement doit suivre msg_id croissant : 2, 9, 10",
+    );
+    assert.deepEqual(client.parametresDe("pgmq.delete", 1), ["2", "9", "10"]);
+  });
+
+  test("ordre par agrégat : l'échec du plus petit msg_id écarte ses successeurs même rendus en premier", async () => {
+    const agregat = randomUUID();
+    const premier = enveloppeAgregat(agregat, 1);
+    const suivant = enveloppeAgregat(agregat, 2);
+    // Sans tri explicite, "10" serait traité AVANT "2" : le succès de "10" masquerait
+    // l'échec de "2" et l'inversion d'ordre passerait pour un lot parfaitement sain.
+    const client = clientDeConsommation([ligneQueue(suivant, "10"), ligneQueue(premier, "2")]);
+    const vus = [];
+
+    const resultat = await processDeferredEffects({
+      connection: client,
+      jobId: createJobId(),
+      batchSize: 5,
+      handler: handlerTracant(vus, premier.messageId),
+    });
+
+    assert.equal(resultat.failed, 1);
+    assert.equal(resultat.processed, 0, "aucun message de l'agrégat ne doit passer devant son prédécesseur");
+    assert.equal(resultat.skippedForOrder, 1);
+    assert.deepEqual(vus, [], "le handler ne doit voir aucun message après l'échec du plus ancien");
+    assert.deepEqual(client.parametresDe("pgmq.delete", 1), [], "aucun message ne quitte la file");
+  });
+
+  test("ordre par agrégat : une enveloppe illisible part en DLQ sans bloquer un agrégat qu'elle ne nomme pas", async () => {
+    const agregat = randomUUID();
+    const suivant = enveloppeAgregat(agregat, 1);
+    const client = clientDeConsommation([ligneQueue({ pas: "une enveloppe" }, "1"), ligneQueue(suivant, "2")]);
+    const vus = [];
+
+    const resultat = await processDeferredEffects({
+      connection: client,
+      jobId: createJobId(),
+      batchSize: 5,
+      handler: handlerTracant(vus),
+    });
+
+    assert.equal(resultat.deadLettered, 1);
+    assert.equal(resultat.skippedForOrder, 0, "aucun aggregateId lisible : rien ne peut être bloqué");
+    assert.equal(resultat.processed, 1, "limite assumée et documentée du blocage par agrégat");
+  });
+
+  test("ordre par agrégat : sans blocage, skippedForOrder reste nul et hasMore ne s'allume pas", async () => {
+    const resultat = await processDeferredEffects({
+      connection: clientDeConsommation([ligneQueue(enveloppeValide(), "1"), ligneQueue(enveloppeValide(), "2")]),
+      jobId: createJobId(),
+      batchSize: 5,
+    });
+    assert.equal(resultat.processed, 2);
+    assert.equal(resultat.skippedForOrder, 0);
+    assert.equal(resultat.hasMore, false, "un lot sain ne doit pas prétendre qu'il reste du travail");
   });
 }

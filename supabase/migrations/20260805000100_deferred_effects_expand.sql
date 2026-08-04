@@ -149,6 +149,107 @@ create table if not exists deferred.effect_failures (
 create index if not exists effect_failures_message_id_idx
   on deferred.effect_failures (message_id, occurred_at desc);
 
+-- Index de la purge : `deferred.purge_processed_messages` filtre d'abord sur `processed_at`
+-- pour réduire l'ensemble candidat avant les quatre anti-jointures sur les tables pgmq.
+-- Sans lui, chaque purge fait un seq scan de la table entière — précisément la table dont
+-- la volumétrie motive la purge.
+create index if not exists processed_messages_processed_at_idx
+  on deferred.processed_messages (processed_at);
+
+-- `deferred.processed_messages` reçoit une ligne par message traité, à vie, et c'est la
+-- SEULE protection contre le double traitement (le worker teste l'existence de la ligne
+-- avant d'appliquer l'effet). Une purge naïve — `delete from deferred.processed_messages
+-- where processed_at < now() - interval '30 days'` — réactive donc silencieusement le
+-- double traitement de tout message purgé qui serait encore redélivrable.
+--
+-- Raisonnement : un `message_id` n'est plus redélivrable quand son message n'existe plus
+-- dans AUCUNE des quatre tables pgmq d'où il pourrait repartir. Noms vérifiés sur une
+-- instance réelle (supabase/postgres 17.6.1.106, pgmq 1.5.1, `\dt pgmq.*`) :
+--   pgmq.q_deferred_effects       — file principale (y compris messages invisibles, VT en
+--                                   cours : ce sont des lignes ordinaires de cette table) ;
+--   pgmq.q_deferred_effects_dlq   — DLQ, d'où `replayDeadLetteredEffects` republie ;
+--   pgmq.a_deferred_effects       — archive de la file principale (`pgmq.archive`) ;
+--   pgmq.a_deferred_effects_dlq   — archive de la DLQ (entrées illisibles mises à l'écart).
+-- Les tables d'archive comptent : un opérateur peut réinjecter à la main une ligne
+-- archivée. Tant qu'elle existe, la trace d'idempotence doit exister aussi.
+--
+-- Le rejeu DLQ ne crée pas de fenêtre de course : `replayDeadLetteredEffects` republie sur
+-- `deferred_effects` et supprime l'entrée DLQ dans la MÊME transaction — le `message_id`
+-- n'est donc jamais absent des quatre tables simultanément pendant l'opération.
+--
+-- SECURITY DEFINER + search_path vide, pour les mêmes raisons que `deferred.publish_effect` :
+-- service_role n'a aucun droit sur le schéma pgmq et ne doit pas en recevoir (sinon il peut
+-- lire/écrire les files hors de tout contrôle), alors que la purge doit impérativement
+-- interroger ces quatre tables — un `not exists` qui échouerait faute de droits, ou qui
+-- serait détourné par un schéma injecté dans le search_path, rendrait éligibles des lignes
+-- qui ne le sont pas. Tous les objets sont donc qualifiés.
+--
+-- Comparaison en `lower(...)` : `publish_effect` accepte les UUID en majuscules (le motif
+-- est testé avec `!~*`), alors que `uuid::text` rend toujours la forme minuscule. Une
+-- comparaison sensible à la casse ne verrait pas un message encore en file publié avec un
+-- UUID en majuscules, et le déclarerait purgeable — exactement le faux négatif à éviter.
+create or replace function deferred.purge_processed_messages(
+  p_retention interval default interval '90 days'
+)
+returns bigint
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_cutoff timestamptz;
+  v_deleted bigint;
+begin
+  if p_retention is null then
+    raise exception 'deferred.purge_processed_messages: retention window is required'
+      using errcode = '22023';
+  end if;
+
+  -- Une fenêtre négative reviendrait à purger des lignes situées dans le futur du curseur,
+  -- c'est-à-dire des traces fraîches. Refus explicite plutôt que comportement surprenant.
+  if p_retention < interval '0' then
+    raise exception 'deferred.purge_processed_messages: retention window must not be negative, got %',
+      p_retention
+      using errcode = '22023';
+  end if;
+
+  v_cutoff := now() - p_retention;
+
+  with purgeable as (
+    select p.message_id
+      from deferred.processed_messages as p
+     where p.processed_at < v_cutoff
+       and not exists (
+         select 1
+           from pgmq.q_deferred_effects as q
+          where lower(q.message ->> 'messageId') = p.message_id::text
+       )
+       and not exists (
+         select 1
+           from pgmq.q_deferred_effects_dlq as d
+          where lower(d.message ->> 'messageId') = p.message_id::text
+       )
+       and not exists (
+         select 1
+           from pgmq.a_deferred_effects as a
+          where lower(a.message ->> 'messageId') = p.message_id::text
+       )
+       and not exists (
+         select 1
+           from pgmq.a_deferred_effects_dlq as ad
+          where lower(ad.message ->> 'messageId') = p.message_id::text
+       )
+  )
+  delete from deferred.processed_messages as target
+   using purgeable
+   where target.message_id = purgeable.message_id;
+
+  get diagnostics v_deleted = row_count;
+
+  return v_deleted;
+end;
+$$;
+
 alter table deferred.processed_messages enable row level security;
 alter table deferred.effect_failures enable row level security;
 
@@ -167,3 +268,4 @@ grant select, insert, update, delete on deferred.processed_messages to service_r
 grant select, insert, update, delete on deferred.effect_failures to service_role;
 grant usage, select on all sequences in schema deferred to service_role;
 grant execute on function deferred.publish_effect(text, jsonb) to service_role;
+grant execute on function deferred.purge_processed_messages(interval) to service_role;

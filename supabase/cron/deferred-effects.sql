@@ -12,6 +12,48 @@
 --
 -- Idempotent : rejouable sans erreur (les extensions utilisent IF NOT EXISTS, le secret
 -- Vault est recréé si absent, le job est reprogrammé s'il existe déjà).
+--
+-- ===========================================================================
+-- ⚠️ AVERTISSEMENT DE SÉCURITÉ — LE SECRET NE RESTE PAS CHIFFRÉ
+-- ===========================================================================
+-- Le bloc `cron.schedule` ci-dessous construit un en-tête `Authorization: Bearer <secret>`
+-- et le passe à `net.http_post`. CE SECRET SORT DU VAULT CHIFFRÉ ET TRANSITE EN CLAIR PAR
+-- UNE TABLE POSTGRES ORDINAIRE. Ce n'est pas un défaut de ce fichier : c'est le
+-- fonctionnement de pg_net, et il n'existe aucun moyen de l'éviter avec `net.http_post`.
+--
+-- Faits vérifiés sur supabase/postgres 17.6.1.106 + pg_net 0.20.0, et dans les sources de
+-- pg_net (`sql/pg_net.sql`, `src/core.c`) :
+--   * `net.http_post()` fait `insert into net.http_request_queue(..., headers, ...)`. La
+--     colonne `headers jsonb` contient l'en-tête Authorization en clair, secret compris.
+--   * pg_net accorde par défaut `grant usage on schema net to PUBLIC` et
+--     `grant all on all tables in schema net to PUBLIC`. Sur une instance réelle,
+--     `has_table_privilege('anon', 'net.http_request_queue', 'select')` renvoie VRAI, tout
+--     comme pour `authenticated`. Toute identité disposant d'un chemin SQL vers la base
+--     peut donc lire ce secret.
+--   * Ces GRANT sont posés par `supabase_admin`. Le rôle `postgres` — celui dont dispose un
+--     opérateur du projet — NE PEUT PAS les révoquer : le REVOKE réussit sans rien changer
+--     (`WARNING: no privileges could be revoked`), y compris après un
+--     `drop extension pg_net; create extension pg_net;`. Le verrouillage du schéma `net`
+--     n'est PAS une mitigation disponible.
+--   * Durée d'exposition : le worker d'arrière-plan consomme la file avec
+--     `DELETE FROM net.http_request_queue ... RETURNING ...`, par lots de
+--     `pg_net.batch_size` (200 par défaut). En marche nominale la ligne disparaît en
+--     quelques millisecondes. Si le worker est arrêté, ou si le lot déborde, la ligne — et
+--     le secret — restent en clair aussi longtemps que dure la panne.
+--   * `pg_net.ttl` (6 h par défaut) ne concerne QUE `net._http_response`, jamais la file de
+--     requêtes. Et `net._http_response.headers` porte les en-têtes de RÉPONSE : le secret
+--     n'y apparaît pas (vérifié : colonne vide après exécution).
+--
+-- Conséquences pratiques, à respecter :
+--   1. Le secret du worker doit être TRAITÉ COMME EXPOSÉ. Il ne doit jamais être réutilisé
+--      ailleurs, ni dériver de `SUPABASE_ANON_KEY`, du mot de passe de la base ou de la clé
+--      service_role. Sa seule capacité est de déclencher `/api/deferred-effects/process`.
+--   2. Le schéma `net` ne doit JAMAIS figurer dans les schémas exposés de l'API PostgREST
+--      du projet (réglage « Exposed schemas »). C'est le seul verrou réellement sous
+--      contrôle de l'opérateur.
+--   3. Rotation périodique du secret et surveillance de `net.http_request_queue` : voir
+--      `docs/operations/deferred-effects.md`, section « pg_net : le secret transite en clair ».
+-- ===========================================================================
 
 -- ---------------------------------------------------------------------------
 -- 1. Extensions requises
@@ -78,6 +120,9 @@ select cron.schedule(
   -- Si elle échoue, remplacer le sous-select ci-dessous par l'équivalent réel de cette
   -- version de l'extension, puis documenter la forme retenue dans
   -- `docs/operations/deferred-effects.md`.
+  -- ⚠️ Les `headers` ci-dessous, secret compris, sont écrits en clair dans
+  -- `net.http_request_queue` avant émission. Voir l'avertissement de sécurité en tête de
+  -- fichier : ce n'est pas évitable, seulement mitigeable.
   select net.http_post(
     url := '<APP_BASE_URL>/api/deferred-effects/process',
     headers := jsonb_build_object(

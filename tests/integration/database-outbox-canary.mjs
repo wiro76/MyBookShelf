@@ -21,7 +21,10 @@ import pg from "pg";
  *   (d) rejeu depuis la DLQ ⇒ message retraité avec succès ;
  *   (e) Route Handler sans header valide ⇒ 401 ;
  *   (f) lot de batchSize + 5 messages ⇒ exactement batchSize consommés, les autres
- *       redeviennent visibles après expiration du timeout de visibilité.
+ *       redeviennent visibles après expiration du timeout de visibilité ;
+ *   (g) ordre par agrégat (AD-1) ⇒ dans un lot, l'échec d'un message écarte les messages
+ *       suivants du MÊME aggregateId — laissés intacts en file, repris dans l'ordre au
+ *       lot suivant — sans jamais freiner un autre agrégat.
  *
  * Chaque exécution s'isole dans ses propres queues pgmq et son propre schéma, puis
  * nettoie tout en `finally`, y compris les lignes laissées dans les tables partagées
@@ -366,10 +369,118 @@ async function executerCanari() {
     assert.equal(await profondeur(pool, queue), 0, "(f) le lot complet doit finir consommé, sans perte");
     assert.equal(await effets(pool), 2 + lot.length, "(f) chaque message du lot doit produire exactement un effet");
 
+    // ── (g) ordre par agrégat (AD-1) sur exécution réelle ─────────────────────
+    /**
+     * AD-1 exige « ordre par agrégat » ; le verrou consultatif global ne sérialise que les
+     * exécutions entre elles et ne dit rien de l'ordre À L'INTÉRIEUR d'un lot. Cette preuve
+     * force la situation exacte que l'invariant interdit : deux agrégats entrelacés dans un
+     * même lot, dont le message le PLUS ANCIEN de l'un échoue.
+     *
+     * Ce qui est prouvé ici, contre la vraie base : les successeurs de l'agrégat fautif ne
+     * sont pas traités, restent en file sans pénalité ajoutée, l'autre agrégat passe
+     * intégralement, et le lot suivant reprend l'agrégat bloqué dans l'ordre des versions.
+     */
+    const effetsAvantOrdre = await effets(pool);
+    const agregatBloque = randomUUID();
+    const agregatLibre = randomUUID();
+    const enveloppePour = (aggregateId, aggregateVersion) => ({ ...enveloppe(), aggregateId, aggregateVersion });
+    const bloque = [1, 2, 3].map((version) => enveloppePour(agregatBloque, version));
+    const libre = [1, 2].map((version) => enveloppePour(agregatLibre, version));
+
+    // Publication ENTRELACÉE : les msg_id des deux agrégats s'imbriquent, donc un simple
+    // « traiter le lot dans l'ordre » ne suffirait pas à faire passer la preuve.
+    const vus = [];
+    const effetOrdonne = (echouantSur) => async (contexte) => {
+      const { envelope } = contexte.message;
+      if (envelope.messageId === echouantSur) {
+        throw Object.assign(new Error("panne ordonnee injectee"), { code: "CI_OUTBOX_ORDER_FAULT" });
+      }
+      vus.push(envelope);
+      await effetIncrement(contexte);
+    };
+
+    for (const message of [bloque[0], libre[0], bloque[1], libre[1], bloque[2]]) {
+      await publier(pool, message);
+    }
+    assert.equal(await profondeur(pool, queue), 5, "(g) les cinq messages entrelacés doivent être en file");
+
+    const lotOrdonne = await consommer(connexionA, effetOrdonne(bloque[0].messageId), {
+      batchSize: 5,
+      visibilityTimeoutSeconds: 0,
+    });
+    assert.equal(lotOrdonne.read, 5, "(g) le lot doit contenir les deux agrégats entrelacés");
+    assert.equal(lotOrdonne.failed, 1, "(g) seul le message le plus ancien de l'agrégat bloqué échoue");
+    assert.equal(lotOrdonne.skippedForOrder, 2, "(g) ses deux successeurs doivent être écartés, pas traités");
+    assert.equal(lotOrdonne.processed, 2, "(g) l'agrégat libre traverse le lot sans être freiné");
+    assert.equal(lotOrdonne.hasMore, true, "(g) des messages écartés signifient du travail resté en file");
+    assert.deepEqual(
+      vus.map((envelope) => envelope.messageId),
+      [libre[0].messageId, libre[1].messageId],
+      "(g) aucun successeur de l'agrégat bloqué ne doit atteindre le handler",
+    );
+    assert.equal(
+      await effets(pool),
+      effetsAvantOrdre + 2,
+      "(g) seuls les deux effets de l'agrégat libre doivent être appliqués",
+    );
+
+    // Intacts en file : ni consommés, ni pénalisés. `read_ct` vaut 1 parce que `pgmq.read`
+    // l'incrémente à la lecture, AVANT toute décision du worker — limite connue et assumée,
+    // le worker n'y ajoute lui-même aucune pénalité (aucun set_vt, aucun échec journalisé).
+    const restants = await pool.query(
+      `select msg_id, read_ct, message->>'messageId' as message_id from pgmq."q_${queue}" order by msg_id`,
+    );
+    assert.deepEqual(
+      restants.rows.map((ligne) => ligne.message_id),
+      bloque.map((message) => message.messageId),
+      "(g) les trois messages de l'agrégat bloqué doivent rester en file, dans l'ordre des msg_id",
+    );
+    assert.deepEqual(
+      restants.rows.map((ligne) => ligne.read_ct),
+      [1, 1, 1],
+      "(g) les messages écartés ne subissent aucune lecture ni pénalité supplémentaire",
+    );
+    assert.equal(
+      (
+        await pool.query("select count(*)::int as total from deferred.effect_failures where message_id = any($1::uuid[])", [
+          [bloque[1].messageId, bloque[2].messageId],
+        ])
+      ).rows[0].total,
+      0,
+      "(g) un message écarté n'est PAS un message en échec : rien ne doit être journalisé à son nom",
+    );
+    assert.equal(
+      (
+        await pool.query("select count(*)::int as total from deferred.processed_messages where message_id = any($1::uuid[])", [
+          bloque.map((message) => message.messageId),
+        ])
+      ).rows[0].total,
+      0,
+      "(g) aucun message de l'agrégat bloqué ne doit avoir été revendiqué",
+    );
+
+    // Lot suivant : le message bloquant garde le plus petit msg_id, il est donc relu en
+    // premier et l'agrégat repart dans l'ordre de ses versions.
+    const repriseOrdonnee = await consommer(connexionB, effetOrdonne(null), { batchSize: 5 });
+    assert.equal(repriseOrdonnee.processed, 3, "(g) l'agrégat débloqué doit être entièrement traité au lot suivant");
+    assert.equal(repriseOrdonnee.skippedForOrder, 0, "(g) plus rien à écarter une fois le prédécesseur passé");
+    assert.deepEqual(
+      vus.slice(2).map((envelope) => envelope.aggregateVersion),
+      [1, 2, 3],
+      "(g) l'agrégat repris doit l'être dans l'ordre de ses versions, du plus ancien au plus récent",
+    );
+    assert.equal(await profondeur(pool, queue), 0, "(g) la file doit finir vide, sans perte ni doublon");
+    assert.equal(
+      await effets(pool),
+      effetsAvantOrdre + 5,
+      "(g) chaque message des deux agrégats doit produire exactement un effet",
+    );
+
     process.stdout.write(
       "Canari outbox: (a) rollback sans publication, (b) rejeu idempotent sur deux connexions, " +
         "(c) routage DLQ documente au-dela du seuil, (d) reprise depuis la DLQ, " +
-        "(e) refus 401 du Route Handler, (f) lot borne et revisibilite apres VT.\n",
+        "(e) refus 401 du Route Handler, (f) lot borne et revisibilite apres VT, " +
+        "(g) ordre par agregat preserve dans le lot et entre deux lots.\n",
     );
   } finally {
     connexionA?.release();

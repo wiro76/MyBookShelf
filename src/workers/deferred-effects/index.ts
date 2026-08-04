@@ -12,7 +12,8 @@ import type { Pool, PoolClient } from "pg";
  *
  * Garanties :
  * - livraison at-least-once, idempotence assurée par `deferred.processed_messages` ;
- * - ordre non garanti globalement (AD-1) ;
+ * - ordre PAR AGRÉGAT à l'intérieur d'un lot (AD-1), aucun ordre global — voir
+ *   `blockedAggregates` dans `processDeferredEffects` pour la garantie exacte et ses limites ;
  * - la suppression du message n'intervient QUE après le COMMIT de l'effet.
  */
 
@@ -145,10 +146,21 @@ export type ProcessDeferredEffectsResult = {
   /** Messages dont le routage DLQ a échoué : ils restent en file et redeviendront visibles. */
   deadLetterFailed: number;
   failed: number;
+  /**
+   * Messages écartés du lot pour préserver l'ordre par agrégat (AD-1) : un message
+   * antérieur du MÊME `aggregateId` n'a pas abouti pendant ce lot. Ils sont restés
+   * intacts en file — ni consommés, ni comptés en échec, ni pénalisés par un backoff.
+   *
+   * Compteur dédié et non silence : sans lui, un agrégat durablement bloqué se
+   * traduisait par un lot « lu 10, traité 3 » sans que rien ne dise pourquoi, et la
+   * différence entre une file saine et un agrégat en souffrance était invisible.
+   */
+  skippedForOrder: number;
   stoppedForTime: boolean;
   /**
    * `true` quand du travail reste très probablement en file à la fin de l'exécution :
-   * lot revenu plein (`read === batchSize`) ou arrêt sur deadline. Une exécution ne
+   * lot revenu plein (`read === batchSize`), arrêt sur deadline, ou messages écartés
+   * pour préserver l'ordre par agrégat (`skippedForOrder`). Une exécution ne
    * traite QU'UN lot ; sans cet indicateur, une file saturée et une file vide rendaient
    * exactement la même réponse HTTP 200 et la saturation restait invisible.
    * `false` avec `skipped: true` ne signifie rien : aucun lot n'a été lu.
@@ -441,6 +453,49 @@ type QueueRow = {
   message: unknown;
 };
 
+// --- Ordre par agrégat (AD-1) ---------------------------------------------
+
+/**
+ * `msg_id` est un `bigserial` Postgres : node-postgres le rend en CHAÎNE, sans quoi les
+ * identifiants au-delà de 2^53 seraient silencieusement arrondis. Le tri doit donc être
+ * numérique et non lexicographique — `"10" < "9"` en comparaison de chaînes, ce qui
+ * inverserait exactement l'ordre qu'on prétend garantir dès le dixième message.
+ */
+function parseMsgIdOrder(value: unknown): bigint | null {
+  try {
+    return BigInt(String(value));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * `pgmq.read` sélectionne bien `order by msg_id asc ... for update skip locked`, mais
+ * l'ordre des lignes RENDUES par un `update ... returning` n'est garanti par aucun
+ * contrat Postgres. S'appuyer sur l'ordre observé aujourd'hui reviendrait à faire
+ * dépendre un invariant d'architecture d'un détail d'implémentation d'une extension
+ * tierce. On retrie donc explicitement, ici, où la garantie est vérifiable.
+ *
+ * Repli sûr : si UN seul `msg_id` est illisible, on rend le lot dans l'ordre reçu plutôt
+ * que d'imposer un ordre arbitraire — un tri partiel serait pire qu'un tri absent.
+ * L'index sert de départage stable, `Array.prototype.sort` n'étant stable que depuis
+ * ES2019 côté spécification.
+ */
+function orderRowsByMsgId(rows: readonly QueueRow[]): QueueRow[] {
+  const decorees: { row: QueueRow; index: number; order: bigint }[] = [];
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index];
+    const order = parseMsgIdOrder(row.msg_id);
+    if (order === null) return [...rows];
+    decorees.push({ row, index, order });
+  }
+  decorees.sort((gauche, droite) => {
+    if (gauche.order === droite.order) return gauche.index - droite.index;
+    return gauche.order < droite.order ? -1 : 1;
+  });
+  return decorees.map((decoree) => decoree.row);
+}
+
 // --- Traitement d'un message ----------------------------------------------
 
 type MessageOutcome = "processed" | "duplicated";
@@ -650,6 +705,7 @@ export async function processDeferredEffects(
     deadLettered: 0,
     deadLetterFailed: 0,
     failed: 0,
+    skippedForOrder: 0,
     stoppedForTime: false,
     hasMore: false,
     durationMs: 0,
@@ -700,7 +756,48 @@ export async function processDeferredEffects(
     const batch = await client.query<QueueRow>(SQL.read, [queue, visibilityTimeoutSeconds, batchSize]);
     result.read = batch.rows.length;
 
-    for (const row of batch.rows) {
+    /**
+     * ORDRE PAR AGRÉGAT (AD-1), appliqué ici et nulle part ailleurs.
+     *
+     * Ce que cette structure garantit, exactement :
+     * les messages du lot sont parcourus par `msg_id` croissant (voir `orderRowsByMsgId`) ;
+     * dès qu'un message n'aboutit PAS — échec de traitement, routage DLQ (réussi ou non),
+     * seuil de tentatives dépassé — son `aggregateId` entre ici, et tout message suivant
+     * du MÊME agrégat est écarté du lot. Écarté veut dire strictement intact : ni
+     * `pgmq.delete`, ni `pgmq.set_vt`, ni ligne dans `deferred.effect_failures`, ni
+     * incrément de `failed`. Seul `skippedForOrder` bouge. L'arrêt sur deadline, lui,
+     * interrompt le lot entier : il ne peut donc pas non plus doubler un message resté
+     * derrière lui.
+     *
+     * D'un lot au suivant, l'ordre repose sur pgmq : `msg_id` est un `bigserial` et
+     * `pgmq.read` sert les messages visibles du plus petit `msg_id` au plus grand. Le
+     * message bloquant, resté en file, garde donc un `msg_id` inférieur à ses successeurs
+     * et sera relu avant eux — à condition que son VT ait expiré, ce qui est assuré par
+     * `VISIBILITY_TIMEOUT_SECONDS` (30 s) très inférieur à la période du cron.
+     *
+     * CE QUE CELA NE COUVRE PAS — à lire avant de s'y fier :
+     *
+     * 1. Ordre de publication ≠ ordre de `msg_id`. Le `bigserial` est alloué à l'INSERT,
+     *    pas au COMMIT : deux producteurs concurrents peuvent obtenir 41 puis 42 et
+     *    commiter dans l'ordre inverse. Un lot lu entre les deux commits verra 42 seul,
+     *    donc A2 avant A1. Rien ici ne le détecte, et `aggregateVersion` n'est JAMAIS
+     *    relu : ni trou, ni inversion, ni doublon de version ne sont vérifiés.
+     * 2. Une enveloppe ILLISIBLE ne bloque aucun agrégat : `aggregateId` est précisément
+     *    la donnée qu'on n'a pas pu lire. Elle part en DLQ et le lot continue.
+     * 3. `pgmq.read` incrémente `read_ct` AVANT toute décision du worker : un message
+     *    écarté voit malgré tout son compteur monter. Un agrégat bloqué durablement peut
+     *    donc voir ses messages suivants franchir `retryThreshold` et partir en DLQ sans
+     *    avoir jamais été tentés. pgmq n'offre aucun moyen de décrémenter `read_ct` ; la
+     *    DLQ et son action de reprise restent le filet, et l'ordre y est perdu.
+     * 4. La sérialisation entre exécutions est celle du verrou consultatif global
+     *    (`ADVISORY_LOCK_KEY`). Deux workers qui n'utiliseraient pas la même clé liraient
+     *    deux lots disjoints du même agrégat et cette garantie tomberait entièrement.
+     * 5. Aucun ordre n'est offert ENTRE agrégats, ni globalement. C'est le contrat AD-1,
+     *    pas une lacune : un agrégat bloqué ne freine aucun autre, le débit est préservé.
+     */
+    const blockedAggregates = new Set<string>();
+
+    for (const row of orderRowsByMsgId(batch.rows)) {
       if (now() >= deadline) {
         // Les messages non traités redeviennent visibles à l'expiration du VT.
         result.stoppedForTime = true;
@@ -724,6 +821,14 @@ export async function processDeferredEffects(
         continue;
       }
 
+      // Un prédécesseur du même agrégat n'a pas abouti : on laisse ce message EN FILE,
+      // sans y toucher, plutôt que de le doubler. Il sera relu au prochain lot, derrière
+      // son prédécesseur qui porte un `msg_id` inférieur.
+      if (blockedAggregates.has(envelope.aggregateId)) {
+        result.skippedForOrder += 1;
+        continue;
+      }
+
       const message: DeferredEffectMessage = {
         msgId: row.msg_id,
         readCt: row.read_ct,
@@ -734,6 +839,10 @@ export async function processDeferredEffects(
 
       if (message.readCt > retryThreshold) {
         // Seuil atteint : routage DLQ SANS tenter le traitement.
+        // L'agrégat est bloqué dans les deux issues possibles : routage réussi, car le
+        // message part en DLQ et devra être rejoué AVANT ses successeurs ; routage
+        // échoué, car le message reste en file et n'a toujours pas abouti.
+        blockedAggregates.add(envelope.aggregateId);
         const failureReason = await readFailureReason(client, envelope.messageId, message.readCt);
         await tryRouteToDeadLetterQueue(message.msgId, {
           ...envelope,
@@ -750,6 +859,7 @@ export async function processDeferredEffects(
         else result.processed += 1;
       } catch (error) {
         result.failed += 1;
+        blockedAggregates.add(envelope.aggregateId);
         await recordFailure(client, envelope.messageId, message.readCt, error);
         if (typeof retryBackoffSeconds === "number") {
           try {
@@ -768,8 +878,11 @@ export async function processDeferredEffects(
      * injustifiés. On rend donc l'information au lieu de la consommer : le lot revenu
      * plein signale une file qui n'est probablement pas vidée, l'arrêt sur deadline
      * signale des messages lus mais non traités. L'appelant (cron, supervision) décide.
+     *
+     * `skippedForOrder > 0` compte aussi : ces messages sont CERTAINEMENT restés en file,
+     * c'est le seul des trois signaux qui ne relève pas de la présomption.
      */
-    result.hasMore = batch.rows.length >= batchSize || result.stoppedForTime;
+    result.hasMore = batch.rows.length >= batchSize || result.stoppedForTime || result.skippedForOrder > 0;
 
     return result;
   } finally {
