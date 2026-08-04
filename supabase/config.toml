@@ -1,0 +1,16 @@
+project_id = "my-bookshelf-ci"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[studio]
+enabled = false
+
+[analytics]
+enabled = false

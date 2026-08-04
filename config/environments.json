@@ -1,0 +1,6 @@
+{
+  "local": "local-mbs-v1",
+  "preview": "preview-mbs-v1",
+  "staging": "staging-mbs-v1",
+  "production": "production-mbs-v1"
+}

@@ -1,0 +1,42 @@
+import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { delimiter, dirname } from "node:path";
+import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
+
+const baseEnv = { ...process.env, PATH: `${dirname(process.execPath)}${delimiter}${process.env.PATH ?? ""}` };
+const run = (command, args, options = {}) => {
+  const result = spawnSync(command, args, { env: baseEnv, encoding: "utf8", maxBuffer: 20 * 1024 * 1024, ...options });
+  if (result.error) throw result.error;
+  return result;
+};
+const runMustFail = (gate, command, args, options = {}) => {
+  const result = run(command, args, options);
+  if (result.status === 0 || result.status === null) throw new Error(`Mutation non détectée par la porte ${gate}`);
+  process.stdout.write(`Porte ${gate}: mutation rejetée (exit ${result.status})\n`);
+};
+const temporary = (directory, extension, content, verify) => {
+  const path = `${directory}/ci-invalid-${randomUUID()}.${extension}`;
+  writeFileSync(path, content, { flag: "wx" });
+  try { verify(path); } finally { unlinkSync(path); }
+};
+const mutate = (path, transform, verify) => {
+  const original = readFileSync(path, "utf8");
+  const changed = transform(original);
+  if (changed === original) throw new Error(`Transformation inopérante refusée: ${path}`);
+  writeFileSync(path, changed);
+  try { verify(); } finally { writeFileSync(path, original); }
+};
+
+temporary("tests/unit", "test.mjs", 'import { test } from "node:test"; import assert from "node:assert/strict"; test("mutation", () => assert.equal(1, 2));\n', () => runMustFail("unit", "npm", ["run", "ci:unit"]));
+temporary("tests/integration", "test.mjs", 'import { test } from "node:test"; test("mutation", () => { throw new Error("mutation"); });\n', () => runMustFail("integration", "npm", ["run", "ci:integration"]));
+temporary("src/shared/config", "ts", "const value: string = 42; export { value };\n", () => runMustFail("types", "npm", ["run", "ci:types"]));
+temporary(".", "mjs", "const broken = ;\n", () => runMustFail("lint", "npm", ["run", "ci:lint"]));
+mutate("src/app/page.tsx", (source) => source.replace("export default function Home() {", 'export default function Home() { throw new Error("ci-static-mutation");'), () => {
+  const types = run("npm", ["run", "ci:types"]);
+  if (types.status !== 0) throw new Error("La mutation statique ne doit pas être une mutation TypeScript.");
+  runMustFail("static", "npm", ["run", "ci:static"]);
+});
+temporary("tests/e2e", "spec.ts", 'import { expect, test } from "@playwright/test"; test("mutation", async () => expect(1).toBe(2));\n', () => runMustFail("browser", "npm", ["run", "ci:e2e", "--", "--grep", "mutation"]));
+mutate("tests/fixtures/ux-budget.html", (source) => source.replace("list.append(list.firstElementChild);", "setTimeout(() => list.append(list.firstElementChild), 501);"), () => runMustFail("budgets", "npm", ["run", "ci:budgets"]));
+mutate("supabase/tests/database/rls.test.sql", (source) => source.replace("using (owner_id = (select auth.uid()))\n  with check (owner_id = (select auth.uid()))", "using (true)\n  with check (true)"), () => runMustFail("database", "npm", ["run", "ci:database"]));
+runMustFail("environment", process.execPath, ["scripts/verify-environment-isolation.mjs"], { env: { ...baseEnv, APP_ENV: "preview", TARGET_FINGERPRINT: "production-mbs-v1", SUPABASE_URL: "https://production.example.invalid", SUPABASE_ANON_KEY: "preview-only" } });
