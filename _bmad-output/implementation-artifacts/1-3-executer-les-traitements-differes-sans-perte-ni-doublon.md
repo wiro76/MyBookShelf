@@ -101,24 +101,24 @@ Restent ouverts.
 
 **Décisions attendues**
 
-- [ ] [Review][Decision] Ordre par agrégat non implémenté — AD-1 exige « ordre par agrégat » ; `aggregateId` est parsé (`src/workers/deferred-effects/index.ts:225`) puis jamais relu. Aucun tri, aucun verrou, aucune preuve. À implémenter, ou à assumer explicitement comme écart au MVP.
+- [ ] [Review][Decision] Ordre par agrégat non implémenté — AD-1 exige « ordre par agrégat » ; `aggregateId` est validé comme UUID puis jamais relu dans `src/workers/deferred-effects/index.ts`. Aucun tri, aucun verrou, aucune preuve ne s'y appuie. La sérialisation globale par verrou consultatif couvre la concurrence entre exécutions, pas l'ordre intra-agrégat : un message en échec reste en file pendant que les suivants du même agrégat sont traités. À implémenter, ou à assumer explicitement comme écart au MVP.
 - [ ] [Review][Decision] Aucune politique de rétention sur `deferred.processed_messages` — la table croît à vie et porte seule la garantie anti-doublon. La purger naïvement réactiverait le double traitement des messages purgés, sans garde-fou.
-- [ ] [Review][Decision] `src/shared/kernel/transaction.ts` est du code mort — aucun appelant ; le worker réécrit `BEGIN`/`COMMIT`/`ROLLBACK` quatre fois (`:277`, `:309`, `:365`, `:573`), ce que T2 interdisait. La duplication vient de la contrainte d'importabilité depuis un `.mjs` (aucun import relatif). Soit supprimer le wrapper, soit lever la contrainte.
-- [ ] [Review][Decision] `VISIBILITY_TIMEOUT_SECONDS = 60` égale `maxDuration = 60`, alors que T2 exigeait « nettement sous ». Un handler dépassant 10 s peut voir son message redevenir visible pendant son exécution.
-- [ ] [Review][Decision] `.github/workflows/ci.yml` n'a jamais reçu `DATABASE_URL` ni `DEFERRED_EFFECTS_WORKER_SECRET` — sans effet aujourd'hui car le harnais les injecte, mais T6 le demandait.
+- [x] [Review][Decision] `src/shared/kernel/transaction.ts` supprimé (aucun appelant ; le worker doit rester importable depuis un `.mjs`) — anciennement code mort — aucun appelant ; le worker réécrit `BEGIN`/`COMMIT`/`ROLLBACK` quatre fois (`:277`, `:309`, `:365`, `:573`), ce que T2 interdisait. La duplication vient de la contrainte d'importabilité depuis un `.mjs` (aucun import relatif). Soit supprimer le wrapper, soit lever la contrainte.
+- [x] [Review][Decision] VT ramené à 30 s, ordre `VT < deadline < maxDuration` documenté — anciennement `VISIBILITY_TIMEOUT_SECONDS = 60` égale `maxDuration = 60`, alors que T2 exigeait « nettement sous ». Un handler dépassant 10 s peut voir son message redevenir visible pendant son exécution.
+- [x] [Review][Decision] Écart T6 sur `.github/workflows/ci.yml` refermé par vérification, sans modification : `run-database-gates.mjs` injecte lui-même `DATABASE_URL` et un secret jetable par exécution au seul processus qui les consomme, et aucun script du job `quality` ne lit ces variables — `ci:static` passe sans elles. Les ajouter au workflow aurait été redondant et aurait risqué d'écraser l'injection correcte.
 - [ ] [Review][Decision] Le secret du worker transite en clair dans les en-têtes `pg_net`, matérialisés en table du schéma `net` (`supabase/cron/deferred-effects.sql:81`). Toute lecture de ce schéma, et toute sauvegarde logique, l'expose.
 
 **Correctifs sans ambiguïté, non appliqués**
 
-- [ ] [Review][Patch] `deferred.publish_effect` ne valide que la présence des clés — `'{"payloadVersion": null}' ? 'payloadVersion'` vaut vrai. Une enveloppe à valeur nulle est publiée puis rejetée à la consommation, exactement le bug silencieux que T1 voulait interdire [`supabase/migrations/20260805000100_deferred_effects_expand.sql:44`]
-- [ ] [Review][Patch] Migration non rejouable — `create schema deferred` et les `pgmq.create` sont sans garde d'existence ; un échec partiel ne se répare pas par relance [`supabase/migrations/20260805000100_deferred_effects_expand.sql:3`]
-- [ ] [Review][Patch] Options du worker non validées — `shutdownMarginMs >= maxDurationMs` produit un `stoppedForTime` immédiat à chaque tick, `batchSize <= 0` un no-op silencieux, `retryBackoffSeconds` négatif une boucle chaude qui brûle les 5 tentatives en millisecondes [`src/workers/deferred-effects/index.ts:389`]
-- [ ] [Review][Patch] Un seul lot par exécution, sans indicateur de reste — débit plafonné à `batchSize` par tick, et une file saturée est indiscernable d'une file vide [`src/workers/deferred-effects/index.ts:437`]
-- [ ] [Review][Patch] Rejeu DLQ bloqué en tête de file — une enveloppe illisible est comptée `discarded` puis laissée en place, sans `set_vt` ni suppression ; `batchSize` entrées irrécupérables rendent tout rejeu impossible [`src/workers/deferred-effects/index.ts:564`]
-- [ ] [Review][Patch] `describeError` peut lever hors de tout `try` sur une erreur exotique, tuant l'exécution au lieu de la journaliser [`src/workers/deferred-effects/index.ts:307`]
-- [ ] [Review][Patch] `occurredAt` accepté comme toute chaîne non vide, sans `Date.parse` [`src/workers/deferred-effects/index.ts:228`]
-- [ ] [Review][Patch] `quote()` n'échappe que les espaces — un `&`, `^` ou `%` dans le chemin `%TEMP%` casse la commande sous `cmd.exe` [`scripts/run-database-gates.mjs:35`]
-- [ ] [Review][Patch] Aucun test unitaire sur les fonctions pures (`parseDeferredEffectEnvelope`, `createJobId`, `isAuthorized`) — leur seule couverture est le canari, qui exige Docker
+- [x] [Review][Patch] `deferred.publish_effect` ne valide que la présence des clés — `'{"payloadVersion": null}' ? 'payloadVersion'` vaut vrai. Une enveloppe à valeur nulle est publiée puis rejetée à la consommation, exactement le bug silencieux que T1 voulait interdire [`supabase/migrations/20260805000100_deferred_effects_expand.sql:44`]
+- [x] [Review][Patch] Migration non rejouable — `create schema deferred` et les `pgmq.create` sont sans garde d'existence ; un échec partiel ne se répare pas par relance [`supabase/migrations/20260805000100_deferred_effects_expand.sql:3`]
+- [x] [Review][Patch] Options du worker non validées — `shutdownMarginMs >= maxDurationMs` produit un `stoppedForTime` immédiat à chaque tick, `batchSize <= 0` un no-op silencieux, `retryBackoffSeconds` négatif une boucle chaude qui brûle les 5 tentatives en millisecondes [`src/workers/deferred-effects/index.ts:389`]
+- [x] [Review][Patch] Un seul lot par exécution, sans indicateur de reste — débit plafonné à `batchSize` par tick, et une file saturée est indiscernable d'une file vide [`src/workers/deferred-effects/index.ts:437`]
+- [x] [Review][Patch] Rejeu DLQ bloqué en tête de file — une enveloppe illisible est comptée `discarded` puis laissée en place, sans `set_vt` ni suppression ; `batchSize` entrées irrécupérables rendent tout rejeu impossible [`src/workers/deferred-effects/index.ts:564`]
+- [x] [Review][Patch] `describeError` peut lever hors de tout `try` sur une erreur exotique, tuant l'exécution au lieu de la journaliser [`src/workers/deferred-effects/index.ts:307`]
+- [x] [Review][Patch] `occurredAt` accepté comme toute chaîne non vide, sans `Date.parse` [`src/workers/deferred-effects/index.ts:228`]
+- [x] [Review][Patch] `quote()` n'échappe que les espaces — un `&`, `^` ou `%` dans le chemin `%TEMP%` casse la commande sous `cmd.exe` [`scripts/run-database-gates.mjs:35`]
+- [x] [Review][Patch] Aucun test unitaire sur les fonctions pures (`parseDeferredEffectEnvelope`, `createJobId`, `isAuthorized`) — leur seule couverture est le canari, qui exige Docker
 
 **Écarté**
 
@@ -290,12 +290,12 @@ La porte de mutation casse réellement l'idempotence du worker (`on conflict do 
 
 Fichiers créés :
 
+- `tests/unit/deferred-effects.test.mjs`
 - `supabase/migrations/20260805000100_deferred_effects_expand.sql`
 - `supabase/tests/database/deferred-effects.test.sql`
 - `supabase/cron/deferred-effects.sql`
 - `src/shared/kernel/index.ts`
 - `src/shared/kernel/pool.ts`
-- `src/shared/kernel/transaction.ts`
 - `src/workers/deferred-effects/index.ts`
 - `src/app/api/deferred-effects/process/route.ts`
 - `tests/integration/database-outbox-canary.mjs`
