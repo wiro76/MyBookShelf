@@ -8,3 +8,4 @@
 
 [core]
 project_name = "Bibiliothéque virtuelle"
+document_output_language = "French"
