@@ -4,7 +4,7 @@ baseline_commit: 928c5f67a1759e29649d48988288c8a5e5e71cd9
 
 # Story 1.3 : Exécuter les traitements différés sans perte ni doublon
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -316,3 +316,7 @@ Fichiers modifiés :
 | Date | Description |
 |---|---|
 | 2026-08-04 | Story créée et contextualisée, statut `ready-for-dev`. |
+| 2026-08-04 | Outbox implémenté : migration pgmq, worker, Route Handler, canari à six preuves, porte CI de mutation. |
+| 2026-08-05 | Revue adversariale en trois couches. Six défauts corrigés, dont `publish_effect` inutilisable par `service_role` et la garde d'isolation inopérante sans `APP_ENV`. |
+| 2026-08-05 | Durcissement : validation d'enveloppe par type côté SQL, options du worker validées, archivage des entrées DLQ illisibles, 65 tests unitaires, VT ramené à 30 s, `transaction.ts` supprimé. |
+| 2026-08-05 | Ordre par agrégat (AD-1) implémenté et prouvé, purge d'idempotence sûre livrée, limitation `pg_net` établie et documentée. Statut `done`. |
