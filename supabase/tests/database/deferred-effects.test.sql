@@ -1,5 +1,5 @@
 begin;
-select plan(19);
+select plan(29);
 
 select has_schema('deferred', 'le schema dedie deferred existe');
 select has_table('pgmq', 'q_deferred_effects', 'la queue pgmq deferred_effects existe');
@@ -46,6 +46,114 @@ select throws_ok(
       'payload', jsonb_build_object('kind', 'noop')
     ))$$,
   '22023', null, 'enveloppe sans payloadVersion rejetee'
+);
+
+-- Presence != validite : `'{"payloadVersion": null}'::jsonb ? 'payloadVersion'` vaut vrai.
+-- Sans controle de type, ces enveloppes partaient en queue et n'echouaient qu'a la
+-- consommation, en DLQ. Le producteur doit echouer ICI, a la publication.
+select throws_ok(
+  $$select deferred.publish_effect('deferred_effects', jsonb_build_object(
+      'messageId', '018f5a1e-0000-7000-8000-000000000001',
+      'eventType', 'ci.canary.effect.requested',
+      'producer', 'ci-canary',
+      'aggregateId', '018f5a1e-0000-7000-8000-000000000002',
+      'aggregateVersion', 1,
+      'payloadVersion', null::text,
+      'occurredAt', '2026-08-05T00:00:00Z',
+      'payload', jsonb_build_object('kind', 'noop')
+    ))$$,
+  '22023', null, 'enveloppe avec payloadVersion null rejetee'
+);
+select throws_ok(
+  $$select deferred.publish_effect('deferred_effects', jsonb_build_object(
+      'messageId', 'pas-un-uuid',
+      'eventType', 'ci.canary.effect.requested',
+      'producer', 'ci-canary',
+      'aggregateId', '018f5a1e-0000-7000-8000-000000000002',
+      'aggregateVersion', 1,
+      'payloadVersion', 1,
+      'occurredAt', '2026-08-05T00:00:00Z',
+      'payload', jsonb_build_object('kind', 'noop')
+    ))$$,
+  '22023', null, 'enveloppe avec messageId non UUID rejetee'
+);
+select throws_ok(
+  $$select deferred.publish_effect('deferred_effects', jsonb_build_object(
+      'messageId', '018f5a1e-0000-7000-8000-000000000001',
+      'eventType', 'ci.canary.effect.requested',
+      'producer', 'ci-canary',
+      'aggregateId', 'pas-un-uuid-non-plus',
+      'aggregateVersion', 1,
+      'payloadVersion', 1,
+      'occurredAt', '2026-08-05T00:00:00Z',
+      'payload', jsonb_build_object('kind', 'noop')
+    ))$$,
+  '22023', null, 'enveloppe avec aggregateId non UUID rejetee'
+);
+select throws_ok(
+  $$select deferred.publish_effect('deferred_effects', jsonb_build_object(
+      'messageId', '018f5a1e-0000-7000-8000-000000000001',
+      'eventType', 'ci.canary.effect.requested',
+      'producer', 'ci-canary',
+      'aggregateId', '018f5a1e-0000-7000-8000-000000000002',
+      'aggregateVersion', 1.5,
+      'payloadVersion', 1,
+      'occurredAt', '2026-08-05T00:00:00Z',
+      'payload', jsonb_build_object('kind', 'noop')
+    ))$$,
+  '22023', null, 'enveloppe avec aggregateVersion non entier rejetee'
+);
+select throws_ok(
+  $$select deferred.publish_effect('deferred_effects', jsonb_build_object(
+      'messageId', '018f5a1e-0000-7000-8000-000000000001',
+      'eventType', 'ci.canary.effect.requested',
+      'producer', 'ci-canary',
+      'aggregateId', '018f5a1e-0000-7000-8000-000000000002',
+      'aggregateVersion', 1,
+      'payloadVersion', '1',
+      'occurredAt', '2026-08-05T00:00:00Z',
+      'payload', jsonb_build_object('kind', 'noop')
+    ))$$,
+  '22023', null, 'enveloppe avec payloadVersion en chaine rejetee'
+);
+select throws_ok(
+  $$select deferred.publish_effect('deferred_effects', jsonb_build_object(
+      'messageId', '018f5a1e-0000-7000-8000-000000000001',
+      'eventType', '',
+      'producer', 'ci-canary',
+      'aggregateId', '018f5a1e-0000-7000-8000-000000000002',
+      'aggregateVersion', 1,
+      'payloadVersion', 1,
+      'occurredAt', '2026-08-05T00:00:00Z',
+      'payload', jsonb_build_object('kind', 'noop')
+    ))$$,
+  '22023', null, 'enveloppe avec eventType vide rejetee'
+);
+select throws_ok(
+  $$select deferred.publish_effect('deferred_effects', jsonb_build_object(
+      'messageId', '018f5a1e-0000-7000-8000-000000000001',
+      'eventType', 'ci.canary.effect.requested',
+      'producer', 'ci-canary',
+      'aggregateId', '018f5a1e-0000-7000-8000-000000000002',
+      'aggregateVersion', 1,
+      'payloadVersion', 1,
+      'occurredAt', 1754352000,
+      'payload', jsonb_build_object('kind', 'noop')
+    ))$$,
+  '22023', null, 'enveloppe avec occurredAt non chaine rejetee'
+);
+select throws_ok(
+  $$select deferred.publish_effect('deferred_effects', jsonb_build_object(
+      'messageId', '018f5a1e-0000-7000-8000-000000000001',
+      'eventType', 'ci.canary.effect.requested',
+      'producer', 'ci-canary',
+      'aggregateId', '018f5a1e-0000-7000-8000-000000000002',
+      'aggregateVersion', 1,
+      'payloadVersion', 1,
+      'occurredAt', '2026-08-05T00:00:00Z',
+      'payload', 'pas un objet'
+    ))$$,
+  '22023', null, 'enveloppe avec payload non objet rejetee'
 );
 
 select ok(
@@ -107,6 +215,28 @@ select throws_ok(
   '42501', null, 'authenticated ne peut pas lire deferred.effect_failures'
 );
 reset role;
+
+-- Rejouabilite de la migration : un echec partiel ne doit pas laisser un etat que la
+-- relance refuse de reparer. On rejoue ici les deux seules instructions qui n'avaient
+-- aucune garde d'existence, sur une base ou les objets existent deja.
+select lives_ok(
+  $$create schema if not exists deferred$$,
+  'la creation du schema deferred est rejouable'
+);
+select lives_ok(
+  $sql$do $replay$
+begin
+  if not exists (select 1 from pgmq.list_queues() as q where q.queue_name = 'deferred_effects') then
+    perform pgmq.create('deferred_effects');
+  end if;
+
+  if not exists (select 1 from pgmq.list_queues() as q where q.queue_name = 'deferred_effects_dlq') then
+    perform pgmq.create('deferred_effects_dlq');
+  end if;
+end;
+$replay$$sql$,
+  'la creation des queues pgmq est rejouable'
+);
 
 select * from finish();
 rollback;

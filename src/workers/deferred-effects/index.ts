@@ -26,14 +26,35 @@ export const DEFERRED_EFFECTS_DEAD_LETTER_QUEUE = "deferred_effects_dlq";
 export const RETRY_THRESHOLD = 5;
 /** Taille du lot lu à chaque exécution. */
 export const BATCH_SIZE = 10;
-/** Timeout de visibilité pgmq, en secondes. Bien au-dessus d'un traitement, bien sous `maxDuration`. */
-export const VISIBILITY_TIMEOUT_SECONDS = 60;
+/**
+ * Timeout de visibilité pgmq, en secondes.
+ *
+ * Chaîne temporelle, du plus court au plus long — l'ordre est le contrat :
+ *
+ *   VT (30 s)  <  deadline (50 s)  <  maxDuration (60 s)
+ *   │             │                   │
+ *   │             │                   └─ `maxDuration` du Route Handler : au-delà,
+ *   │             │                      la plateforme tue le processus sans préavis.
+ *   │             └─ `MAX_DURATION_MS - SHUTDOWN_MARGIN_MS` : la boucle cesse de prendre
+ *   │                de nouveaux messages et rend son résultat proprement.
+ *   └─ un message lu et non traité redevient visible AVANT la fin de l'exécution
+ *      courante, donc bien avant le tick suivant du cron.
+ *
+ * 60 s (valeur précédente) était exactement égal à `maxDuration` : un message lu puis
+ * abandonné par un arrêt brutal restait invisible aussi longtemps que la fenêtre entière,
+ * et le VT expirait au moment même où la plateforme tuait le worker — aucune marge.
+ * 30 s reste très au-dessus d'un traitement nominal (quelques millisecondes) tout en
+ * garantissant la revisibilité avant l'expiration de la fenêtre HTTP.
+ */
+export const VISIBILITY_TIMEOUT_SECONDS = 30;
 /** Clé constante du verrou consultatif : sérialisation globale assumée au MVP. */
 export const ADVISORY_LOCK_KEY = 4210031003;
-/** `maxDuration` du Route Handler, en millisecondes. */
+/** `maxDuration` du Route Handler, en millisecondes. Voir `VISIBILITY_TIMEOUT_SECONDS`. */
 export const MAX_DURATION_MS = 60_000;
-/** Marge d'arrêt propre avant expiration de `maxDuration`. */
+/** Marge d'arrêt propre avant expiration de `maxDuration`. Voir `VISIBILITY_TIMEOUT_SECONDS`. */
 export const SHUTDOWN_MARGIN_MS = 10_000;
+/** Délai de mise à l'écart d'une entrée DLQ irrécupérable dont l'archivage a échoué. */
+export const QUARANTINE_VISIBILITY_SECONDS = 3_600;
 /** Nombre de messages DLQ rejoués par défaut lors d'une reprise. */
 export const REPLAY_BATCH_SIZE = 10;
 
@@ -125,6 +146,14 @@ export type ProcessDeferredEffectsResult = {
   deadLetterFailed: number;
   failed: number;
   stoppedForTime: boolean;
+  /**
+   * `true` quand du travail reste très probablement en file à la fin de l'exécution :
+   * lot revenu plein (`read === batchSize`) ou arrêt sur deadline. Une exécution ne
+   * traite QU'UN lot ; sans cet indicateur, une file saturée et une file vide rendaient
+   * exactement la même réponse HTTP 200 et la saturation restait invisible.
+   * `false` avec `skipped: true` ne signifie rien : aucun lot n'a été lu.
+   */
+  hasMore: boolean;
   durationMs: number;
 };
 
@@ -134,7 +163,14 @@ export type ReplayDeadLetteredEffectsResult = {
   reason: string | null;
   read: number;
   replayed: number;
+  /** Entrées DLQ illisibles rencontrées. Elles ne sont JAMAIS laissées en tête de file. */
   discarded: number;
+  /** Entrées illisibles déplacées vers la table d'archive pgmq, pour analyse humaine. */
+  archived: number;
+  /** Entrées dont le rejeu a échoué : restées en DLQ, elles redeviendront visibles. */
+  failed: number;
+  /** `true` quand le lot est revenu plein : relancer la reprise pour vider la DLQ. */
+  hasMore: boolean;
   messageIds: string[];
 };
 
@@ -181,15 +217,81 @@ const SQL = {
   publish: "select deferred.publish_effect($1, $2::jsonb) as msg_id",
   deleteMessage: "select pgmq.delete($1, $2::bigint) as deleted",
   setVisibilityTimeout: "select msg_id from pgmq.set_vt($1, $2::bigint, $3)",
+  archiveMessage: "select pgmq.archive($1, $2::bigint) as archived",
 } as const;
 
 // --- Utilitaires -----------------------------------------------------------
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ERROR_MESSAGE_MAX_LENGTH = 2000;
+/** ISO-8601 date-heure : `2026-08-05T00:00:00Z`, `2026-08-05T00:00:00.123+02:00`, … */
+const ISO_TIMESTAMP_PATTERN =
+  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,9})?)?(?:Z|z|[+-]\d{2}:?\d{2})?$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// --- Validation des options ------------------------------------------------
+
+/**
+ * Options incohérentes = erreur de programmation, pas d'aléa d'exploitation. On lève tôt,
+ * AVANT d'emprunter une connexion, plutôt que de dégrader silencieusement :
+ * `shutdownMarginMs >= maxDurationMs` rendait un `stoppedForTime: true` immédiat à chaque
+ * tick, en HTTP 200, indéfiniment ; `batchSize <= 0` faisait un no-op muet ;
+ * `retryThreshold < 1` envoyait tout en DLQ dès la première lecture ; un
+ * `retryBackoffSeconds` négatif transformait le backoff en boucle chaude qui brûlait les
+ * cinq tentatives en quelques millisecondes.
+ */
+export class DeferredEffectsOptionsError extends Error {
+  readonly code = "INVALID_WORKER_OPTIONS";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "DeferredEffectsOptionsError";
+  }
+}
+
+function describeOptionValue(value: unknown): string {
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "number" || typeof value === "boolean" || value === null) return String(value);
+  if (value === undefined) return "undefined";
+  return typeof value;
+}
+
+function requireNonEmptyString(name: string, value: unknown): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new DeferredEffectsOptionsError(
+      `${name} doit être une chaîne non vide (reçu : ${describeOptionValue(value)}).`,
+    );
+  }
+  return value;
+}
+
+/** `Number.isInteger` rejette d'office `NaN`, `Infinity` et les décimaux. */
+function requireInteger(name: string, value: unknown, minimum: number): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < minimum) {
+    throw new DeferredEffectsOptionsError(
+      `${name} doit être un entier supérieur ou égal à ${minimum} (reçu : ${describeOptionValue(value)}).`,
+    );
+  }
+  return value;
+}
+
+function requireConnection(value: unknown): void {
+  if (!isRecord(value) || typeof (value as { query?: unknown }).query !== "function") {
+    throw new DeferredEffectsOptionsError(
+      `connection doit être un Pool ou un PoolClient pg (reçu : ${describeOptionValue(value)}).`,
+    );
+  }
+}
+
+function requireDistinctQueues(queue: string, deadLetterQueue: string): void {
+  if (queue === deadLetterQueue) {
+    throw new DeferredEffectsOptionsError(
+      `queue et deadLetterQueue doivent être distinctes (reçu : ${JSON.stringify(queue)} pour les deux).`,
+    );
+  }
 }
 
 function isPoolClient(connection: Pool | PoolClient): connection is PoolClient {
@@ -217,6 +319,39 @@ export function createJobId(nowMs: number = Date.now()): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }
 
+/**
+ * `occurredAt` est un instant, pas un mot. Sans cette vérification, `occurredAt: "hier"`
+ * traversait toute la chaîne — validation, traitement, enveloppe DLQ — et n'était détecté
+ * que par un humain lisant la DLQ, ou jamais.
+ */
+export function isParsableTimestamp(value: string): boolean {
+  const parts = ISO_TIMESTAMP_PATTERN.exec(value);
+  if (!parts) return false;
+  const [, year, month, day, hour, minute, second] = parts;
+  const annee = Number(year);
+  const mois = Number(month);
+  const jour = Number(day);
+  if (mois < 1 || mois > 12 || jour < 1) return false;
+  if (Number(hour) > 23 || Number(minute) > 59) return false;
+  // 60 est toléré : c'est la seconde intercalaire d'ISO-8601.
+  if (second !== undefined && Number(second) > 60) return false;
+  /**
+   * `Date.parse` NE SUFFIT PAS : V8 accepte `2026-02-30T00:00:00Z` et le reporte
+   * silencieusement au 2 mars. On vérifie donc le calendrier réel par aller-retour.
+   * `setUTCFullYear` plutôt que `Date.UTC`, qui projetterait les années 0 à 99 sur 1900+.
+   */
+  const reference = new Date(0);
+  reference.setUTCFullYear(annee, mois - 1, jour);
+  if (
+    reference.getUTCFullYear() !== annee ||
+    reference.getUTCMonth() !== mois - 1 ||
+    reference.getUTCDate() !== jour
+  ) {
+    return false;
+  }
+  return !Number.isNaN(Date.parse(value));
+}
+
 /** Valide l'enveloppe AD-1 complète. Toute enveloppe incomplète est refusée. */
 export function parseDeferredEffectEnvelope(raw: unknown): DeferredEffectEnvelope | null {
   if (!isRecord(raw)) return null;
@@ -224,21 +359,68 @@ export function parseDeferredEffectEnvelope(raw: unknown): DeferredEffectEnvelop
   if (typeof messageId !== "string" || !UUID_PATTERN.test(messageId)) return null;
   if (typeof eventType !== "string" || eventType.length === 0) return null;
   if (typeof producer !== "string" || producer.length === 0) return null;
-  if (typeof aggregateId !== "string" || aggregateId.length === 0) return null;
+  // UUID exigé, comme pour messageId : l'architecture impose des UUIDv7 applicatifs et
+  // interdit les identifiants fournisseur. Le producteur SQL applique la même règle —
+  // toute divergence entre les deux ferait accepter à la publication ce que la
+  // consommation refuse, donc partir en DLQ un message que rien n'aurait dû produire.
+  if (typeof aggregateId !== "string" || !UUID_PATTERN.test(aggregateId)) return null;
   if (typeof aggregateVersion !== "number" || !Number.isInteger(aggregateVersion)) return null;
   if (typeof payloadVersion !== "number" || !Number.isInteger(payloadVersion)) return null;
   if (typeof occurredAt !== "string" || occurredAt.length === 0) return null;
+  if (!isParsableTimestamp(occurredAt)) return null;
   if (!isRecord(payload)) return null;
   return { messageId, eventType, producer, aggregateId, aggregateVersion, payloadVersion, occurredAt, payload };
 }
 
-function describeError(error: unknown): { errorCode: string; errorMessage: string } {
-  if (isRecord(error)) {
-    const code = typeof error.code === "string" && error.code.length > 0 ? error.code : "UNEXPECTED_ERROR";
-    const message = typeof error.message === "string" ? error.message : String(error);
-    return { errorCode: code, errorMessage: message.slice(0, ERROR_MESSAGE_MAX_LENGTH) };
+/**
+ * `String(value)` n'est PAS total : un objet sans prototype (`Object.create(null)`), un
+ * objet dont `Symbol.toPrimitive` lève, ou un Proxy piégé font lever la conversion.
+ * Trois filets successifs, du plus informatif au plus pauvre, et jamais de propagation.
+ */
+function safeStringify(value: unknown): string {
+  try {
+    if (typeof value === "string") return value;
+    if (value === null) return "null";
+    if (value === undefined) return "undefined";
+    if (typeof value === "symbol") return `Symbol(${value.description ?? ""})`;
+    return String(value);
+  } catch {
+    try {
+      return Object.prototype.toString.call(value);
+    } catch {
+      return "[erreur indescriptible]";
+    }
   }
-  return { errorCode: "UNEXPECTED_ERROR", errorMessage: String(error).slice(0, ERROR_MESSAGE_MAX_LENGTH) };
+}
+
+/** Lecture d'une propriété dont l'accesseur peut lever (Proxy, getter piégé). */
+function safeProperty(value: Record<string, unknown>, key: string): unknown {
+  try {
+    return value[key];
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Décrit une erreur SANS JAMAIS lever. `recordFailure` l'appelle hors de tout `try` :
+ * une exception ici tuerait l'exécution entière au lieu de journaliser un simple échec
+ * de message — l'inverse exact de ce que doit faire un chemin de journalisation.
+ */
+export function describeError(error: unknown): { errorCode: string; errorMessage: string } {
+  try {
+    if (isRecord(error)) {
+      const rawCode = safeProperty(error, "code");
+      const errorCode = typeof rawCode === "string" && rawCode.length > 0 ? rawCode : "UNEXPECTED_ERROR";
+      const rawMessage = safeProperty(error, "message");
+      const message = typeof rawMessage === "string" ? rawMessage : safeStringify(error);
+      return { errorCode, errorMessage: message.slice(0, ERROR_MESSAGE_MAX_LENGTH) };
+    }
+    return { errorCode: "UNEXPECTED_ERROR", errorMessage: safeStringify(error).slice(0, ERROR_MESSAGE_MAX_LENGTH) };
+  } catch {
+    // Filet ultime : même `isRecord` peut être mis en défaut par un exotisme non prévu.
+    return { errorCode: "UNEXPECTED_ERROR", errorMessage: "[erreur indescriptible]" };
+  }
 }
 
 function buildReplayAction(deadLetterQueue: string, queue: string): DeadLetterReplayAction {
@@ -427,6 +609,32 @@ export async function processDeferredEffects(
     now = Date.now,
   } = options;
 
+  // Validation AVANT tout emprunt de connexion : une option incohérente ne doit ni
+  // consommer une connexion du Pool, ni prendre le verrou consultatif.
+  requireConnection(connection);
+  requireNonEmptyString("jobId", jobId);
+  requireNonEmptyString("queue", queue);
+  requireNonEmptyString("deadLetterQueue", deadLetterQueue);
+  requireDistinctQueues(queue, deadLetterQueue);
+  requireInteger("batchSize", batchSize, 1);
+  requireInteger("visibilityTimeoutSeconds", visibilityTimeoutSeconds, 0);
+  requireInteger("retryThreshold", retryThreshold, 1);
+  requireInteger("maxDurationMs", maxDurationMs, 1);
+  requireInteger("shutdownMarginMs", shutdownMarginMs, 0);
+  if (shutdownMarginMs >= maxDurationMs) {
+    throw new DeferredEffectsOptionsError(
+      `shutdownMarginMs (${shutdownMarginMs}) doit être strictement inférieur à maxDurationMs (${maxDurationMs}) : ` +
+        "sinon la deadline est déjà dépassée au démarrage et chaque exécution rend un stoppedForTime immédiat.",
+    );
+  }
+  if (retryBackoffSeconds !== undefined) requireInteger("retryBackoffSeconds", retryBackoffSeconds, 0);
+  if (typeof handler !== "function") {
+    throw new DeferredEffectsOptionsError(`handler doit être une fonction (reçu : ${describeOptionValue(handler)}).`);
+  }
+  if (typeof now !== "function") {
+    throw new DeferredEffectsOptionsError(`now doit être une fonction (reçu : ${describeOptionValue(now)}).`);
+  }
+
   const startedAt = now();
   const deadline = startedAt + maxDurationMs - shutdownMarginMs;
   const borrowed = !isPoolClient(connection);
@@ -443,6 +651,7 @@ export async function processDeferredEffects(
     deadLetterFailed: 0,
     failed: 0,
     stoppedForTime: false,
+    hasMore: false,
     durationMs: 0,
   };
 
@@ -481,7 +690,10 @@ export async function processDeferredEffects(
     }
 
     if (now() >= deadline) {
+      // Aucun lot n'a été lu : l'état réel de la file est inconnu, on le déclare
+      // pessimiste plutôt que de laisser croire à une file vide.
       result.stoppedForTime = true;
+      result.hasMore = true;
       return result;
     }
 
@@ -549,6 +761,16 @@ export async function processDeferredEffects(
       }
     }
 
+    /**
+     * Une exécution ne consomme QU'UN lot : borner la durée du tick prime, et une boucle
+     * multi-lots relirait ici des messages redevenus visibles (VT 30 s < deadline 50 s),
+     * ce qui gonflerait `read_ct` sans échec réel et précipiterait des routages DLQ
+     * injustifiés. On rend donc l'information au lieu de la consommer : le lot revenu
+     * plein signale une file qui n'est probablement pas vidée, l'arrêt sur deadline
+     * signale des messages lus mais non traités. L'appelant (cron, supervision) décide.
+     */
+    result.hasMore = batch.rows.length >= batchSize || result.stoppedForTime;
+
     return result;
   } finally {
     const unlockError = locked ? await releaseAdvisoryLock(client, jobId) : null;
@@ -583,6 +805,17 @@ export async function replayDeadLetteredEffects(
     visibilityTimeoutSeconds = VISIBILITY_TIMEOUT_SECONDS,
   } = options;
 
+  // Mêmes garde-fous que `processDeferredEffects`, et pour la même raison : échouer
+  // bruyamment sur une option incohérente plutôt que de rendre un no-op indiscernable
+  // d'une DLQ vide.
+  requireConnection(connection);
+  requireNonEmptyString("jobId", jobId);
+  requireNonEmptyString("queue", queue);
+  requireNonEmptyString("deadLetterQueue", deadLetterQueue);
+  requireDistinctQueues(queue, deadLetterQueue);
+  requireInteger("batchSize", batchSize, 1);
+  requireInteger("visibilityTimeoutSeconds", visibilityTimeoutSeconds, 0);
+
   const borrowed = !isPoolClient(connection);
   const client = borrowed ? await (connection as Pool).connect() : (connection as PoolClient);
 
@@ -593,7 +826,44 @@ export async function replayDeadLetteredEffects(
     read: 0,
     replayed: 0,
     discarded: 0,
+    archived: 0,
+    failed: 0,
+    hasMore: false,
     messageIds: [],
+  };
+
+  /**
+   * Une entrée DLQ illisible ne doit JAMAIS rester en tête de file : `pgmq.read` sert les
+   * messages visibles les plus anciens d'abord, donc `batchSize` entrées irrécupérables
+   * suffisaient à masquer indéfiniment tous les messages récupérables situés derrière
+   * elles — la reprise devenait structurellement impossible.
+   *
+   * On archive (`pgmq.archive`) : l'entrée quitte la file mais reste intégralement lisible
+   * dans `pgmq.a_<queue>` pour l'analyse humaine. Rien n'est détruit.
+   * Si l'archivage échoue (table d'archive absente, droits), on repousse sa visibilité
+   * d'une heure : dégradé, mais la file redevient traversable.
+   */
+  const quarantine = async (msgId: string): Promise<void> => {
+    try {
+      await client.query(SQL.archiveMessage, [deadLetterQueue, msgId]);
+      result.archived += 1;
+      return;
+    } catch (error) {
+      console.error(
+        `[deferred-effects] archivage DLQ impossible jobId=${jobId} msgId=${msgId} queue=${deadLetterQueue} : ` +
+          "repli sur une mise à l'écart par timeout de visibilité.",
+        error,
+      );
+    }
+    try {
+      await client.query(SQL.setVisibilityTimeout, [deadLetterQueue, msgId, QUARANTINE_VISIBILITY_SECONDS]);
+    } catch (error) {
+      console.error(
+        `[deferred-effects] mise à l'écart DLQ impossible jobId=${jobId} msgId=${msgId} queue=${deadLetterQueue} : ` +
+          "l'entrée illisible peut continuer de bloquer la tête de file.",
+        error,
+      );
+    }
   };
 
   let locked = false;
@@ -613,28 +883,49 @@ export async function replayDeadLetteredEffects(
       const deadLettered = isRecord(row.message) ? row.message : null;
       const envelope = deadLettered ? parseDeferredEffectEnvelope(deadLettered) : null;
       if (!envelope) {
-        // Enveloppe irrécupérable : elle reste en DLQ pour analyse humaine.
+        // Irrécupérable : archivée pour analyse humaine, mais retirée de la tête de file.
         result.discarded += 1;
+        await quarantine(row.msg_id);
         continue;
       }
 
-      await client.query("BEGIN");
+      /**
+       * L'échec d'UNE republication (queue absente, enveloppe refusée par
+       * `deferred.publish_effect`, connexion perdue) ne doit pas détruire la progression
+       * du lot : hors de ce `try`, l'erreur remontait au-delà de la boucle et l'appelant
+       * perdait `replayed`, `messageIds` et `discarded` — y compris pour les messages
+       * déjà republiés et commités. Ici l'échec est compté, journalisé, et l'entrée
+       * — restée en DLQ — redeviendra visible à l'expiration de son VT.
+       */
       try {
-        await client.query(SQL.publish, [queue, JSON.stringify(envelope)]);
-        await client.query(SQL.deleteMessage, [deadLetterQueue, row.msg_id]);
-        await client.query("COMMIT");
-      } catch (error) {
+        await client.query("BEGIN");
         try {
-          await client.query("ROLLBACK");
-        } catch {
-          // Connexion perdue : le message DLQ redeviendra visible.
+          await client.query(SQL.publish, [queue, JSON.stringify(envelope)]);
+          await client.query(SQL.deleteMessage, [deadLetterQueue, row.msg_id]);
+          await client.query("COMMIT");
+        } catch (error) {
+          try {
+            await client.query("ROLLBACK");
+          } catch {
+            // Connexion perdue : le message DLQ redeviendra visible.
+          }
+          throw error;
         }
-        throw error;
+      } catch (error) {
+        result.failed += 1;
+        console.error(
+          `[deferred-effects] rejeu DLQ impossible jobId=${jobId} msgId=${row.msg_id} ` +
+            `messageId=${envelope.messageId} queue=${queue}`,
+          error,
+        );
+        continue;
       }
 
       result.replayed += 1;
       result.messageIds.push(envelope.messageId);
     }
+
+    result.hasMore = batch.rows.length >= batchSize;
 
     return result;
   } finally {

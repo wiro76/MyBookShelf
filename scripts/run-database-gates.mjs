@@ -32,7 +32,26 @@ const supabase = ["--yes", "supabase@2.101.0"];
 // mitigation CVE-2024-27980 (ENOENT sur "npx", EINVAL sur "npx.cmd"). Le shell
 // n'est activé que là où il est indispensable ; la CI Linux garde le spawn direct.
 const useShell = process.platform === "win32";
-const quote = (value) => (useShell && /\s/.test(value) ? `"${value}"` : value);
+// `workdir` vient de `mkdtempSync(tmpdir())`, donc du profil utilisateur Windows : il peut
+// contenir `&`, `^`, `|`, `%`, `(` ou `)`, pas seulement des espaces. Sous `shell: true`,
+// spawnSync ne fait que joindre command + args avec des espaces puis enveloppe la ligne
+// entière dans des guillemets extérieurs (windowsVerbatimArgArgs) — un simple `"${value}"`
+// ne protège donc PAS ces métacaractères, que cmd.exe continue d'interpréter même entre
+// guillemets. Algorithme d'échappement robuste basé sur https://qntm.org/cmd (repris par
+// cross-spawn) : on entoure de guillemets puis on échappe chaque métacaractère avec `^`.
+// cmd.exe retire les accents circonflexes en scannant la ligne, laissant à l'argument
+// final ses guillemets littéraux — que le programme cible interprète normalement.
+const escapeCmdArgument = (value) => {
+  let escaped = String(value);
+  // Une suite de `\` juste avant un `"` (ou en fin de chaîne) doit être doublée pour que
+  // le guillemet ajouté ci-dessous reste littéral côté analyse d'arguments de la cible.
+  escaped = escaped.replace(/(\\*)"/g, '$1$1\\"');
+  escaped = escaped.replace(/(\\*)$/, "$1$1");
+  escaped = `"${escaped}"`;
+  escaped = escaped.replace(/[()%!^"<>&|]/g, "^$&");
+  return escaped;
+};
+const quote = (value) => (useShell ? escapeCmdArgument(value) : value);
 const run = (args, options = {}) => {
   const result = spawnSync("npx", [...supabase, ...args, "--workdir", quote(workdir)], { stdio: "inherit", ...options, shell: useShell });
   if (result.status !== 0) throw new Error(`Supabase a échoué: ${args.join(" ")}${result.error ? ` (${result.error.code})` : ""}`);
