@@ -8,6 +8,12 @@
 .env*
 !.env.example
 
+# BMAD installer backups
+*.bak
+
+# Personal Claude Code settings
+.claude/settings.local.json
+
 # Next.js and Node.js
 /node_modules/
 /.next/

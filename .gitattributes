@@ -1,0 +1,17 @@
+# Normalise les fins de ligne : LF dans le dépôt, quel que soit l'OS.
+# Évite que les outils Windows (installateur BMAD, éditeurs) marquent
+# des centaines de fichiers comme modifiés pour un simple CRLF.
+* text=auto eol=lf
+
+# Fichiers binaires : aucune conversion.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
