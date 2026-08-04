@@ -4,7 +4,7 @@ baseline_commit: 928c5f67a1759e29649d48988288c8a5e5e71cd9
 
 # Story 1.3 : Exécuter les traitements différés sans perte ni doublon
 
-Status: review
+Status: in-progress
 
 ## Story
 
@@ -92,6 +92,37 @@ Ces points ne sont pas laissés à l'appréciation de l'implémenteur. Toute aut
   - [x] Créer `docs/operations/deferred-effects.md` : intervalle retenu, seuil de retries, VT, procédure de reprise depuis la DLQ, consultation de `net._http_response` pour diagnostiquer un worker en erreur, et **ce qui est vérifié en CI contre ce qui ne l'est pas** (le Cron est une ressource de plateforme, non pilotée par `supabase/config.toml`)
 
   **État réel de T6.** `.github/workflows/ci.yml` n'a jamais été modifié : ni `DATABASE_URL` ni `DEFERRED_EFFECTS_WORKER_SECRET` n'apparaissent dans les blocs `env:` des jobs `quality` et `database`. La CI n'est pas cassée pour autant, car le harnais `scripts/run-database-gates.mjs` injecte lui-même les deux variables dans l'environnement du canari outbox (`TEST_DATABASE_URL`, `DATABASE_URL`, `DEFERRED_EFFECTS_WORKER_SECRET`), avec un secret jetable par exécution — le workflow n'a donc rien à fournir aujourd'hui. La répercussion dans le workflow, ainsi que la décision sur `verify-environment-isolation.mjs` / `environment-isolation.test.mjs` (qui ré-implémentent la validation hors de `environment.ts`), restent à faire et relèvent d'un arbitrage produit/infra : elles ne sont pas prises ici.
+
+### Constats de revue
+
+Revue adversariale en trois couches sur `9c924ea` (2026-08-04). Corrigés dans `559b3d5` : publication impossible par `service_role`, arrêt de pile silencieux sous Windows, garde d'isolation inopérante sans `APP_ENV`, échec DLQ avortant le lot, verrou consultatif fuité, deux sous-tâches T6 faussement cochées.
+
+Restent ouverts.
+
+**Décisions attendues**
+
+- [ ] [Review][Decision] Ordre par agrégat non implémenté — AD-1 exige « ordre par agrégat » ; `aggregateId` est parsé (`src/workers/deferred-effects/index.ts:225`) puis jamais relu. Aucun tri, aucun verrou, aucune preuve. À implémenter, ou à assumer explicitement comme écart au MVP.
+- [ ] [Review][Decision] Aucune politique de rétention sur `deferred.processed_messages` — la table croît à vie et porte seule la garantie anti-doublon. La purger naïvement réactiverait le double traitement des messages purgés, sans garde-fou.
+- [ ] [Review][Decision] `src/shared/kernel/transaction.ts` est du code mort — aucun appelant ; le worker réécrit `BEGIN`/`COMMIT`/`ROLLBACK` quatre fois (`:277`, `:309`, `:365`, `:573`), ce que T2 interdisait. La duplication vient de la contrainte d'importabilité depuis un `.mjs` (aucun import relatif). Soit supprimer le wrapper, soit lever la contrainte.
+- [ ] [Review][Decision] `VISIBILITY_TIMEOUT_SECONDS = 60` égale `maxDuration = 60`, alors que T2 exigeait « nettement sous ». Un handler dépassant 10 s peut voir son message redevenir visible pendant son exécution.
+- [ ] [Review][Decision] `.github/workflows/ci.yml` n'a jamais reçu `DATABASE_URL` ni `DEFERRED_EFFECTS_WORKER_SECRET` — sans effet aujourd'hui car le harnais les injecte, mais T6 le demandait.
+- [ ] [Review][Decision] Le secret du worker transite en clair dans les en-têtes `pg_net`, matérialisés en table du schéma `net` (`supabase/cron/deferred-effects.sql:81`). Toute lecture de ce schéma, et toute sauvegarde logique, l'expose.
+
+**Correctifs sans ambiguïté, non appliqués**
+
+- [ ] [Review][Patch] `deferred.publish_effect` ne valide que la présence des clés — `'{"payloadVersion": null}' ? 'payloadVersion'` vaut vrai. Une enveloppe à valeur nulle est publiée puis rejetée à la consommation, exactement le bug silencieux que T1 voulait interdire [`supabase/migrations/20260805000100_deferred_effects_expand.sql:44`]
+- [ ] [Review][Patch] Migration non rejouable — `create schema deferred` et les `pgmq.create` sont sans garde d'existence ; un échec partiel ne se répare pas par relance [`supabase/migrations/20260805000100_deferred_effects_expand.sql:3`]
+- [ ] [Review][Patch] Options du worker non validées — `shutdownMarginMs >= maxDurationMs` produit un `stoppedForTime` immédiat à chaque tick, `batchSize <= 0` un no-op silencieux, `retryBackoffSeconds` négatif une boucle chaude qui brûle les 5 tentatives en millisecondes [`src/workers/deferred-effects/index.ts:389`]
+- [ ] [Review][Patch] Un seul lot par exécution, sans indicateur de reste — débit plafonné à `batchSize` par tick, et une file saturée est indiscernable d'une file vide [`src/workers/deferred-effects/index.ts:437`]
+- [ ] [Review][Patch] Rejeu DLQ bloqué en tête de file — une enveloppe illisible est comptée `discarded` puis laissée en place, sans `set_vt` ni suppression ; `batchSize` entrées irrécupérables rendent tout rejeu impossible [`src/workers/deferred-effects/index.ts:564`]
+- [ ] [Review][Patch] `describeError` peut lever hors de tout `try` sur une erreur exotique, tuant l'exécution au lieu de la journaliser [`src/workers/deferred-effects/index.ts:307`]
+- [ ] [Review][Patch] `occurredAt` accepté comme toute chaîne non vide, sans `Date.parse` [`src/workers/deferred-effects/index.ts:228`]
+- [ ] [Review][Patch] `quote()` n'échappe que les espaces — un `&`, `^` ou `%` dans le chemin `%TEMP%` casse la commande sous `cmd.exe` [`scripts/run-database-gates.mjs:35`]
+- [ ] [Review][Patch] Aucun test unitaire sur les fonctions pures (`parseDeferredEffectEnvelope`, `createJobId`, `isAuthorized`) — leur seule couverture est le canari, qui exige Docker
+
+**Écarté**
+
+- [x] [Review][Dismiss] « La porte de mutation ne prouve rien » — confusion entre `ci-mutation.test.mjs`, déclaratif, et `scripts/verify-ci-mutations.mjs:52` qui mute réellement le worker et relance `ci:database`. La coupure de courant du 4 août l'a prouvé en laissant cette mutation dans le fichier.
 
 ## Notes de développement
 
