@@ -1,5 +1,5 @@
 begin;
-select plan(18);
+select plan(19);
 
 select has_schema('deferred', 'le schema dedie deferred existe');
 select has_table('pgmq', 'q_deferred_effects', 'la queue pgmq deferred_effects existe');
@@ -66,6 +66,26 @@ select results_eq(
   array[1::bigint],
   'le message publie est present dans la queue deferred_effects'
 );
+
+-- Le worker se connecte en service_role, jamais en proprietaire de la base. Tous les
+-- tests ci-dessus s'executent en postgres (superuser) : ils ne peuvent donc PAS voir un
+-- droit manquant. publish_effect ecrit dans pgmq.q_deferred_effects via pgmq.send() ;
+-- ce test verrouille l'acces reel du role d'execution a ce chemin.
+set local role service_role;
+select lives_ok(
+  $$select deferred.publish_effect('deferred_effects', jsonb_build_object(
+      'messageId', '018f5a1e-0000-7000-8000-000000000003',
+      'eventType', 'ci.canary.effect.requested',
+      'producer', 'ci-canary',
+      'aggregateId', '018f5a1e-0000-7000-8000-000000000004',
+      'aggregateVersion', 1,
+      'payloadVersion', 1,
+      'occurredAt', '2026-08-05T00:00:00Z',
+      'payload', jsonb_build_object('kind', 'noop')
+    ))$$,
+  'service_role peut publier via deferred.publish_effect'
+);
+reset role;
 
 set local role anon;
 select throws_ok(

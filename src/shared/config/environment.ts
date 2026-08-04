@@ -62,8 +62,12 @@ export function requireDeferredEffectsEnvironment(source: NodeJS.ProcessEnv = pr
     throw new Error("DEFERRED_EFFECTS_WORKER_SECRET ne peut pas réutiliser SUPABASE_ANON_KEY");
   }
 
+  // L'absence d'APP_ENV ne désactive PAS la garde d'isolation : elle vaut « non production ».
+  // `requireRuntimeEnvironment` refuse déjà un APP_ENV absent ; ici, où la variable reste
+  // optionnelle, on applique la lecture la plus stricte plutôt que de laisser passer un
+  // DATABASE_URL de production sur un déploiement qui aurait oublié de définir APP_ENV.
   const environment = source.APP_ENV as AppEnvironment | undefined;
-  if (environment && environment !== "production" && PRODUCTION_MARKER_PATTERN.test(databaseUrl)) {
+  if (environment !== "production" && PRODUCTION_MARKER_PATTERN.test(databaseUrl)) {
     throw new Error("Référence de production interdite hors production");
   }
 

@@ -5,9 +5,19 @@ create schema deferred;
 select pgmq.create('deferred_effects');
 select pgmq.create('deferred_effects_dlq');
 
+-- SECURITY DEFINER : service_role n'a aucun droit sur le schéma pgmq, et ne doit pas
+-- en recevoir. Lui accorder l'écriture directe sur les tables de queue lui permettrait
+-- de publier en contournant la validation d'enveloppe AD-1 ci-dessous, alors que cette
+-- fonction est précisément le seul point d'entrée censé la garantir. Elle publie donc
+-- avec les droits de son propriétaire.
+-- search_path vide : obligatoire avec SECURITY DEFINER pour empêcher la capture d'objet
+-- par un schéma injecté. Tous les objets sont qualifiés ; le reste vient de pg_catalog,
+-- qui demeure implicite.
 create function deferred.publish_effect(p_queue text, p_envelope jsonb)
 returns bigint
 language plpgsql
+security definer
+set search_path = ''
 as $$
 declare
   v_required constant text[] := array[

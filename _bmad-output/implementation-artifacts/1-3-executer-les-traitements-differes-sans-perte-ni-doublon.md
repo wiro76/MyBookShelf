@@ -83,11 +83,15 @@ Ces points ne sont pas laissés à l'appréciation de l'implémenteur. Toute aut
   - [x] Si un nouveau script `ci:*` est créé, l'inscrire **à la fois** dans l'agrégat local `ci:all` **et** comme étape explicite du job approprié de `.github/workflows/ci.yml` (job `database` si la porte démarre Supabase). ⚠️ **La CI GitHub n'appelle jamais `ci:all`** : elle énumère les portes une par une (lignes 29-35, 47, 60-61). Une porte ajoutée seulement à `ci:all` n'est **pas** bloquante en pull request. Vérifier ensuite `tests/integration/ci-contract.test.mjs`
   - [x] Si la porte outbox s'intègre au `ci:database` existant plutôt que comme nouveau script, aucun ajout au workflow n'est nécessaire — mais le dire explicitement dans les notes de complétion
 
-- [x] **T6 — Environnement, Cron et exploitation (AC: 2)**
+- [ ] **T6 — Environnement, Cron et exploitation (AC: 2)** — partiellement livrée, voir l'état réel ci-dessous
   - [x] Étendre `src/shared/config/environment.ts` pour le secret du worker et la chaîne de connexion Postgres, en respectant le pattern existant (absence ou incohérence = erreur explicite, aucun défaut implicite). Rappel : ces valeurs sont **optionnelles au build**
-  - [x] Répercuter les nouvelles variables sur les trois cibles qui les attendent, sinon la CI casse : `.env.example`, le bloc `env:` du job `quality` **et** celui du job `database` dans `.github/workflows/ci.yml`. Décider et documenter si `scripts/verify-environment-isolation.mjs` et `tests/unit/environment-isolation.test.mjs` doivent suivre — ils ré-implémentent la validation sans passer par `environment.ts`
+  - [x] Répercuter les nouvelles variables sur `.env.example`
+  - [ ] Répercuter les nouvelles variables sur le bloc `env:` du job `quality` **et** celui du job `database` dans `.github/workflows/ci.yml`
+  - [ ] Décider et documenter si `scripts/verify-environment-isolation.mjs` et `tests/unit/environment-isolation.test.mjs` doivent suivre — ils ré-implémentent la validation sans passer par `environment.ts`
   - [x] SQL de planification `cron.schedule(...)` avec `net.http_post` vers le Route Handler, en-tête `Authorization` lu depuis Vault. `pg_cron` et `pg_net` doivent être activés
   - [x] Créer `docs/operations/deferred-effects.md` : intervalle retenu, seuil de retries, VT, procédure de reprise depuis la DLQ, consultation de `net._http_response` pour diagnostiquer un worker en erreur, et **ce qui est vérifié en CI contre ce qui ne l'est pas** (le Cron est une ressource de plateforme, non pilotée par `supabase/config.toml`)
+
+  **État réel de T6.** `.github/workflows/ci.yml` n'a jamais été modifié : ni `DATABASE_URL` ni `DEFERRED_EFFECTS_WORKER_SECRET` n'apparaissent dans les blocs `env:` des jobs `quality` et `database`. La CI n'est pas cassée pour autant, car le harnais `scripts/run-database-gates.mjs` injecte lui-même les deux variables dans l'environnement du canari outbox (`TEST_DATABASE_URL`, `DATABASE_URL`, `DEFERRED_EFFECTS_WORKER_SECRET`), avec un secret jetable par exécution — le workflow n'a donc rien à fournir aujourd'hui. La répercussion dans le workflow, ainsi que la décision sur `verify-environment-isolation.mjs` / `environment-isolation.test.mjs` (qui ré-implémentent la validation hors de `environment.ts`), restent à faire et relèvent d'un arbitrage produit/infra : elles ne sont pas prises ici.
 
 ## Notes de développement
 

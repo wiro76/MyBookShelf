@@ -121,6 +121,8 @@ export type ProcessDeferredEffectsResult = {
   processed: number;
   duplicated: number;
   deadLettered: number;
+  /** Messages dont le routage DLQ a échoué : ils restent en file et redeviendront visibles. */
+  deadLetterFailed: number;
   failed: number;
   stoppedForTime: boolean;
   durationMs: number;
@@ -377,6 +379,30 @@ async function routeToDeadLetterQueue(
   }
 }
 
+/**
+ * Libère le verrou consultatif et RETOURNE l'erreur au lieu de la lever : l'appel a lieu
+ * depuis un `finally`, où l'erreur d'origine doit primer.
+ *
+ * L'échec est journalisé bruyamment car il est fatal en silence : tant que la session qui
+ * détient le verrou vit, chaque exécution suivante répond `skipped` sans rien traiter.
+ * L'appelant détruit la connexion quand elle lui appartient ; quand le client est fourni
+ * par l'appelant, c'est à lui de le faire — d'où ce journal.
+ */
+async function releaseAdvisoryLock(client: PoolClient, jobId: string): Promise<Error | null> {
+  try {
+    await client.query(SQL.unlock, [ADVISORY_LOCK_KEY]);
+    return null;
+  } catch (error) {
+    const failure = error instanceof Error ? error : new Error(String(error));
+    console.error(
+      `[deferred-effects] libération du verrou consultatif impossible jobId=${jobId} key=${ADVISORY_LOCK_KEY} : ` +
+        "la session doit être détruite, sinon toutes les exécutions suivantes seront ignorées.",
+      failure,
+    );
+    return failure;
+  }
+}
+
 // --- Boucle principale -----------------------------------------------------
 
 /**
@@ -414,9 +440,34 @@ export async function processDeferredEffects(
     processed: 0,
     duplicated: 0,
     deadLettered: 0,
+    deadLetterFailed: 0,
     failed: 0,
     stoppedForTime: false,
     durationMs: 0,
+  };
+
+  /**
+   * Un échec de routage DLQ (queue absente, droits insuffisants, enveloppe trop grosse)
+   * ne doit JAMAIS avorter le lot : hors de cette enveloppe, l'erreur remontait au-delà
+   * de la boucle, les compteurs de l'exécution étaient perdus, les messages déjà traités
+   * n'étaient pas rapportés et le même message empoisonné rebloquait chaque tick du cron.
+   * Ici, l'échec est compté, journalisé, et le message — resté en file — redeviendra
+   * visible à l'expiration de son timeout de visibilité.
+   */
+  const tryRouteToDeadLetterQueue = async (
+    msgId: string,
+    envelope: DeadLetterEnvelope | MalformedDeadLetterEnvelope,
+  ): Promise<void> => {
+    try {
+      await routeToDeadLetterQueue(client, queue, deadLetterQueue, msgId, envelope);
+      result.deadLettered += 1;
+    } catch (error) {
+      result.deadLetterFailed += 1;
+      console.error(
+        `[deferred-effects] routage DLQ impossible jobId=${jobId} msgId=${msgId} queue=${deadLetterQueue}`,
+        error,
+      );
+    }
   };
 
   let locked = false;
@@ -447,7 +498,7 @@ export async function processDeferredEffects(
       const envelope = parseDeferredEffectEnvelope(row.message);
 
       if (!envelope) {
-        await routeToDeadLetterQueue(client, queue, deadLetterQueue, row.msg_id, {
+        await tryRouteToDeadLetterQueue(row.msg_id, {
           jobId,
           failureReason: {
             errorCode: "INVALID_ENVELOPE",
@@ -458,7 +509,6 @@ export async function processDeferredEffects(
           replayAction: buildReplayAction(deadLetterQueue, queue),
           rawMessage: row.message,
         });
-        result.deadLettered += 1;
         continue;
       }
 
@@ -473,13 +523,12 @@ export async function processDeferredEffects(
       if (message.readCt > retryThreshold) {
         // Seuil atteint : routage DLQ SANS tenter le traitement.
         const failureReason = await readFailureReason(client, envelope.messageId, message.readCt);
-        await routeToDeadLetterQueue(client, queue, deadLetterQueue, message.msgId, {
+        await tryRouteToDeadLetterQueue(message.msgId, {
           ...envelope,
           jobId,
           failureReason,
           replayAction: buildReplayAction(deadLetterQueue, queue),
         });
-        result.deadLettered += 1;
         continue;
       }
 
@@ -502,14 +551,13 @@ export async function processDeferredEffects(
 
     return result;
   } finally {
-    if (locked) {
-      try {
-        await client.query(SQL.unlock, [ADVISORY_LOCK_KEY]);
-      } catch {
-        // Le verrou consultatif tombe avec la session.
-      }
-    }
-    if (borrowed) (client as PoolClient).release();
+    const unlockError = locked ? await releaseAdvisoryLock(client, jobId) : null;
+    // Un verrou consultatif ne tombe QU'À la fin de la session. `release()` rend la
+    // connexion VIVANTE au pool (idleTimeoutMillis) : après un unlock raté, le verrou
+    // resterait détenu et toutes les exécutions suivantes répondraient `skipped`, sans
+    // alerte. `release(error)` détruit le client dans node-postgres : la session se
+    // termine réellement, et le verrou avec elle.
+    if (borrowed) (client as PoolClient).release(unlockError ?? undefined);
     result.durationMs = now() - startedAt;
   }
 }
@@ -590,13 +638,9 @@ export async function replayDeadLetteredEffects(
 
     return result;
   } finally {
-    if (locked) {
-      try {
-        await client.query(SQL.unlock, [ADVISORY_LOCK_KEY]);
-      } catch {
-        // Le verrou consultatif tombe avec la session.
-      }
-    }
-    if (borrowed) (client as PoolClient).release();
+    const unlockError = locked ? await releaseAdvisoryLock(client, jobId) : null;
+    // Même raison que dans `processDeferredEffects` : un client rendu au pool garde son
+    // verrou, on le détruit donc quand l'unlock a échoué.
+    if (borrowed) (client as PoolClient).release(unlockError ?? undefined);
   }
 }

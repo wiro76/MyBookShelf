@@ -62,6 +62,18 @@ try {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;
 } finally {
-  spawnSync("npx", [...supabase, "stop", "--no-backup", "--workdir", workdir], { stdio: "inherit" });
+  // Même mécanique que `run()` : sans `shell` ni `quote()`, l'arrêt échouait en ENOENT
+  // sous Windows et son statut n'était jamais lu — la pile éphémère survivait au harnais
+  // et laissait des conteneurs orphelins. On n'échoue pas ici : on est dans un `finally`,
+  // l'erreur d'origine doit primer. On avertit, bruyamment.
+  const stopped = spawnSync("npx", [...supabase, "stop", "--no-backup", "--workdir", quote(workdir)], { stdio: "inherit", shell: useShell });
+  if (stopped.status !== 0) {
+    const cause = stopped.error ? stopped.error.code : `code de sortie ${stopped.status}`;
+    console.warn(
+      `AVERTISSEMENT: arrêt de la pile Supabase éphémère "${projectId}" impossible (${cause}). ` +
+        `Des conteneurs Docker orphelins subsistent probablement : vérifier avec ` +
+        `\`docker ps -a --filter "name=${projectId}"\` puis les supprimer manuellement.`,
+    );
+  }
   rmSync(workdir, { recursive: true, force: true });
 }
