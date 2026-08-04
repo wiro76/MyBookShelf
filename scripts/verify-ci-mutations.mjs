@@ -4,8 +4,13 @@ import { delimiter, dirname } from "node:path";
 import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 
 const baseEnv = { ...process.env, PATH: `${dirname(process.execPath)}${delimiter}${process.env.PATH ?? ""}` };
+// Sous Windows, npm est un .cmd : Node refuse de le lancer sans shell depuis la
+// mitigation CVE-2024-27980 (ENOENT sur "npm"). Le shell n'est activé que pour lui ;
+// les exécutions directes de process.execPath gardent le spawn direct, un chemin
+// contenant des espaces ne survivant pas à cmd.exe.
+const useShell = process.platform === "win32";
 const run = (command, args, options = {}) => {
-  const result = spawnSync(command, args, { env: baseEnv, encoding: "utf8", maxBuffer: 20 * 1024 * 1024, ...options });
+  const result = spawnSync(command, args, { env: baseEnv, encoding: "utf8", maxBuffer: 20 * 1024 * 1024, shell: useShell && command === "npm", ...options });
   if (result.error) throw result.error;
   return result;
 };
@@ -38,5 +43,11 @@ mutate("src/app/page.tsx", (source) => source.replace("export default function H
 });
 temporary("tests/e2e", "spec.ts", 'import { expect, test } from "@playwright/test"; test("mutation", async () => expect(1).toBe(2));\n', () => runMustFail("browser", "npm", ["run", "ci:e2e", "--", "--grep", "mutation"]));
 mutate("tests/fixtures/ux-budget.html", (source) => source.replace("list.append(list.firstElementChild);", "setTimeout(() => list.append(list.firstElementChild), 501);"), () => runMustFail("budgets", "npm", ["run", "ci:budgets"]));
-mutate("supabase/tests/database/rls.test.sql", (source) => source.replace("using (owner_id = (select auth.uid()))\n  with check (owner_id = (select auth.uid()))", "using (true)\n  with check (true)"), () => runMustFail("database", "npm", ["run", "ci:database"]));
+// Remplacement multi-lignes tolérant aux fins de ligne : une copie de travail Windows
+// est en CRLF et un "\n" littéral n'y matcherait jamais, rendant la mutation inopérante.
+mutate("supabase/tests/database/rls.test.sql", (source) => source.replace(/using \(owner_id = \(select auth\.uid\(\)\)\)\r?\n(\s*)with check \(owner_id = \(select auth\.uid\(\)\)\)/, "using (true)\n$1with check (true)"), () => runMustFail("database", "npm", ["run", "ci:database"]));
+// Idempotence de consommation neutralisée : `do update` fait compter la ligne en conflit,
+// le doublon n'est plus reconnu et l'effet métier est appliqué deux fois. Le canari outbox
+// doit le voir. Mutation de comportement, pas de test : elle porte sur le worker lui-même.
+mutate("src/workers/deferred-effects/index.ts", (source) => source.replace("on conflict (message_id) do nothing", "on conflict (message_id) do update set processed_at = now()"), () => runMustFail("outbox", "npm", ["run", "ci:database"]));
 runMustFail("environment", process.execPath, ["scripts/verify-environment-isolation.mjs"], { env: { ...baseEnv, APP_ENV: "preview", TARGET_FINGERPRINT: "production-mbs-v1", SUPABASE_URL: "https://production.example.invalid", SUPABASE_ANON_KEY: "preview-only" } });

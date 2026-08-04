@@ -4,6 +4,7 @@
   { "gate": "unit", "mutation": "assertion unitaire fausse", "expectedExit": 1 },
   { "gate": "integration", "mutation": "contrat CI absent", "expectedExit": 1 },
   { "gate": "database", "mutation": "politique RLS permissive", "expectedExit": 1 },
+  { "gate": "outbox", "mutation": "idempotence de consommation neutralisée", "expectedExit": 1 },
   { "gate": "browser", "mutation": "nom accessible absent", "expectedExit": 1 },
   { "gate": "budgets", "mutation": "stabilisation supérieure à 500 ms", "expectedExit": 1 },
   { "gate": "environment", "mutation": "fingerprint production en preview", "expectedExit": 1 },

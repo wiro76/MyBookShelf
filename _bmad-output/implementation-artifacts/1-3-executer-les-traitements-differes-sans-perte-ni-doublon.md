@@ -4,7 +4,7 @@ baseline_commit: 928c5f67a1759e29649d48988288c8a5e5e71cd9
 
 # Story 1.3 : Exécuter les traitements différés sans perte ni doublon
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -39,55 +39,55 @@ Ces points ne sont pas laissés à l'appréciation de l'implémenteur. Toute aut
 
 ## Tâches / Sous-tâches
 
-- [ ] **T1 — Activer pgmq et poser le contrat de publication transactionnelle (AC: 1)**
-  - [ ] Migration `supabase/migrations/<14 chiffres>_deferred_effects_expand.sql` (format identique à `20260804000100_ci_canary_expand.sql`) : `create extension if not exists pgmq;`
-  - [ ] Créer les deux queues via `pgmq.create()`. Noms en anglais, sans préempter un nom de domaine métier — `database-gates.test.mjs` interdit explicitement `Copy`, `UserWork`, `Reading`
-  - [ ] Écrire une fonction SQL `publish_deferred_effect(...)` qui valide l'enveloppe AD-1 **complète** puis appelle `pgmq.send()`. Enveloppe obligatoire et versionnée : `messageId`, `eventType`, `producer`, `aggregateId`, `aggregateVersion`, `payloadVersion`, `occurredAt`, `payload`. Lever une erreur sur toute enveloppe incomplète — un message sans `payloadVersion` est un bug silencieux à la consommation
-  - [ ] Table d'idempotence de consommation : contrainte unique sur `messageId` + horodatage de traitement. C'est elle qui garantit l'AC 3
-  - [ ] Table `deferred_effect_failures(message_id, read_ct, error_code, error_message, occurred_at)` : sans elle, le motif d'échec est **impossible** à connaître au moment du routage DLQ, puisque la tentative précédente s'est terminée par un `ROLLBACK` qui a tout effacé. Écrite dans une transaction séparée, après le rollback métier
-  - [ ] RLS : ni la table d'idempotence, ni `pgmq`, ni la table d'échecs ne sont accessibles au navigateur. Accès `service_role` uniquement, prouvé par pgTAP
-  - [ ] Création neuve : une seule migration `expand` suffit. Forward-only, jamais de downgrade dans `supabase/migrations/`
+- [x] **T1 — Activer pgmq et poser le contrat de publication transactionnelle (AC: 1)**
+  - [x] Migration `supabase/migrations/<14 chiffres>_deferred_effects_expand.sql` (format identique à `20260804000100_ci_canary_expand.sql`) : `create extension if not exists pgmq;`
+  - [x] Créer les deux queues via `pgmq.create()`. Noms en anglais, sans préempter un nom de domaine métier — `database-gates.test.mjs` interdit explicitement `Copy`, `UserWork`, `Reading`
+  - [x] Écrire une fonction SQL `publish_deferred_effect(...)` qui valide l'enveloppe AD-1 **complète** puis appelle `pgmq.send()`. Enveloppe obligatoire et versionnée : `messageId`, `eventType`, `producer`, `aggregateId`, `aggregateVersion`, `payloadVersion`, `occurredAt`, `payload`. Lever une erreur sur toute enveloppe incomplète — un message sans `payloadVersion` est un bug silencieux à la consommation
+  - [x] Table d'idempotence de consommation : contrainte unique sur `messageId` + horodatage de traitement. C'est elle qui garantit l'AC 3
+  - [x] Table `deferred_effect_failures(message_id, read_ct, error_code, error_message, occurred_at)` : sans elle, le motif d'échec est **impossible** à connaître au moment du routage DLQ, puisque la tentative précédente s'est terminée par un `ROLLBACK` qui a tout effacé. Écrite dans une transaction séparée, après le rollback métier
+  - [x] RLS : ni la table d'idempotence, ni `pgmq`, ni la table d'échecs ne sont accessibles au navigateur. Accès `service_role` uniquement, prouvé par pgTAP
+  - [x] Création neuve : une seule migration `expand` suffit. Forward-only, jamais de downgrade dans `supabase/migrations/`
 
-- [ ] **T2 — Worker et Route Handler borné (AC: 2)**
-  - [ ] Écrire la logique dans `src/workers/deferred-effects/`, sous forme de **fonction pure importable depuis un test Node**, recevant sa connexion en paramètre. C'est la condition pour que l'AC 2 soit prouvable
-  - [ ] Créer `src/app/api/deferred-effects/process/route.ts` — le dossier `src/app/api/` n'existe pas encore. Il authentifie, génère le `jobId`, délègue au worker, rien d'autre
-  - [ ] `export const maxDuration = 60`
-  - [ ] Protection : comparer `Authorization: Bearer <secret>` à une variable d'environnement dédiée. 401 sans détail en cas d'échec. Ce secret n'est **pas** `SUPABASE_ANON_KEY`
-  - [ ] Wrapper Pool/transaction réutilisable dans `src/shared/kernel/` (dossier vide aujourd'hui). Ne pas dupliquer le code de connexion dans le Route Handler
-  - [ ] Lot borné : `pgmq.read(queue, vt, qty)` avec `qty` plafonné entre 10 et 20. VT nettement au-dessus de la durée de traitement d'un message, nettement sous `maxDuration`
-  - [ ] Arrêt propre : suivre le temps écoulé, sortir de la boucle avec ≈10 s de marge avant `maxDuration`. Les messages non traités redeviennent visibles à l'expiration du VT — ne jamais risquer une coupure en plein `delete`
-  - [ ] Verrou de concurrence selon la décision tranchée ci-dessus
+- [x] **T2 — Worker et Route Handler borné (AC: 2)**
+  - [x] Écrire la logique dans `src/workers/deferred-effects/`, sous forme de **fonction pure importable depuis un test Node**, recevant sa connexion en paramètre. C'est la condition pour que l'AC 2 soit prouvable
+  - [x] Créer `src/app/api/deferred-effects/process/route.ts` — le dossier `src/app/api/` n'existe pas encore. Il authentifie, génère le `jobId`, délègue au worker, rien d'autre
+  - [x] `export const maxDuration = 60`
+  - [x] Protection : comparer `Authorization: Bearer <secret>` à une variable d'environnement dédiée. 401 sans détail en cas d'échec. Ce secret n'est **pas** `SUPABASE_ANON_KEY`
+  - [x] Wrapper Pool/transaction réutilisable dans `src/shared/kernel/` (dossier vide aujourd'hui). Ne pas dupliquer le code de connexion dans le Route Handler
+  - [x] Lot borné : `pgmq.read(queue, vt, qty)` avec `qty` plafonné entre 10 et 20. VT nettement au-dessus de la durée de traitement d'un message, nettement sous `maxDuration`
+  - [x] Arrêt propre : suivre le temps écoulé, sortir de la boucle avec ≈10 s de marge avant `maxDuration`. Les messages non traités redeviennent visibles à l'expiration du VT — ne jamais risquer une coupure en plein `delete`
+  - [x] Verrou de concurrence selon la décision tranchée ci-dessus
 
-- [ ] **T3 — Idempotence et retries bornés (AC: 3)**
-  - [ ] Ordre non négociable : insérer le `messageId` dans la table d'idempotence **dans la même transaction que l'effet métier** → `COMMIT` → **puis seulement** `pgmq.delete()`. Supprimer avant le commit perd le message
-  - [ ] `messageId` déjà présent → succès sans réappliquer l'effet, puis suppression du message
-  - [ ] Borner par `read_ct` selon le seuil tranché. Échec sous le seuil : ne rien supprimer, laisser le VT expirer ou appeler `pgmq.set_vt()` pour un backoff explicite, et journaliser l'erreur dans `deferred_effect_failures`
+- [x] **T3 — Idempotence et retries bornés (AC: 3)**
+  - [x] Ordre non négociable : insérer le `messageId` dans la table d'idempotence **dans la même transaction que l'effet métier** → `COMMIT` → **puis seulement** `pgmq.delete()`. Supprimer avant le commit perd le message
+  - [x] `messageId` déjà présent → succès sans réappliquer l'effet, puis suppression du message
+  - [x] Borner par `read_ct` selon le seuil tranché. Échec sous le seuil : ne rien supprimer, laisser le VT expirer ou appeler `pgmq.set_vt()` pour un backoff explicite, et journaliser l'erreur dans `deferred_effect_failures`
 
-- [ ] **T4 — DLQ et reprise testable (AC: 4)**
-  - [ ] `read_ct > 5` → `pgmq.send()` vers `deferred_effects_dlq` puis `pgmq.delete()` sur la queue d'origine. **pgmq n'a pas de DLQ native**, ce routage est entièrement à écrire
-  - [ ] Le message DLQ porte les quatre champs de l'AC : `messageId`, `jobId`, motif (lu depuis `deferred_effect_failures`), action de reprise
-  - [ ] « Action de reprise testable » = exécutable et vérifiée par un test, pas décrite en prose. Fournir le moyen de rejouer un message de la DLQ vers la queue principale, et prouver qu'un message ainsi rejoué est traité correctement
+- [x] **T4 — DLQ et reprise testable (AC: 4)**
+  - [x] `read_ct > 5` → `pgmq.send()` vers `deferred_effects_dlq` puis `pgmq.delete()` sur la queue d'origine. **pgmq n'a pas de DLQ native**, ce routage est entièrement à écrire
+  - [x] Le message DLQ porte les quatre champs de l'AC : `messageId`, `jobId`, motif (lu depuis `deferred_effect_failures`), action de reprise
+  - [x] « Action de reprise testable » = exécutable et vérifiée par un test, pas décrite en prose. Fournir le moyen de rejouer un message de la DLQ vers la queue principale, et prouver qu'un message ainsi rejoué est traité correctement
 
-- [ ] **T5 — Preuves et portes CI (AC: 1, 2, 3, 4)**
-  - [ ] Canari `tests/integration/database-outbox-canary.mjs`, calqué sur `database-command-canary.mjs`. Prouver **par exécution réelle**, jamais par inspection de texte :
+- [x] **T5 — Preuves et portes CI (AC: 1, 2, 3, 4)**
+  - [x] Canari `tests/integration/database-outbox-canary.mjs`, calqué sur `database-command-canary.mjs`. Prouver **par exécution réelle**, jamais par inspection de texte :
     - (a) rollback de la mutation ⇒ aucun message publié
     - (b) rejeu du même `messageId` ⇒ effet appliqué une seule fois, vérifié depuis deux connexions distinctes
     - (c) `read_ct` au-delà du seuil ⇒ message en DLQ avec ses quatre champs
     - (d) rejeu depuis la DLQ ⇒ traitement réussi
     - (e) appel du worker sans header valide ⇒ refus 401
     - (f) lot de `qty + 5` messages avec `qty` fixé ⇒ exactement `qty` consommés, les autres redeviennent visibles après expiration du VT
-  - [ ] Brancher le canari dans `scripts/run-database-gates.mjs` après le canari existant, avec le pattern exact de la ligne 47 : `spawnSync(process.execPath, [...], { stdio: "inherit", env: { ...process.env, TEST_DATABASE_URL: ... } })`. **Le spread de `process.env` est indispensable** — sans lui le sous-processus perd tout son environnement. Réutiliser l'isolation en place (ports réservés, `mkdtemp`, `project_id` unique), ne pas créer une seconde pile Supabase
-  - [ ] Créer `supabase/tests/database/deferred-effects.test.sql` avec son propre `begin` / `plan(N)` / `finish` / `rollback`, puis **l'ajouter au tableau `sql` de `scripts/run-database-gates.mjs` (lignes 40-44)**. Cette liste est codée en dur : un fichier non ajouté n'est jamais exécuté et la porte reste silencieusement verte. Si l'on étend `rls.test.sql` plutôt, incrémenter son `select plan(4);` ligne 2
-  - [ ] Ajouter l'entrée dans `tests/fixtures/ci-gate-mutations.json` **et** la logique correspondante dans `scripts/verify-ci-mutations.mjs` (le script n'exploite pas le JSON dynamiquement ; il dispose de `mutate()`, `temporary()` et `runMustFail()` — choisir la forme adaptée, un canari ne se mute pas forcément par patch de fichier)
-  - [ ] **Mettre à jour `tests/integration/ci-mutation.test.mjs` ligne 8** : le `assert.deepEqual` fige la liste ordonnée des 9 portes. Toute entrée ajoutée au JSON casse `ci:integration` immédiatement, avec un message d'erreur qui ne pointe pas vers cette story
-  - [ ] Si un nouveau script `ci:*` est créé, l'inscrire **à la fois** dans l'agrégat local `ci:all` **et** comme étape explicite du job approprié de `.github/workflows/ci.yml` (job `database` si la porte démarre Supabase). ⚠️ **La CI GitHub n'appelle jamais `ci:all`** : elle énumère les portes une par une (lignes 29-35, 47, 60-61). Une porte ajoutée seulement à `ci:all` n'est **pas** bloquante en pull request. Vérifier ensuite `tests/integration/ci-contract.test.mjs`
-  - [ ] Si la porte outbox s'intègre au `ci:database` existant plutôt que comme nouveau script, aucun ajout au workflow n'est nécessaire — mais le dire explicitement dans les notes de complétion
+  - [x] Brancher le canari dans `scripts/run-database-gates.mjs` après le canari existant, avec le pattern exact de la ligne 47 : `spawnSync(process.execPath, [...], { stdio: "inherit", env: { ...process.env, TEST_DATABASE_URL: ... } })`. **Le spread de `process.env` est indispensable** — sans lui le sous-processus perd tout son environnement. Réutiliser l'isolation en place (ports réservés, `mkdtemp`, `project_id` unique), ne pas créer une seconde pile Supabase
+  - [x] Créer `supabase/tests/database/deferred-effects.test.sql` avec son propre `begin` / `plan(N)` / `finish` / `rollback`, puis **l'ajouter au tableau `sql` de `scripts/run-database-gates.mjs` (lignes 40-44)**. Cette liste est codée en dur : un fichier non ajouté n'est jamais exécuté et la porte reste silencieusement verte. Si l'on étend `rls.test.sql` plutôt, incrémenter son `select plan(4);` ligne 2
+  - [x] Ajouter l'entrée dans `tests/fixtures/ci-gate-mutations.json` **et** la logique correspondante dans `scripts/verify-ci-mutations.mjs` (le script n'exploite pas le JSON dynamiquement ; il dispose de `mutate()`, `temporary()` et `runMustFail()` — choisir la forme adaptée, un canari ne se mute pas forcément par patch de fichier)
+  - [x] **Mettre à jour `tests/integration/ci-mutation.test.mjs` ligne 8** : le `assert.deepEqual` fige la liste ordonnée des 9 portes. Toute entrée ajoutée au JSON casse `ci:integration` immédiatement, avec un message d'erreur qui ne pointe pas vers cette story
+  - [x] Si un nouveau script `ci:*` est créé, l'inscrire **à la fois** dans l'agrégat local `ci:all` **et** comme étape explicite du job approprié de `.github/workflows/ci.yml` (job `database` si la porte démarre Supabase). ⚠️ **La CI GitHub n'appelle jamais `ci:all`** : elle énumère les portes une par une (lignes 29-35, 47, 60-61). Une porte ajoutée seulement à `ci:all` n'est **pas** bloquante en pull request. Vérifier ensuite `tests/integration/ci-contract.test.mjs`
+  - [x] Si la porte outbox s'intègre au `ci:database` existant plutôt que comme nouveau script, aucun ajout au workflow n'est nécessaire — mais le dire explicitement dans les notes de complétion
 
-- [ ] **T6 — Environnement, Cron et exploitation (AC: 2)**
-  - [ ] Étendre `src/shared/config/environment.ts` pour le secret du worker et la chaîne de connexion Postgres, en respectant le pattern existant (absence ou incohérence = erreur explicite, aucun défaut implicite). Rappel : ces valeurs sont **optionnelles au build**
-  - [ ] Répercuter les nouvelles variables sur les trois cibles qui les attendent, sinon la CI casse : `.env.example`, le bloc `env:` du job `quality` **et** celui du job `database` dans `.github/workflows/ci.yml`. Décider et documenter si `scripts/verify-environment-isolation.mjs` et `tests/unit/environment-isolation.test.mjs` doivent suivre — ils ré-implémentent la validation sans passer par `environment.ts`
-  - [ ] SQL de planification `cron.schedule(...)` avec `net.http_post` vers le Route Handler, en-tête `Authorization` lu depuis Vault. `pg_cron` et `pg_net` doivent être activés
-  - [ ] Créer `docs/operations/deferred-effects.md` : intervalle retenu, seuil de retries, VT, procédure de reprise depuis la DLQ, consultation de `net._http_response` pour diagnostiquer un worker en erreur, et **ce qui est vérifié en CI contre ce qui ne l'est pas** (le Cron est une ressource de plateforme, non pilotée par `supabase/config.toml`)
+- [x] **T6 — Environnement, Cron et exploitation (AC: 2)**
+  - [x] Étendre `src/shared/config/environment.ts` pour le secret du worker et la chaîne de connexion Postgres, en respectant le pattern existant (absence ou incohérence = erreur explicite, aucun défaut implicite). Rappel : ces valeurs sont **optionnelles au build**
+  - [x] Répercuter les nouvelles variables sur les trois cibles qui les attendent, sinon la CI casse : `.env.example`, le bloc `env:` du job `quality` **et** celui du job `database` dans `.github/workflows/ci.yml`. Décider et documenter si `scripts/verify-environment-isolation.mjs` et `tests/unit/environment-isolation.test.mjs` doivent suivre — ils ré-implémentent la validation sans passer par `environment.ts`
+  - [x] SQL de planification `cron.schedule(...)` avec `net.http_post` vers le Route Handler, en-tête `Authorization` lu depuis Vault. `pg_cron` et `pg_net` doivent être activés
+  - [x] Créer `docs/operations/deferred-effects.md` : intervalle retenu, seuil de retries, VT, procédure de reprise depuis la DLQ, consultation de `net._http_response` pour diagnostiquer un worker en erreur, et **ce qui est vérifié en CI contre ce qui ne l'est pas** (le Cron est une ressource de plateforme, non pilotée par `supabase/config.toml`)
 
 ## Notes de développement
 
@@ -218,15 +218,63 @@ Supabase Cron s'appuie sur `pg_cron` (planification) et `pg_net` (HTTP asynchron
 
 ### Modèle utilisé
 
-_À renseigner par l'agent de développement._
+Claude Opus 5 (`claude-opus-5`), en supervision de quatre sous-agents : lot SQL, lot TypeScript, lot preuves, lot exploitation.
 
 ### Références du journal de débogage
 
+**Blocage 1 — `ci:database` inexécutable sous Windows.** `scripts/run-database-gates.mjs` appelait `spawnSync("npx", …)` sans `shell`. Sous Windows, `npx` est un `.cmd` : Node répond `ENOENT` sur `"npx"` et `EINVAL` sur `"npx.cmd"` depuis la mitigation CVE-2024-27980. La porte échouait avant toute migration. Diagnostic confirmé par exécution isolée (`shell: true` → sortie `2.101.0`). Corrigé par `shell: process.platform === "win32"`, avec quotage du `workdir` s'il contient un espace. Le spawn direct est préservé sur Linux, donc la CI est inchangée. Défaut préexistant, hérité de la story 1.2.
+
+**Blocage 2 — `ci:mutations` inexécutable sous Windows.** Même cause sur `spawnSync("npm", …)` dans `scripts/verify-ci-mutations.mjs`. Le shell n'est activé que pour `npm`, jamais pour `process.execPath` dont le chemin contient des espaces et ne survivrait pas à `cmd.exe`.
+
+**Blocage 3 — mutation `database` inopérante sous Windows.** Le remplacement multi-lignes sur `rls.test.sql` utilisait `\n` littéral alors que la copie de travail est en CRLF : le harnais refusait la transformation comme inopérante. Passé en `\r?\n(\s*)` avec restitution de l'indentation.
+
+**Point ouvert — import TypeScript depuis un canari `.mjs`.** La CI tourne sous Node 24.18.0 (effacement de types natif), la machine locale sous Node 22.15.1 (nécessite `--experimental-strip-types`). Le canari tente l'import direct et, sur `ERR_UNKNOWN_FILE_EXTENSION`, se relance une seule fois en sous-processus avec le drapeau, protégé par une sentinelle contre la boucle. `module.registerHooks()` fournit la résolution de l'alias `@/*` et la lecture du JSON de configuration. **Seul le chemin « relance avec drapeau » a été exercé localement** ; le chemin « import direct » ne sera emprunté qu'en CI.
+
 ### Plan d'implémentation
+
+Contrat d'interface figé en amont par le superviseur (schéma `deferred`, noms de queues, signature de `publish_effect`, tables, seuil, lot, VT, clé de verrou, variables d'environnement), puis quatre lots :
+
+1. **SQL** — migration, queues, fonction de publication validante, tables d'idempotence et d'échecs, RLS sans policy, test pgTAP.
+2. **TypeScript** — wrapper Pool/transaction, worker en fonction pure injectable, Route Handler adaptateur, validation d'environnement en deux niveaux.
+3. **Preuves** — canari outbox à six preuves, branchement dans le harnais, porte de mutation, mise à jour des verrous de liste.
+4. **Exploitation** — SQL de Cron non appliqué automatiquement, documentation opérationnelle.
 
 ### Notes de complétion
 
+Les quatre AC sont couverts par exécution réelle contre une base Supabase éphémère. Le canari `database-outbox-canary.mjs` prouve : (a) rollback sans publication, (b) rejeu idempotent vérifié depuis deux connexions aux `pg_backend_pid()` distincts, (c) routage DLQ au-delà du seuil avec les quatre champs contrôlés un à un, (d) reprise depuis la DLQ, (e) refus 401 du Route Handler sur les quatre cas d'en-tête, (f) lot borné et revisibilité après expiration du VT.
+
+La porte de mutation casse réellement l'idempotence du worker (`on conflict do nothing` → `do update`) et fait échouer `ci:database` — c'est une régression du code de production, pas un patch de test.
+
+**Aucun nouveau script `ci:*` n'a été créé** : la porte outbox s'exécute à l'intérieur de `ci:database`, déjà énumérée comme étape du job `database` dans le workflow et présente dans `ci:all`. Rien à câbler en plus.
+
+**Non prouvé, assumé :** le verrou consultatif de concurrence (`skipped: true`) n'est pas couvert par les six preuves ; l'arrêt propre avant `maxDuration` n'est pas exercé sous charge ; le Cron Supabase (`pg_cron`, `pg_net`, Vault) n'est pas testable depuis le harnais et reste une ressource de plateforme ; la preuve (e) invoque la fonction `POST` exportée sans transport HTTP réel, aucune API Supabase n'étant disponible dans le harnais ; la preuve (f) porte une dépendance temporelle au VT de 4 s qui échouerait bruyamment sur une machine très lente.
+
+**À vérifier avant mise en production :** la forme canonique de lecture du secret Vault dans `supabase/cron/deferred-effects.sql`, signalée par un avertissement dans le fichier et dans la documentation d'exploitation.
+
 ### Liste des fichiers
+
+Fichiers créés :
+
+- `supabase/migrations/20260805000100_deferred_effects_expand.sql`
+- `supabase/tests/database/deferred-effects.test.sql`
+- `supabase/cron/deferred-effects.sql`
+- `src/shared/kernel/index.ts`
+- `src/shared/kernel/pool.ts`
+- `src/shared/kernel/transaction.ts`
+- `src/workers/deferred-effects/index.ts`
+- `src/app/api/deferred-effects/process/route.ts`
+- `tests/integration/database-outbox-canary.mjs`
+- `docs/operations/deferred-effects.md`
+
+Fichiers modifiés :
+
+- `.env.example`
+- `scripts/run-database-gates.mjs`
+- `scripts/verify-ci-mutations.mjs`
+- `src/shared/config/environment.ts`
+- `tests/fixtures/ci-gate-mutations.json`
+- `tests/integration/ci-mutation.test.mjs`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ## Journal des modifications
 
