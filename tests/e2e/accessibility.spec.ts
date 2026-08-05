@@ -36,7 +36,12 @@ test("les garanties d'interaction disponibles sont observables", async ({ page }
     };
   });
   expect(invariants.overflow).toBe(true);
-  expect(invariants.targetHeight).toBeGreaterThanOrEqual(testInfo.project.name.includes("tablet-touch") ? 48 : 44);
+  // Plancher de cible : 44px au pointeur, 48px au TACTILE. Il se lit désormais sur la
+  // capacité réelle du projet et non sur son nom : `tablet-keyboard-landscape`, réparé par la
+  // story 1.6, est un appareil tactile piloté au clavier — le nommer « keyboard » ne lui retire
+  // pas son écran tactile, et l'ancienne condition sur le nom lui appliquait le plancher du
+  // pointeur.
+  expect(invariants.targetHeight).toBeGreaterThanOrEqual(testInfo.project.use.hasTouch ? 48 : 44);
 });
 
 test("la préférence de réduction des animations est appliquée", async ({ page }) => {

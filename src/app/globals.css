@@ -1,17 +1,34 @@
 @import "tailwindcss";
 
+/*
+ * Jetons — DESIGN.md, story 1.6.
+ *
+ * ⚠️ COLLISION DE NOM RÉSOLUE ICI. `--focus-dark` désignait jusqu'ici `#171412`, qui est en
+ * réalité le jeton `focus-dark-contrast` de DESIGN.md : le ton SOMBRE de l'indicateur de focus
+ * à deux tons, celui qui reste visible sur une surface claire. Or DESIGN.md appelle
+ * `focus-dark` tout autre chose — `#FDBA74`, la couleur de focus du THÈME sombre. Ajouter ce
+ * second sens sous le même nom aurait écrasé le `box-shadow` de `.primary-action`, c'est-à-dire
+ * supprimé silencieusement la moitié sombre de l'indicateur deux tons. L'ancien est donc
+ * renommé `--focus-contrast`, et `--focus` porte désormais la valeur de focus du thème courant.
+ */
 :root {
   color-scheme: light dark;
   --surface-base: #fafaf9;
   --surface-raised: #ffffff;
+  --surface-subtle: #f5f5f4;
   --ink-primary: #1c1917;
   --ink-secondary: #57534e;
+  --ink-disabled: #a8a29e;
   --border-default: #d6d3d1;
+  --border-strong: #78716c;
   --accent: #9a3412;
   --accent-hover: #7c2d12;
   --on-accent: #ffffff;
+  --error: #b91c1c;
+  --error-soft: #fee2e2;
+  --focus: #9a3412;
   --focus-light: #ffffff;
-  --focus-dark: #171412;
+  --focus-contrast: #171412;
 }
 
 * {
@@ -91,7 +108,7 @@ h1 {
 .primary-action:focus-visible {
   outline: 3px solid var(--focus-light);
   outline-offset: 3px;
-  box-shadow: 0 0 0 6px var(--focus-dark);
+  box-shadow: 0 0 0 6px var(--focus-contrast);
 }
 
 .project-status {
@@ -121,16 +138,228 @@ h1 {
   width: 62%;
 }
 
+/*
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Formulaire d'authentification — story 1.6
+ * ─────────────────────────────────────────────────────────────────────────────
+ * DESIGN.md ne définit AUCUN composant de champ, d'étiquette, d'erreur ni de bouton : tout
+ * ci-dessous est dérivé des jetons, et de rien d'autre. Contrôles en Inter — jamais Lora,
+ * « aucun contrôle n'utilise une serif » —, rayon 8px pour les contrôles, 12px pour les
+ * panneaux internes, espacements sur la grille de 4px.
+ *
+ * Cibles : `min-height` 2.75rem (44px) au pointeur fin, 3rem (48px) dès que le pointeur est
+ * grossier. `min-height`, jamais `height` : une hauteur fixe casserait l'espacement de texte
+ * WCAG 1.4.12, qui augmente l'interligne et doit pouvoir agrandir le contrôle.
+ *
+ * Focus : contour de 3px en `--focus` à 2px de décalage. `#9A3412` sur `#FFFFFF` et `#FDBA74`
+ * sur `#211D1A` dépassent tous deux 3:1 largement, et le décalage garantit que l'indicateur
+ * n'est pas masqué par la bordure du champ.
+ */
+
+.auth-card {
+  width: min(100%, 34rem);
+}
+
+.auth-form {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.auth-field {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.auth-label {
+  color: var(--ink-primary);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.auth-input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.5rem;
+  color: var(--ink-primary);
+  background: var(--surface-raised);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.auth-input:disabled {
+  color: var(--ink-disabled);
+  background: var(--surface-subtle);
+}
+
+.auth-input:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Erreur = couleur ET icône ET texte. La bordure épaissie double le signal chromatique par
+   un signal de forme, pour qui ne distingue pas le rouge. */
+.auth-input[aria-invalid="true"] {
+  border-width: 2px;
+  border-color: var(--error);
+  background: var(--error-soft);
+}
+
+.auth-hint {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.auth-message {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin: 0;
+  line-height: 1.55;
+}
+
+.auth-message-error {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.auth-icon {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.125rem;
+}
+
+.auth-notice {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 2px solid var(--error);
+  border-radius: 0.75rem;
+  color: var(--error);
+  background: var(--error-soft);
+}
+
+.auth-notice-text {
+  margin: 0;
+  color: var(--ink-primary);
+  line-height: 1.55;
+}
+
+.auth-summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.auth-summary-title {
+  margin: 0;
+  color: var(--ink-primary);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+.auth-summary-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  color: var(--ink-primary);
+  line-height: 1.55;
+}
+
+.auth-summary-list a {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  color: var(--accent);
+}
+
+.auth-summary-list a:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.auth-submit {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  color: var(--on-accent);
+  background: var(--accent);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.55;
+  cursor: pointer;
+}
+
+.auth-submit:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+/* Indicateur à deux tons, comme `.primary-action` : il reste visible sur n'importe quel fond. */
+.auth-submit:focus-visible {
+  outline: 3px solid var(--focus-light);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px var(--focus-contrast);
+}
+
+/* `--ink-secondary` plutôt que `--ink-disabled` en fond : le texte doit rester lisible pendant
+   l'attente, et `#A8A29E` ne porterait pas 4,5:1. */
+.auth-submit:disabled {
+  color: var(--surface-raised);
+  background: var(--ink-secondary);
+  cursor: progress;
+}
+
+.auth-status {
+  min-height: 1.55rem;
+  margin: 0;
+  color: var(--ink-secondary);
+  line-height: 1.55;
+}
+
+/* Tactile : 48px, exigé par DESIGN.md dès que le pointeur est grossier. */
+@media (pointer: coarse) {
+  .auth-input,
+  .auth-submit,
+  .auth-summary-list a {
+    min-height: 3rem;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --surface-base: #171412;
     --surface-raised: #211d1a;
+    --surface-subtle: #29231f;
     --ink-primary: #fafaf9;
     --ink-secondary: #d6d3d1;
+    --ink-disabled: #78716c;
     --border-default: #57534e;
+    --border-strong: #a8a29e;
     --accent: #fdba74;
     --accent-hover: #fed7aa;
     --on-accent: #431407;
+    --error: #fca5a5;
+    --error-soft: #481b1b;
+    /* `focus-dark` de DESIGN.md : la valeur de focus DU THÈME SOMBRE, pas le ton sombre de
+       l'indicateur deux tons — celui-ci reste `--focus-contrast`, identique dans les deux
+       thèmes puisqu'il n'existe que pour contraster avec `--focus-light`. */
+    --focus: #fdba74;
   }
 }
 

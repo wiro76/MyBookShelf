@@ -4,7 +4,7 @@ baseline_commit: d04e63b39140ab77701fc4596c5b7e9fcb963cdf
 
 # Story 1.6 : Se connecter à la bibliothèque privée
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -84,48 +84,48 @@ Non négociables. Tout nom figurant ici est imposé — il part en production.
 
 ## Tâches / Sous-tâches
 
-- [ ] **T1 — Socle d'identité en base (AC: 2, 4)**
-  - [ ] Migration : schéma `identity`, table de profil rattachée à `auth.users` par `user_id uuid`, RLS **activée avec politique** `using`/`with check` symétriques sur `(select auth.uid())` — forme sous-requête, comme le gabarit existant
-  - [ ] `grant` explicite au rôle `authenticated` : sans lui, un refus serait un défaut de privilège et non une preuve de RLS
-  - [ ] Créer aussi une table privée de démonstration d'ownership, suffisante pour prouver l'AC 4 sans préempter le domaine. **Ne pas créer `Copy`, `UserWork` ni `Reading`** — `database-gates.test.mjs` les interdit
-  - [ ] Migration forward-only, format d'horodatage à 14 chiffres
+- [x] **T1 — Socle d'identité en base (AC: 2, 4)**
+  - [x] Migration : schéma `identity`, table de profil rattachée à `auth.users` par `user_id uuid`, RLS **activée avec politique** `using`/`with check` symétriques sur `(select auth.uid())` — forme sous-requête, comme le gabarit existant
+  - [x] `grant` explicite au rôle `authenticated` : sans lui, un refus serait un défaut de privilège et non une preuve de RLS
+  - [x] Créer aussi une table privée de démonstration d'ownership, suffisante pour prouver l'AC 4 sans préempter le domaine. **Ne pas créer `Copy`, `UserWork` ni `Reading`** — `database-gates.test.mjs` les interdit
+  - [x] Migration forward-only, format d'horodatage à 14 chiffres
 
-- [ ] **T2 — Transaction authentifiée (AC: 2, 4)**
-  - [ ] `src/shared/kernel/authenticated-transaction.ts` selon la décision tranchée. Un seul client emprunté au Pool porte toute l'unité de travail (AD-3)
-  - [ ] `set local` et `set_config(..., true)` : la portée doit être la transaction, jamais la session — un client rendu au Pool en conservant un rôle ou un claim contaminerait la requête suivante. C'est le piège central de cette tâche
-  - [ ] Découpler la lecture de `DATABASE_URL` de `requireDeferredEffectsEnvironment`, sans casser l'appelant existant
-  - [ ] Tests unitaires : le rôle et le claim sont bien posés, ils sont bien annulés au retour au Pool, une erreur déclenche `ROLLBACK`
+- [x] **T2 — Transaction authentifiée (AC: 2, 4)**
+  - [x] `src/shared/kernel/authenticated-transaction.ts` selon la décision tranchée. Un seul client emprunté au Pool porte toute l'unité de travail (AD-3)
+  - [x] `set local` et `set_config(..., true)` : la portée doit être la transaction, jamais la session — un client rendu au Pool en conservant un rôle ou un claim contaminerait la requête suivante. C'est le piège central de cette tâche
+  - [x] Découpler la lecture de `DATABASE_URL` de `requireDeferredEffectsEnvironment`, sans casser l'appelant existant
+  - [x] Tests unitaires : le rôle et le claim sont bien posés, ils sont bien annulés au retour au Pool, une erreur déclenche `ROLLBACK`
 
-- [ ] **T3 — Authentification serveur (AC: 1, 2, 3)**
-  - [ ] Installer `@supabase/supabase-js@2.110.8`, version épinglée par l'architecture. Évaluer `@supabase/ssr` pour la gestion des cookies de session en App Router et **justifier le choix** dans les notes de complétion
-  - [ ] Server Action ou Route Handler de connexion : valide l'entrée, appelle Supabase Auth, établit la session par cookie **httpOnly**. Le navigateur n'appelle jamais Supabase directement pour les données (AD-10)
-  - [ ] Garde de route privée côté serveur : sans session, aucun rendu de donnée privée. Créer une route privée minimale pour le prouver
-  - [ ] Validation de la destination de retour selon la décision tranchée, avec tests unitaires sur les cas hostiles : `https://evil.test`, `//evil.test`, `\\evil.test`, `javascript:`, chemin hors liste, chaîne vide
-  - [ ] Étendre `src/shared/config/environment.ts` pour ce qui manque, en suivant le couple `read`/`require` existant. Aucun secret dans le dépôt
+- [x] **T3 — Authentification serveur (AC: 1, 2, 3)**
+  - [x] Installer `@supabase/supabase-js@2.110.8`, version épinglée par l'architecture. Évaluer `@supabase/ssr` pour la gestion des cookies de session en App Router et **justifier le choix** dans les notes de complétion
+  - [x] Server Action ou Route Handler de connexion : valide l'entrée, appelle Supabase Auth, établit la session par cookie **httpOnly**. Le navigateur n'appelle jamais Supabase directement pour les données (AD-10)
+  - [x] Garde de route privée côté serveur : sans session, aucun rendu de donnée privée. Créer une route privée minimale pour le prouver
+  - [x] Validation de la destination de retour selon la décision tranchée, avec tests unitaires sur les cas hostiles : `https://evil.test`, `//evil.test`, `\\evil.test`, `javascript:`, chemin hors liste, chaîne vide
+  - [x] Étendre `src/shared/config/environment.ts` pour ce qui manque, en suivant le couple `read`/`require` existant. Aucun secret dans le dépôt
 
-- [ ] **T4 — Écran de connexion (AC: 1, 3)**
-  - [ ] Créer la page et les composants de formulaire dérivés des tokens
-  - [ ] Structure de champ : étiquette **persistante** (jamais un simple placeholder), champ, aide, message d'erreur adjacent, relié par `aria-describedby` et `aria-invalid`
-  - [ ] **Règle de focus, prescrite par `EXPERIENCE.md`** : une seule erreur → focus sur le champ invalide ; **deux ou plus** → focus sur un résumé d'erreurs portant un lien vers chaque champ. Dans tous les cas, **conserver toutes les saisies**
-  - [ ] Erreur réseau globale : alerte distincte, qui **n'efface pas** les erreurs de validation
-  - [ ] Annonces : région live polie pour les changements d'état, annonce immédiate sans répétition pour les erreurs
-  - [ ] Jamais la couleur seule : erreur = couleur **et** icône **et** texte
-  - [ ] Libellés à rédiger — aucun n'est prescrit. Registre imposé par `EXPERIENCE.md` : **tutoiement**, chaleureux, phrases courtes, conséquence concrète. Le message d'échec doit proposer une correction sans jamais révéler si le compte existe
-  - [ ] Thème clair **et** sombre, les deux jeux de tokens existent
+- [x] **T4 — Écran de connexion (AC: 1, 3)**
+  - [x] Créer la page et les composants de formulaire dérivés des tokens
+  - [x] Structure de champ : étiquette **persistante** (jamais un simple placeholder), champ, aide, message d'erreur adjacent, relié par `aria-describedby` et `aria-invalid`
+  - [x] **Règle de focus, prescrite par `EXPERIENCE.md`** : une seule erreur → focus sur le champ invalide ; **deux ou plus** → focus sur un résumé d'erreurs portant un lien vers chaque champ. Dans tous les cas, **conserver toutes les saisies**
+  - [x] Erreur réseau globale : alerte distincte, qui **n'efface pas** les erreurs de validation
+  - [x] Annonces : région live polie pour les changements d'état, annonce immédiate sans répétition pour les erreurs
+  - [x] Jamais la couleur seule : erreur = couleur **et** icône **et** texte
+  - [x] Libellés à rédiger — aucun n'est prescrit. Registre imposé par `EXPERIENCE.md` : **tutoiement**, chaleureux, phrases courtes, conséquence concrète. Le message d'échec doit proposer une correction sans jamais révéler si le compte existe
+  - [x] Thème clair **et** sombre, les deux jeux de tokens existent
 
-- [ ] **T5 — Harnais et preuves base (AC: 2, 4)**
-  - [ ] Ajouter la section `[auth]` à `supabase/config.toml` : confirmation d'e-mail désactivée pour se passer de Mailpit. **Vérifier les noms de clés réels pour la CLI 2.101.0** — la surface `[auth]` a bougé entre versions, ne pas les deviner
-  - [ ] **Retirer** `gotrue` et `kong` de la liste `--exclude` de `run-database-gates.mjs` ligne 61 — ils y figurent aujourd'hui. `apiPort` est déjà réservé et substitué mais inutilisé : il devient fonctionnel
-  - [ ] Traiter le piège des ports fixes selon la décision tranchée
-  - [ ] `supabase/tests/database/identity-rls.test.sql`, calqué sur `rls.test.sql` : le propriétaire lit et écrit, un autre utilisateur ne lit rien et voit son insertion refusée en `42501`, `anon` n'a aucun accès. Compter le `plan(N)` exactement, et **ajouter le fichier au tableau `sql` du harnais** — la liste est codée en dur, un fichier oublié n'est jamais exécuté
-  - [ ] Canari d'authentification : semer un utilisateur, se connecter réellement via GoTrue, vérifier que la session est établie, puis qu'une lecture sous l'identité d'un autre utilisateur ne renvoie rien
+- [x] **T5 — Harnais et preuves base (AC: 2, 4)**
+  - [x] Ajouter la section `[auth]` à `supabase/config.toml` : confirmation d'e-mail désactivée pour se passer de Mailpit. **Vérifier les noms de clés réels pour la CLI 2.101.0** — la surface `[auth]` a bougé entre versions, ne pas les deviner
+  - [x] **Retirer** `gotrue` et `kong` de la liste `--exclude` de `run-database-gates.mjs` ligne 61 — ils y figurent aujourd'hui. `apiPort` est déjà réservé et substitué mais inutilisé : il devient fonctionnel
+  - [x] Traiter le piège des ports fixes selon la décision tranchée
+  - [x] `supabase/tests/database/identity-rls.test.sql`, calqué sur `rls.test.sql` : le propriétaire lit et écrit, un autre utilisateur ne lit rien et voit son insertion refusée en `42501`, `anon` n'a aucun accès. Compter le `plan(N)` exactement, et **ajouter le fichier au tableau `sql` du harnais** — la liste est codée en dur, un fichier oublié n'est jamais exécuté
+  - [x] Canari d'authentification : semer un utilisateur, se connecter réellement via GoTrue, vérifier que la session est établie, puis qu'une lecture sous l'identité d'un autre utilisateur ne renvoie rien
 
-- [ ] **T6 — Preuves d'interface (AC: 1, 3)**
-  - [ ] Tests e2e sur les **quatre** projets Playwright — la matrice d'audit l'impose pour cette story
-  - [ ] Corriger `tablet-keyboard-landscape` selon la décision tranchée : sans cela, la branche « tablette clavier » n'est pas réellement exercée et la preuve serait fausse
-  - [ ] Prouver : redirection sans session, conservation de la saisie après échec, liaison erreur↔champ, **règle de focus selon le nombre d'erreurs**, focus visible à 3:1, zoom 200 %, reflow 400 % à 320 px, espacement de texte WCAG 1.4.12
-  - [ ] Session simulée par **cookie injecté** — le job `browser` n'a ni Docker ni Supabase. Ne pas tenter d'y démarrer une pile
-  - [ ] Ajouter la mutation dans `scripts/verify-ci-mutations.mjs`, ciblant la porte `database` existante. **Ne pas toucher** à `ci-mutation.test.mjs` ni à `ci-gate-mutations.json` : aucune porte n'est créée
+- [x] **T6 — Preuves d'interface (AC: 1, 3)**
+  - [x] Tests e2e sur les **quatre** projets Playwright — la matrice d'audit l'impose pour cette story
+  - [x] Corriger `tablet-keyboard-landscape` selon la décision tranchée : sans cela, la branche « tablette clavier » n'est pas réellement exercée et la preuve serait fausse
+  - [x] Prouver : redirection sans session, conservation de la saisie après échec, liaison erreur↔champ, **règle de focus selon le nombre d'erreurs**, focus visible à 3:1, zoom 200 %, reflow 400 % à 320 px, espacement de texte WCAG 1.4.12
+  - [x] Session simulée par **cookie injecté** — le job `browser` n'a ni Docker ni Supabase. Ne pas tenter d'y démarrer une pile
+  - [x] Ajouter la mutation dans `scripts/verify-ci-mutations.mjs`, ciblant la porte `database` existante. **Ne pas toucher** à `ci-mutation.test.mjs` ni à `ci-gate-mutations.json` : aucune porte n'est créée
 
 ## Notes de développement
 
@@ -227,18 +227,81 @@ Playwright n'a ni `globalSetup`, ni `storageState`, ni projet de préparation. L
 
 ### Modèle utilisé
 
-_À renseigner par l'agent de développement._
+Claude Opus 5 (`claude-opus-5`), en supervision de quatre sous-agents : analyse UX, analyse technique, base, authentification et interface, preuves.
 
 ### Références du journal de débogage
 
+**Conflit de dépendances résolu sans dériver.** `@supabase/ssr@0.12.4` exige `supabase-js@^2.111.0`, incompatible avec le 2.110.8 épinglé par l'architecture. Plutôt que de forcer la résolution ou de monter la version, `@supabase/ssr@0.12.3` a été retenue : elle exige `^2.110.5`. Les deux sont épinglées exactement.
+
+**Piège de configuration mesuré, pas deviné.** `[auth.email] enable_signup = false` se traduit en `GOTRUE_EXTERNAL_EMAIL_ENABLED=false` et coupe le fournisseur e-mail **entier** : GoTrue répondait 422 `email_provider_disabled` sur des identifiants valides. La fermeture des inscriptions se règle au niveau `[auth]`, où l'API admin y reste insensible.
+
+**Défaut d'expérience trouvé par test fumée.** La première version reprenait les erreurs de validation de la soumission précédente sur panne réseau, pour honorer « n'efface pas les erreurs de validation ». Résultat : « Il manque ton mot de passe » restait affiché sous un champ que l'utilisateur venait de remplir, et le focus y retournait. `serviceUnavailable` est désormais un drapeau séparé, qui n'écrit ni n'efface les erreurs de champ.
+
+**Faux défaut d'accessibilité écarté.** `document.body.style.zoom = "2"` ne recalcule pas les unités `vw` : les `clamp(…, Nvw, …)` restaient plafonnés dans une zone deux fois plus étroite, d'où un débordement de 100 px sur tablette portrait. Le test divise désormais le viewport, ce que fait réellement un zoom navigateur. Le débordement était un artefact de mesure.
+
+**Processus orphelin arrêté.** Un `next dev --port 3199` laissé par une exécution antérieure bloquait `ci:e2e`, Next 16 refusant un second serveur de développement sur le même répertoire. Signalé plutôt que tu. Aucun conteneur Docker touché.
+
 ### Plan d'implémentation
+
+Noms et règles figés en amont dans « Décisions tranchées », après une passe de validation adverse ayant corrigé sept manques bloquants. Puis trois lots :
+
+1. **Base** — migration `identity`, politiques RLS, `authenticatedTransaction`, découplage du Pool, test pgTAP.
+2. **Authentification et interface** — session serveur, liste blanche de destinations, écran de connexion, route privée témoin, tokens CSS manquants.
+3. **Preuves** — harnais avec GoTrue et Kong, canari d'authentification, e2e sur quatre projets, mutation CI.
 
 ### Notes de complétion
 
+Les quatre AC sont prouvés par exécution réelle. L'AC 2 et l'AC 4 le sont par le canari Node contre un vrai GoTrue ; les AC 1 et 3 par 88 tests e2e sur quatre projets Playwright.
+
+**Le classement refus/panne est confirmé par mesure**, pas par supposition : mot de passe erroné et compte inexistant renvoient tous deux un **400 identique, même `error_code`**. GoTrue ne fournit aucun oracle d'énumération de comptes — le message unique de l'interface s'aligne sur ce comportement plutôt que de le compenser.
+
+**`getSession()` n'est jamais appelée.** Ses cinq occurrences dans le dépôt sont des commentaires expliquant pourquoi elle est proscrite. Le seul producteur d'identifiant est `getUser()`, dans `session.ts`.
+
+**`force row level security` est posé sur les deux tables.** FORCE lève l'exemption liée à la **propriété**, pas celle liée au **privilège** : un rôle `BYPASSRLS` contourne toujours. C'est pourquoi `authenticatedTransaction` reste obligatoire — les deux mécanismes ferment deux trous distincts.
+
+**Deux défauts du projet corrigés au passage.** `tablet-keyboard-landscape` était configuré à l'identique de `desktop-keyboard` depuis la story 1.2 : la branche « tablette clavier » de la matrice d'audit n'avait jamais été exercée. Et `--focus-dark` de `globals.css` portait la valeur du token `focus-dark-contrast`, collision qui aurait écrasé l'indicateur deux tons du bouton.
+
+**Coût du harnais mesuré** : `ci:database` passe de 70 s à 86 s, soit +48 s sur l'ensemble de la CI qui l'invoque trois fois. Le plafond de 20 minutes n'a pas besoin d'être relevé.
+
+**Non prouvé, assumé :** le refus d'identifiants dans un vrai navigateur — le job `browser` n'a ni Docker ni Supabase, un faux service à trois verdicts rend les branches d'écran atteignables sans rien prouver de l'authentification elle-même. Le **cumul** reflow 320 px et espacement WCAG 1.4.12 fait déborder de 2 px, le mot « bibliothèque » en Lora 36 px dépassant ; aucun des deux critères n'exige leur conjonction et les deux passent séparément. `/bibliotheque` ne rend pas une 307 mais une redirection client, le `loading.tsx` racine ouvrant une frontière Suspense — aucune donnée privée ne fuit, l'en-tête est `private, no-store`, et les e2e assertent sur l'URL finale.
+
+**Le rendu visuel reste à soumettre à Romane.** Aucun test ne dira si l'écran est accueillant.
+
 ### Liste des fichiers
+
+Fichiers créés :
+
+- `supabase/migrations/20260806000100_identity_expand.sql`
+- `supabase/tests/database/identity-rls.test.sql`
+- `src/shared/kernel/authenticated-transaction.ts`
+- `src/modules/identity/application/session.ts`
+- `src/modules/identity/application/sign-in.ts`
+- `src/modules/identity/application/redirect-allowlist.ts`
+- `src/modules/identity/application/messages.ts`
+- `src/modules/identity/application/private-library.ts`
+- `src/app/connexion/` — `page.tsx`, `connexion-form.tsx`, `actions.ts`, `state.ts`
+- `src/app/bibliotheque/page.tsx`
+- `tests/unit/authenticated-transaction.test.mjs`
+- `tests/unit/redirect-allowlist.test.mjs`
+- `tests/integration/database-identity-auth-canary.mjs`
+- `tests/e2e/connexion.spec.ts`
+- `tests/e2e/faux-service-auth.mjs`
+- `tests/fixtures/identity-test-user.json`
+
+Fichiers modifiés :
+
+- `src/shared/kernel/pool.ts`, `src/shared/kernel/index.ts`
+- `src/shared/config/environment.ts`
+- `src/app/globals.css`
+- `supabase/config.toml`
+- `scripts/run-database-gates.mjs`, `scripts/verify-ci-mutations.mjs`
+- `playwright.config.ts`, `tests/e2e/accessibility.spec.ts`
+- `.env.example`, `package.json`, `package-lock.json`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ## Journal des modifications
 
 | Date | Description |
 |---|---|
+| 2026-08-05 | Implémentation livrée : identité en base, transaction authentifiée, écran de connexion, canari GoTrue, 88 tests e2e. Dix portes vertes. Statut `review`. |
 | 2026-08-05 | Story créée et contextualisée, statut `ready-for-dev`. Méthode d'authentification tranchée par l'utilisateur : e-mail + mot de passe. |

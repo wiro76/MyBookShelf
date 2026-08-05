@@ -14,3 +14,57 @@ enabled = false
 
 [analytics]
 enabled = false
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Authentification — story 1.6 (AC 2, AC 4)
+# ─────────────────────────────────────────────────────────────────────────────
+# Noms de clés VÉRIFIÉS, pas devinés : ils sont repris du `supabase/config.toml`
+# que génère `npx supabase@2.101.0 init` — c'est-à-dire le gabarit embarqué dans
+# la CLI épinglée elle-même, donc la seule source qui ne puisse pas dériver de la
+# version. La surface `[auth]` a bougé entre versions ; toute clé ajoutée ici doit
+# être relue dans ce gabarit après un changement de version de la CLI.
+#
+# ⚠️ AUCUNE clé de cette section ne déclare de port.
+# `run-database-gates.mjs` substitue trois ports par des regex NON GLOBALES
+# (`port = 54321`, `port = 54322`, `shadow_port = 54320`) : une quatrième ligne
+# `port = …` ne serait jamais substituée et deux exécutions concurrentes du
+# harnais se disputeraient le même port. Le service d'authentification est servi
+# par Kong sur le port de `[api]`, déjà réservé — c'est justement `apiPort`, qui
+# était réservé et substitué mais inutilisé, et qui devient fonctionnel ici.
+# Les seules autres clés de port du gabarit appartiennent à des services que le
+# harnais exclut ou désactive (`[studio]`, `[analytics]`, `[inbucket]`,
+# `[db.pooler]`, `[edge_runtime]`), et ne figurent donc pas dans ce fichier.
+[auth]
+enabled = true
+# Le harnais ne sert aucune page : cette valeur n'est utilisée que pour construire
+# des URL de courriel et comme liste blanche de redirection, deux chemins qu'aucune
+# preuve n'emprunte. Alignée sur le port de développement pour ne pas mentir.
+site_url = "http://127.0.0.1:3100"
+additional_redirect_urls = []
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+# Pas d'inscription publique : la bibliothèque est mono-propriétaire au MVP. Le
+# compte de test est semé par l'API admin (`POST /auth/v1/admin/users`), qui porte
+# la clé de service et n'est pas soumise à ce drapeau — c'est une opération
+# d'administration, pas une surface produit.
+enable_signup = false
+enable_anonymous_sign_ins = false
+enable_manual_linking = false
+minimum_password_length = 8
+
+[auth.email]
+# ⚠️ PIÈGE MESURÉ, pas supposé : `enable_signup` ne se lit PAS ici comme au niveau
+# `[auth]`. La CLI le traduit en `GOTRUE_EXTERNAL_EMAIL_ENABLED`, qui gouverne le
+# FOURNISSEUR e-mail tout entier — inscription ET connexion. À `false`, GoTrue
+# répond 422 `email_provider_disabled` à un `grant_type=password` pourtant muni
+# d'identifiants valides. C'est exactement ce que le canari a observé avant
+# correction. La fermeture des inscriptions se fait au niveau `[auth]`, par
+# `enable_signup = false`, qui laisse la connexion et l'API admin intactes.
+enable_signup = true
+# ⚠️ LA clé de cette section : sans elle, GoTrue exigerait une confirmation par
+# courriel avant tout `signInWithPassword`, ce qui imposerait de démarrer Mailpit
+# — un conteneur de plus dans un harnais déjà mesuré. `mailpit` reste exclu.
+enable_confirmations = false
+double_confirm_changes = true
+secure_password_change = false

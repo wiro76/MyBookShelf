@@ -46,6 +46,31 @@ mutate("tests/fixtures/ux-budget.html", (source) => source.replace("list.append(
 // Remplacement multi-lignes tolérant aux fins de ligne : une copie de travail Windows
 // est en CRLF et un "\n" littéral n'y matcherait jamais, rendant la mutation inopérante.
 mutate("supabase/tests/database/rls.test.sql", (source) => source.replace(/using \(owner_id = \(select auth\.uid\(\)\)\)\r?\n(\s*)with check \(owner_id = \(select auth\.uid\(\)\)\)/, "using (true)\n$1with check (true)"), () => runMustFail("database", "npm", ["run", "ci:database"]));
+// Isolation par utilisateur neutralisée : les politiques `own_profile` et `own_private_notes`
+// de la migration d'identité deviennent permissives. La table reste protégée par RLS, le rôle
+// `authenticated` garde ses privilèges — seul le PRÉDICAT tombe. C'est la mutation la plus
+// proche de l'erreur réelle : une politique écrite trop large, qui laisse tout passer sans
+// qu'aucune erreur ne se produise nulle part.
+//
+// La porte `database` doit la voir DEUX FOIS, et par deux chemins indépendants :
+// `identity-rls.test.sql` (`is_empty` sur les lignes d'autrui, `throws_ok` en 42501) et le
+// canari d'authentification, qui lit sous l'identité d'un second compte réellement connecté.
+// Aucune porte n'est créée : la liste figée de `ci-mutation.test.mjs` et le fixture
+// `ci-gate-mutations.json` restent inchangés, à onze entrées.
+//
+// Remplacement multi-lignes tolérant aux fins de ligne, comme celui de `rls.test.sql` : une
+// copie de travail Windows est en CRLF et un "\n" littéral n'y matcherait jamais. Le drapeau
+// `g` est indispensable ici — la migration porte DEUX politiques, et n'en muter qu'une
+// laisserait l'autre prouver l'isolation à elle seule.
+mutate(
+  "supabase/migrations/20260806000100_identity_expand.sql",
+  (source) =>
+    source.replace(
+      /using \(user_id = \(select auth\.uid\(\)\)\)\r?\n(\s*)with check \(user_id = \(select auth\.uid\(\)\)\)/g,
+      "using (true)\n$1with check (true)",
+    ),
+  () => runMustFail("database", "npm", ["run", "ci:database"]),
+);
 // Idempotence de consommation neutralisée : `do update` fait compter la ligne en conflit,
 // le doublon n'est plus reconnu et l'effet métier est appliqué deux fois. Le canari outbox
 // doit le voir. Mutation de comportement, pas de test : elle porte sur le worker lui-même.

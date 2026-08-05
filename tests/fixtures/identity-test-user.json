@@ -1,0 +1,26 @@
+{
+  "_lisezMoi": [
+    "Comptes de test de la story 1.6. Aucune valeur ici n'est un secret : ils n'existent que",
+    "dans la pile Supabase éphémère créée puis détruite par scripts/run-database-gates.mjs,",
+    "et le domaine .test est réservé par la RFC 2606 — il ne peut désigner personne de réel.",
+    "Le compte `proprietaire` est celui imposé par la story ; `intrus` existe pour prouver",
+    "l'AC 4 : sans un SECOND compte réellement authentifié, « un autre utilisateur ne voit",
+    "rien » ne serait pas une preuve, seulement une table vide."
+  ],
+  "proprietaire": {
+    "email": "zan@exemple.test",
+    "password": "mot-de-passe-de-test-1234",
+    "displayName": "Zan",
+    "note": "Ma premiere note privee."
+  },
+  "intrus": {
+    "email": "intrus@exemple.test",
+    "password": "mot-de-passe-de-test-9876",
+    "displayName": "Intrus"
+  },
+  "inconnu": {
+    "email": "personne@exemple.test",
+    "password": "mot-de-passe-de-test-0000"
+  },
+  "mauvaisMotDePasse": "mot-de-passe-de-test-faux"
+}

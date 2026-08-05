@@ -26,6 +26,52 @@ export function requireRuntimeEnvironment(source: NodeJS.ProcessEnv = process.en
   return { environment, fingerprint, supabaseUrl, supabaseKey };
 }
 
+export type DatabaseEnvironment = {
+  databaseUrl: string;
+};
+
+/**
+ * Lecture tolérante de la seule chaîne de connexion.
+ *
+ * `DATABASE_URL` est **optionnelle au build** : le prérendu Next ne parle pas à Postgres.
+ * Elle ne devient obligatoire qu'à l'ouverture effective du Pool.
+ */
+export function readDatabaseEnvironment(source: NodeJS.ProcessEnv = process.env) {
+  return {
+    databaseUrl: source.DATABASE_URL,
+  };
+}
+
+/**
+ * Validation stricte de la chaîne de connexion, et d'elle seule.
+ *
+ * Extraite de `requireDeferredEffectsEnvironment` (story 1.6) : ouvrir une connexion pour
+ * un utilisateur authentifié n'a aucun rapport avec `DEFERRED_EFFECTS_WORKER_SECRET`, et
+ * exiger ce secret sur ce chemin reviendrait soit à le rendre obligatoire pour servir une
+ * page privée, soit à le définir à une valeur factice — c'est-à-dire à désarmer la garde du
+ * worker. Le couple worker conserve son contrat en délégant ici ; ses appelants ne voient
+ * aucune différence.
+ */
+export function requireDatabaseEnvironment(source: NodeJS.ProcessEnv = process.env): DatabaseEnvironment {
+  const { databaseUrl } = readDatabaseEnvironment(source);
+
+  if (!databaseUrl) throw new Error("DATABASE_URL absent");
+  if (!POSTGRES_CONNECTION_PATTERN.test(databaseUrl)) {
+    throw new Error("DATABASE_URL doit être une chaîne de connexion postgresql://");
+  }
+
+  // L'absence d'APP_ENV ne désactive PAS la garde d'isolation : elle vaut « non production ».
+  // `requireRuntimeEnvironment` refuse déjà un APP_ENV absent ; ici, où la variable reste
+  // optionnelle, on applique la lecture la plus stricte plutôt que de laisser passer un
+  // DATABASE_URL de production sur un déploiement qui aurait oublié de définir APP_ENV.
+  const environment = source.APP_ENV as AppEnvironment | undefined;
+  if (environment !== "production" && PRODUCTION_MARKER_PATTERN.test(databaseUrl)) {
+    throw new Error("Référence de production interdite hors production");
+  }
+
+  return { databaseUrl };
+}
+
 export type DeferredEffectsEnvironment = {
   databaseUrl: string;
   workerSecret: string;
@@ -51,27 +97,55 @@ export function readDeferredEffectsEnvironment(source: NodeJS.ProcessEnv = proce
  * Absence ou incohérence = erreur explicite, aucun défaut implicite.
  */
 export function requireDeferredEffectsEnvironment(source: NodeJS.ProcessEnv = process.env): DeferredEffectsEnvironment {
-  const { databaseUrl, workerSecret } = readDeferredEffectsEnvironment(source);
+  const { workerSecret } = readDeferredEffectsEnvironment(source);
 
-  if (!databaseUrl) throw new Error("DATABASE_URL absent");
-  if (!POSTGRES_CONNECTION_PATTERN.test(databaseUrl)) {
-    throw new Error("DATABASE_URL doit être une chaîne de connexion postgresql://");
-  }
+  // Les trois contrôles sur `DATABASE_URL` — présence, forme, isolation de production —
+  // sont délégués à `requireDatabaseEnvironment`, à l'identique et dans le même ordre
+  // relatif : ils précédaient déjà la vérification du secret.
+  const { databaseUrl } = requireDatabaseEnvironment(source);
+
   if (!workerSecret) throw new Error("DEFERRED_EFFECTS_WORKER_SECRET absent");
   if (workerSecret === source.SUPABASE_ANON_KEY) {
     throw new Error("DEFERRED_EFFECTS_WORKER_SECRET ne peut pas réutiliser SUPABASE_ANON_KEY");
   }
 
-  // L'absence d'APP_ENV ne désactive PAS la garde d'isolation : elle vaut « non production ».
-  // `requireRuntimeEnvironment` refuse déjà un APP_ENV absent ; ici, où la variable reste
-  // optionnelle, on applique la lecture la plus stricte plutôt que de laisser passer un
-  // DATABASE_URL de production sur un déploiement qui aurait oublié de définir APP_ENV.
-  const environment = source.APP_ENV as AppEnvironment | undefined;
-  if (environment !== "production" && PRODUCTION_MARKER_PATTERN.test(databaseUrl)) {
-    throw new Error("Référence de production interdite hors production");
+  return { databaseUrl, workerSecret };
+}
+
+export type IdentityEnvironment = {
+  serviceRoleKey: string;
+};
+
+/**
+ * Lecture tolérante des variables d'identité — story 1.6.
+ *
+ * `SUPABASE_SERVICE_ROLE_KEY` est **optionnelle au build**, comme toutes les variables de ce
+ * fichier : le prérendu Next n'administre aucun compte. Elle ne devient obligatoire qu'au
+ * moment d'appeler l'API admin de Supabase Auth, via `requireIdentityEnvironment()`.
+ */
+export function readIdentityEnvironment(source: NodeJS.ProcessEnv = process.env) {
+  return {
+    serviceRoleKey: source.SUPABASE_SERVICE_ROLE_KEY,
+  };
+}
+
+/**
+ * Validation stricte, appelée uniquement au moment d'agir avec les droits de service.
+ *
+ * La clé de service contourne RLS et vaut administration complète du projet : AD-10 la
+ * cantonne au serveur. Aucun repli, aucun défaut implicite — et la même règle de
+ * non-réutilisation que les autres secrets, puisqu'une clé de service qui vaudrait la clé
+ * anon serait publiée au navigateur avec elle.
+ */
+export function requireIdentityEnvironment(source: NodeJS.ProcessEnv = process.env): IdentityEnvironment {
+  const { serviceRoleKey } = readIdentityEnvironment(source);
+
+  if (!serviceRoleKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY absent");
+  if (serviceRoleKey === source.SUPABASE_ANON_KEY) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY ne peut pas réutiliser SUPABASE_ANON_KEY");
   }
 
-  return { databaseUrl, workerSecret };
+  return { serviceRoleKey };
 }
 
 export type ObservabilityEnvironment = {
