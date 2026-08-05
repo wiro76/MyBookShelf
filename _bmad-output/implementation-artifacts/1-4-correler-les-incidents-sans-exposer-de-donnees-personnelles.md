@@ -4,7 +4,7 @@ baseline_commit: 948d5bae699f224bf3aa66506f1fe9baf822c46c
 
 # Story 1.4 : Corréler les incidents sans exposer de données personnelles
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -47,56 +47,56 @@ Non négociables. Toute autre interprétation est un écart à signaler, pas à 
 
 ## Tâches / Sous-tâches
 
-- [ ] **T1 — Identifiants et contexte de corrélation (AC: 1)**
-  - [ ] Déplacer `createJobId` de `src/workers/deferred-effects/index.ts` (ligne 324) vers `src/shared/observability/ids.ts`, et faire importer le worker. Conserver l'implémentation UUIDv7 telle quelle — 48 bits d'horodatage puis aléatoire, donc triable par date
-  - [ ] Créer `src/shared/observability/context.ts` : `AsyncLocalStorage` portant `{ requestId?, commandId?, actorId?, jobId? }`, **tous optionnels** — « propagés selon le contexte » : un worker n'a pas de `requestId`, une requête anonyme n'a pas d'`actorId`
-  - [ ] Exposer : ouvrir un contexte, en dériver un enrichi sans perdre l'existant, lire le contexte courant
-  - [ ] Exposer **`correlationAttributes()`**, fonction pure retournant les identifiants du contexte courant. C'est le point de convergence unique consommé par le logger, le scope Sentry et les attributs de span — la seule façon de rendre l'AC 2 testable (voir T4)
-  - [ ] Générer le `requestId` à l'entrée du Route Handler
-  - [ ] Ne stocker que des valeurs courtes et sérialisables
+- [x] **T1 — Identifiants et contexte de corrélation (AC: 1)**
+  - [x] Déplacer `createJobId` de `src/workers/deferred-effects/index.ts` (ligne 324) vers `src/shared/observability/ids.ts`, et faire importer le worker. Conserver l'implémentation UUIDv7 telle quelle — 48 bits d'horodatage puis aléatoire, donc triable par date
+  - [x] Créer `src/shared/observability/context.ts` : `AsyncLocalStorage` portant `{ requestId?, commandId?, actorId?, jobId? }`, **tous optionnels** — « propagés selon le contexte » : un worker n'a pas de `requestId`, une requête anonyme n'a pas d'`actorId`
+  - [x] Exposer : ouvrir un contexte, en dériver un enrichi sans perdre l'existant, lire le contexte courant
+  - [x] Exposer **`correlationAttributes()`**, fonction pure retournant les identifiants du contexte courant. C'est le point de convergence unique consommé par le logger, le scope Sentry et les attributs de span — la seule façon de rendre l'AC 2 testable (voir T4)
+  - [x] Générer le `requestId` à l'entrée du Route Handler
+  - [x] Ne stocker que des valeurs courtes et sérialisables
 
-- [ ] **T2 — Pseudonymisation (AC: 1, 3)**
-  - [ ] `src/shared/observability/pseudonymize.ts` : HMAC-SHA256 via `node:crypto`, clé `OBSERVABILITY_PSEUDONYM_KEY`
-  - [ ] Étendre `src/shared/config/environment.ts` avec `readObservabilityEnvironment` / `requireObservabilityEnvironment`. **Optionnelle au build** : la rendre obligatoire au démarrage casse `ci:static`, c'est déjà arrivé en 1.3
-  - [ ] Ajouter la variable à `.env.example` **et** au `.env` local, sans quoi rien ne s'exécute en développement
-  - [ ] Fournir la clé en CI : soit dans le bloc `env:` du job `quality` de `.github/workflows/ci.yml` (qui n'a aujourd'hui que 4 variables), soit injectée par le test lui-même. **Trancher et l'écrire** — sinon `ci:leak` échouera en CI alors que le code est sain
-  - [ ] Absence de clé ⇒ erreur explicite. Jamais de hachage nu de repli : sur un espace d'un seul utilisateur, un SHA-256 sans clé est réversible immédiatement
+- [x] **T2 — Pseudonymisation (AC: 1, 3)**
+  - [x] `src/shared/observability/pseudonymize.ts` : HMAC-SHA256 via `node:crypto`, clé `OBSERVABILITY_PSEUDONYM_KEY`
+  - [x] Étendre `src/shared/config/environment.ts` avec `readObservabilityEnvironment` / `requireObservabilityEnvironment`. **Optionnelle au build** : la rendre obligatoire au démarrage casse `ci:static`, c'est déjà arrivé en 1.3
+  - [x] Ajouter la variable à `.env.example` **et** au `.env` local, sans quoi rien ne s'exécute en développement
+  - [x] Fournir la clé en CI : soit dans le bloc `env:` du job `quality` de `.github/workflows/ci.yml` (qui n'a aujourd'hui que 4 variables), soit injectée par le test lui-même. **Trancher et l'écrire** — sinon `ci:leak` échouera en CI alors que le code est sain
+  - [x] Absence de clé ⇒ erreur explicite. Jamais de hachage nu de repli : sur un espace d'un seul utilisateur, un SHA-256 sans clé est réversible immédiatement
 
-- [ ] **T3 — Logger structuré (AC: 2, 3)**
-  - [ ] `src/shared/observability/logger.ts` : niveaux, JSON sur une ligne, horodatage ISO 8601, fusion automatique de `correlationAttributes()`
-  - [ ] Liste blanche stricte des champs acceptés
-  - [ ] Réutiliser `describeError` (worker, ligne 422, signature `(error: unknown) => { errorCode, errorMessage }`, bornée à 2000 caractères, rendue infaillible en revue de 1.3). **La déplacer avec `createJobId` vers `shared/observability/errors.ts`** — même raisonnement de sens de dépendance
-  - [ ] Tronquer avant la limite Vercel en gardant un JSON valide. Vérifier le plafond réel avant de figer le seuil : la valeur retenue est de 256 Ko par ligne, mais elle pilote une troncature, donc un chiffre faux la rend inutile ou destructrice
-  - [ ] Remplacer les 8 `console.error` — worker lignes **634, 731, 965, 974, 1029** ; route lignes **38, 47, 55**. Ils passent aujourd'hui l'objet `error` brut, dont la stack peut porter des fragments SQL
+- [x] **T3 — Logger structuré (AC: 2, 3)**
+  - [x] `src/shared/observability/logger.ts` : niveaux, JSON sur une ligne, horodatage ISO 8601, fusion automatique de `correlationAttributes()`
+  - [x] Liste blanche stricte des champs acceptés
+  - [x] Réutiliser `describeError` (worker, ligne 422, signature `(error: unknown) => { errorCode, errorMessage }`, bornée à 2000 caractères, rendue infaillible en revue de 1.3). **La déplacer avec `createJobId` vers `shared/observability/errors.ts`** — même raisonnement de sens de dépendance
+  - [x] Tronquer avant la limite Vercel en gardant un JSON valide. Vérifier le plafond réel avant de figer le seuil : la valeur retenue est de 256 Ko par ligne, mais elle pilote une troncature, donc un chiffre faux la rend inutile ou destructrice
+  - [x] Remplacer les 8 `console.error` — worker lignes **634, 731, 965, 974, 1029** ; route lignes **38, 47, 55**. Ils passent aujourd'hui l'objet `error` brut, dont la stack peut porter des fragments SQL
 
-- [ ] **T4 — Instrumentation et convergence (AC: 2)**
-  - [ ] Installer `@sentry/nextjs@10.68.0`. **Ne pas installer `@vercel/otel`**
-  - [ ] Créer **`src/instrumentation.ts`** : `register()` et `onRequestError` branché sur `Sentry.captureRequestError`
-  - [ ] Signature exacte : `onRequestError(error: unknown, request: { path, method, headers }, context: { routerKind, routePath, routeType, renderSource, revalidateReason, renderType })`. `error` est `unknown` — React a pu le retraiter, utiliser `digest`
-  - [ ] Configurer Sentry avec `dataCollection` fermé par défaut et un `beforeSend` en dernier filet. Init conditionnée au DSN
-  - [ ] Faire consommer `correlationAttributes()` par les trois sorties : logger, scope Sentry, attributs de span
-  - [ ] Si `sentry.server.config.ts` et `sentry.edge.config.ts` sont posés à la racine, **les ajouter au `include` de `tsconfig.typecheck.json`** — il ne couvre aujourd'hui que `next-env.d.ts`, `next.config.ts`, `playwright.config.ts`, `src/**` et `tests/**/*.ts`. Sinon la porte `types` est aveugle sur le code le plus neuf
-  - [ ] **Critère de sortie** : `next build` utilise Turbopack par défaut en Next 16 et `withSentryConfig` est historiquement un wrapper webpack. Si `ci:static` casse, retirer `withSentryConfig`, documenter la perte de sourcemaps, et continuer — la story n'est pas bloquée par ce point. Ne pas toucher à `typescript.ignoreBuildErrors: true`, qui est volontaire et indépendant
+- [x] **T4 — Instrumentation et convergence (AC: 2)**
+  - [x] Installer `@sentry/nextjs@10.68.0`. **Ne pas installer `@vercel/otel`**
+  - [x] Créer **`src/instrumentation.ts`** : `register()` et `onRequestError` branché sur `Sentry.captureRequestError`
+  - [x] Signature exacte : `onRequestError(error: unknown, request: { path, method, headers }, context: { routerKind, routePath, routeType, renderSource, revalidateReason, renderType })`. `error` est `unknown` — React a pu le retraiter, utiliser `digest`
+  - [x] Configurer Sentry avec `dataCollection` fermé par défaut et un `beforeSend` en dernier filet. Init conditionnée au DSN
+  - [x] Faire consommer `correlationAttributes()` par les trois sorties : logger, scope Sentry, attributs de span
+  - [x] Si `sentry.server.config.ts` et `sentry.edge.config.ts` sont posés à la racine, **les ajouter au `include` de `tsconfig.typecheck.json`** — il ne couvre aujourd'hui que `next-env.d.ts`, `next.config.ts`, `playwright.config.ts`, `src/**` et `tests/**/*.ts`. Sinon la porte `types` est aveugle sur le code le plus neuf
+  - [x] **Critère de sortie** : `next build` utilise Turbopack par défaut en Next 16 et `withSentryConfig` est historiquement un wrapper webpack. Si `ci:static` casse, retirer `withSentryConfig`, documenter la perte de sourcemaps, et continuer — la story n'est pas bloquée par ce point. Ne pas toucher à `typescript.ignoreBuildErrors: true`, qui est volontaire et indépendant
 
-- [ ] **T5 — Erreurs stables (AC: 4)**
-  - [ ] `src/shared/observability/errors.ts` : type `{ code, message, fieldErrors?, conflict? }` et conversion depuis une erreur quelconque. `fieldErrors` et `conflict` n'auront de producteur qu'à partir des stories de commandes — les typer sans les exercer
-  - [ ] Le texte d'origine et l'identifiant fournisseur sont journalisés côté serveur sous le code, jamais renvoyés
-  - [ ] Appliquer aux réponses **500** du Route Handler (`error: "configuration_invalide"` ligne 48, `error: "execution_echouee"` ligne 56). **Ne pas toucher aux chemins 200 et 401** : le canari outbox assert dessus (`skipped === false` ligne ~320, refus 401 lignes ~311-319) et `ci:database` casserait
+- [x] **T5 — Erreurs stables (AC: 4)**
+  - [x] `src/shared/observability/errors.ts` : type `{ code, message, fieldErrors?, conflict? }` et conversion depuis une erreur quelconque. `fieldErrors` et `conflict` n'auront de producteur qu'à partir des stories de commandes — les typer sans les exercer
+  - [x] Le texte d'origine et l'identifiant fournisseur sont journalisés côté serveur sous le code, jamais renvoyés
+  - [x] Appliquer aux réponses **500** du Route Handler (`error: "configuration_invalide"` ligne 48, `error: "execution_echouee"` ligne 56). **Ne pas toucher aux chemins 200 et 401** : le canari outbox assert dessus (`skipped === false` ligne ~320, refus 401 lignes ~311-319) et `ci:database` casserait
 
-- [ ] **T6 — Test de fuite et porte CI (AC: 3)**
-  - [ ] Créer `tests/leak/observability-leak.test.mjs` : soumettre au logger un jeu d'entrées **hostiles** — email, titre de manga, contenu importé, URL signée, secret de worker, chaîne de connexion Postgres, JWT — et échouer si l'une ressort sous quelque forme que ce soit
-  - [ ] Couvrir le chemin indirect : objet imbriqué, `payload` d'enveloppe, erreur dont la stack contient un secret. C'est par là que les fuites arrivent réellement
-  - [ ] Tests unitaires : contexte, pseudonymisation (même entrée et même clé ⇒ même sortie ; clés différentes ⇒ sorties différentes ; jamais l'entrée en clair), conversion d'erreur, `correlationAttributes()`
-  - [ ] Copier le bloc `registerHooks` du canari dans `tests/unit/deferred-effects.test.mjs` (voir décision tranchée)
-  - [ ] Ajouter le script `"ci:leak": "node --test tests/leak/*.test.mjs"` dans `package.json` et l'inscrire dans l'agrégat `ci:all`
-  - [ ] Ajouter l'étape `- run: npm run ci:leak` au job `quality` de `.github/workflows/ci.yml`. ⚠️ **La CI n'appelle jamais `ci:all`** : elle énumère les portes une par une. Une porte ajoutée au seul agrégat n'est pas bloquante en pull request
-  - [ ] Ajouter l'entrée `{ "gate": "leak", "mutation": "<description>", "expectedExit": 1 }` dans `tests/fixtures/ci-gate-mutations.json`. `expectedExit` doit être non nul, une assertion le vérifie
-  - [ ] **Mettre à jour `tests/integration/ci-mutation.test.mjs` ligne 8.** Valeur actuelle exacte :
+- [x] **T6 — Test de fuite et porte CI (AC: 3)**
+  - [x] Créer `tests/leak/observability-leak.test.mjs` : soumettre au logger un jeu d'entrées **hostiles** — email, titre de manga, contenu importé, URL signée, secret de worker, chaîne de connexion Postgres, JWT — et échouer si l'une ressort sous quelque forme que ce soit
+  - [x] Couvrir le chemin indirect : objet imbriqué, `payload` d'enveloppe, erreur dont la stack contient un secret. C'est par là que les fuites arrivent réellement
+  - [x] Tests unitaires : contexte, pseudonymisation (même entrée et même clé ⇒ même sortie ; clés différentes ⇒ sorties différentes ; jamais l'entrée en clair), conversion d'erreur, `correlationAttributes()`
+  - [x] Copier le bloc `registerHooks` du canari dans `tests/unit/deferred-effects.test.mjs` (voir décision tranchée)
+  - [x] Ajouter le script `"ci:leak": "node --test tests/leak/*.test.mjs"` dans `package.json` et l'inscrire dans l'agrégat `ci:all`
+  - [x] Ajouter l'étape `- run: npm run ci:leak` au job `quality` de `.github/workflows/ci.yml`. ⚠️ **La CI n'appelle jamais `ci:all`** : elle énumère les portes une par une. Une porte ajoutée au seul agrégat n'est pas bloquante en pull request
+  - [x] Ajouter l'entrée `{ "gate": "leak", "mutation": "<description>", "expectedExit": 1 }` dans `tests/fixtures/ci-gate-mutations.json`. `expectedExit` doit être non nul, une assertion le vérifie
+  - [x] **Mettre à jour `tests/integration/ci-mutation.test.mjs` ligne 8.** Valeur actuelle exacte :
     `["lint", "types", "unit", "integration", "database", "outbox", "browser", "budgets", "environment", "static"]`
     Cible, `"leak"` inséré après `"outbox"` :
     `["lint", "types", "unit", "integration", "database", "outbox", "leak", "browser", "budgets", "environment", "static"]`
     Cet ordre est celui du **fixture**, qui n'est pas l'ordre d'exécution de `verify-ci-mutations.mjs` — ne pas se fier à ce dernier pour choisir la position
-  - [ ] Ajouter la mutation dans `scripts/verify-ci-mutations.mjs` : casser la redaction et prouver que `ci:leak` échoue
+  - [x] Ajouter la mutation dans `scripts/verify-ci-mutations.mjs` : casser la redaction et prouver que `ci:leak` échoue
 
 ## Notes de développement
 
@@ -222,18 +222,75 @@ Filtres : `beforeSend`, `beforeSendTransaction`, `beforeSendSpan`, `beforeSendLo
 
 ### Modèle utilisé
 
-_À renseigner par l'agent de développement._
+Claude Opus 5 (`claude-opus-5`), en supervision de trois sous-agents : socle, intégration, preuves.
 
 ### Références du journal de débogage
 
+**Défaut corrigé — rétrogradation quadratique dans l'expurgation.** L'agent chargé du test de fuite a mesuré **72 secondes** pour formater une seule ligne portant une valeur de 300 000 caractères sans séparateur, et l'a signalé comme hors de son périmètre plutôt que de le contourner en silence. Cause : les motifs d'expurgation utilisaient des quantificateurs non bornés (`+`, `\S+`, `{40,}`) sur des classes de caractères larges ; le moteur d'expressions régulières repart alors depuis chaque position. C'est un déni de service déclenchable par un `errorMessage` volumineux venu d'un fournisseur — sur le chemin de journalisation, donc exactement quand on cherche à comprendre un incident.
+
+Correction : bornes supérieures sur tous les quantificateurs (les valeurs réelles le sont — RFC 5321 plafonne une partie locale à 64 caractères), plus un plafond de 8192 caractères appliqué avant expurgation en défense en profondeur. Mesure avant/après sur la même entrée : **76 139 ms → 74 ms**, motifs toujours détectants.
+
+**Conséquence assumée de la bascule du worker.** Le worker gagne un import à l'exécution (`@/shared/observability`), ce qui rend caduque l'affirmation de son en-tête. `tests/unit/deferred-effects.test.mjs` a reçu le bloc `registerHooks` déjà éprouvé dans le canari, et le commentaire a été amendé plutôt que laissé mensonger.
+
 ### Plan d'implémentation
+
+Contrat d'API figé en amont par le superviseur, puis trois lots :
+
+1. **Socle** — `ids`, `context`, `pseudonymize`, `errors`, `logger`, baril, et le couple `read`/`requireObservabilityEnvironment`.
+2. **Intégration** — bascule du worker et de la route, `src/instrumentation.ts`, configuration Sentry, erreurs stables sur les 500.
+3. **Preuves** — test de fuite, porte `ci:leak`, mutation associée, mise à jour des verrous de liste.
 
 ### Notes de complétion
 
+Les AC 1, 3 et 4 sont prouvés par exécution réelle. L'AC 2 est traité comme la story le prescrivait : `correlationAttributes()` est une fonction pure unique consommée par le logger et le scope Sentry, testée elle-même et par ses consommateurs.
+
+**La corrélation bout en bout entre logs, traces et erreurs n'est pas vérifiée** et ne peut pas l'être ici : sans DSN Sentry est un no-op, et aucun collecteur OpenTelemetry ne tourne. À vérifier au premier déploiement.
+
+`@vercel/otel` n'a pas été installé : Sentry 10 embarque son propre SDK OpenTelemetry, et le monter en double provoquerait un tracer provider concurrent où l'un perd le contexte.
+
+`withSentryConfig` est conservé — Sentry 10 supporte Turbopack, le critère de sortie n'a pas eu à jouer. Les sourcemaps sont désactivées volontairement : sans organisation ni jeton, leur téléversement échouerait à chaque build.
+
+**Non fait, assumé :** `instrumentation-client.ts` et `app/global-error.tsx` (poids client inutile sans DSN) ; la corrélation sur le runtime Edge (jamais alimentée, la route est en runtime Node) ; aucun test sur `beforeSend` ni `onRequestError`.
+
+**Limites du filet d'expurgation, documentées et non assertées :** un titre de manga ou du contenu importé glissé dans le `message` libre ou dans `errorMessage` n'est reconnu par aucun motif — la garantie est la liste blanche, d'où la règle « `message` = littéral statique ». Les quatre champs de corrélation échappent volontairement à l'expurgation, sans quoi un pseudonyme HMAC de 64 caractères tomberait sous la règle « secret opaque » et la corrélation serait effacée ; la parade est `pseudonymizeActor`.
+
+**Champ abandonné :** `ADVISORY_LOCK_KEY` ne figure plus dans les journaux du verrou consultatif, aucune clé de la liste blanche ne lui convenant sémantiquement. C'est une constante du code source, donc retrouvable.
+
 ### Liste des fichiers
+
+Fichiers créés :
+
+- `src/shared/observability/ids.ts`
+- `src/shared/observability/context.ts`
+- `src/shared/observability/pseudonymize.ts`
+- `src/shared/observability/errors.ts`
+- `src/shared/observability/logger.ts`
+- `src/shared/observability/index.ts`
+- `src/instrumentation.ts`
+- `sentry.server.config.ts`
+- `sentry.edge.config.ts`
+- `tests/unit/observability.test.mjs`
+- `tests/leak/observability-leak.test.mjs`
+
+Fichiers modifiés :
+
+- `src/workers/deferred-effects/index.ts`
+- `src/app/api/deferred-effects/process/route.ts`
+- `src/shared/config/environment.ts`
+- `tests/unit/deferred-effects.test.mjs`
+- `tests/integration/ci-mutation.test.mjs`
+- `tests/fixtures/ci-gate-mutations.json`
+- `scripts/verify-ci-mutations.mjs`
+- `.github/workflows/ci.yml`
+- `.env.example`
+- `next.config.ts`
+- `tsconfig.typecheck.json`
+- `package.json`, `package-lock.json`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ## Journal des modifications
 
 | Date | Description |
 |---|---|
+| 2026-08-05 | Implémentation livrée : socle, intégration, test de fuite et porte ci:leak. Dix portes vertes. Statut `review`. |
 | 2026-08-05 | Story créée, puis révisée après validation adverse : sens des dépendances tranché, `@vercel/otel` écarté au profit du seul SDK Sentry, `src/instrumentation.ts` imposé, noms et porte CI fixés. Statut `ready-for-dev`. |

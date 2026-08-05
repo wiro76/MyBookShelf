@@ -73,3 +73,58 @@ export function requireDeferredEffectsEnvironment(source: NodeJS.ProcessEnv = pr
 
   return { databaseUrl, workerSecret };
 }
+
+export type ObservabilityEnvironment = {
+  pseudonymKey: string;
+};
+
+/**
+ * Longueur minimale de la clé de pseudonymisation. HMAC-SHA256 accepte n'importe quelle
+ * longueur de clé, y compris `"a"` — et une clé devinable rend la pseudonymisation
+ * réversible par force brute sur un espace d'un seul utilisateur. 32 caractères est le
+ * plancher, pas une cible.
+ */
+const PSEUDONYM_KEY_MIN_LENGTH = 32;
+
+/**
+ * Lecture tolérante des variables d'observabilité.
+ *
+ * `OBSERVABILITY_PSEUDONYM_KEY` est **optionnelle au build** : le build Next prérend les
+ * pages et n'a aucune raison de pseudonymiser un acteur. La rendre obligatoire au
+ * chargement casserait `ci:static` — c'est déjà arrivé en 1.3. Elle ne devient
+ * obligatoire qu'au moment où l'on pseudonymise réellement, via
+ * `requireObservabilityEnvironment()`.
+ */
+export function readObservabilityEnvironment(source: NodeJS.ProcessEnv = process.env) {
+  return {
+    pseudonymKey: source.OBSERVABILITY_PSEUDONYM_KEY,
+  };
+}
+
+/**
+ * Validation stricte, appelée uniquement au moment de pseudonymiser.
+ * Absence ou faiblesse = erreur explicite, **jamais** de repli sur un hachage nu :
+ * sur une bibliothèque à un seul utilisateur, un SHA-256 sans clé est réversible
+ * immédiatement — le hachage nu n'est pas une pseudonymisation dégradée, c'est une
+ * absence de pseudonymisation.
+ */
+export function requireObservabilityEnvironment(
+  source: NodeJS.ProcessEnv = process.env,
+): ObservabilityEnvironment {
+  const { pseudonymKey } = readObservabilityEnvironment(source);
+
+  if (!pseudonymKey) throw new Error("OBSERVABILITY_PSEUDONYM_KEY absent");
+  if (pseudonymKey.trim().length < PSEUDONYM_KEY_MIN_LENGTH) {
+    throw new Error(`OBSERVABILITY_PSEUDONYM_KEY doit faire au moins ${PSEUDONYM_KEY_MIN_LENGTH} caractères`);
+  }
+  // Même règle de non-réutilisation que le secret du worker : une clé partagée avec une
+  // valeur publiée (clé anon) rendrait la pseudonymisation inversible par quiconque la lit.
+  if (pseudonymKey === source.SUPABASE_ANON_KEY) {
+    throw new Error("OBSERVABILITY_PSEUDONYM_KEY ne peut pas réutiliser SUPABASE_ANON_KEY");
+  }
+  if (pseudonymKey === source.DEFERRED_EFFECTS_WORKER_SECRET) {
+    throw new Error("OBSERVABILITY_PSEUDONYM_KEY ne peut pas réutiliser DEFERRED_EFFECTS_WORKER_SECRET");
+  }
+
+  return { pseudonymKey };
+}

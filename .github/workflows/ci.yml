@@ -30,6 +30,7 @@ jobs:
       - run: npm run ci:types
       - run: npm run ci:unit
       - run: npm run ci:integration
+      - run: npm run ci:leak
       - run: npm run ci:environment
       - run: npm run ci:static
       - run: npm run ci:mutations

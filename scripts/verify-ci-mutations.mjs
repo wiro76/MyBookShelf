@@ -50,4 +50,10 @@ mutate("supabase/tests/database/rls.test.sql", (source) => source.replace(/using
 // le doublon n'est plus reconnu et l'effet métier est appliqué deux fois. Le canari outbox
 // doit le voir. Mutation de comportement, pas de test : elle porte sur le worker lui-même.
 mutate("src/workers/deferred-effects/index.ts", (source) => source.replace("on conflict (message_id) do nothing", "on conflict (message_id) do update set processed_at = now()"), () => runMustFail("outbox", "npm", ["run", "ci:database"]));
+// Expurgation par motifs neutralisée : la boucle qui remplace les fragments à haut risque
+// est vidée. La liste blanche sur les clés reste en place — c'est justement l'intérêt :
+// seule la seconde garde tombe, et le test de fuite doit malgré tout voir ressortir
+// l'adresse, l'URL signée, la chaîne Postgres, le JWT et le secret du worker par les
+// champs autorisés et par le message libre. Une seule ligne, donc aucun souci de CRLF.
+mutate("src/shared/observability/logger.ts", (source) => source.replace("for (const pattern of REDACTION_PATTERNS) redacted = redacted.replace(pattern, REDACTION_PLACEHOLDER);", "/* expurgation neutralisée */"), () => runMustFail("leak", "npm", ["run", "ci:leak"]));
 runMustFail("environment", process.execPath, ["scripts/verify-environment-isolation.mjs"], { env: { ...baseEnv, APP_ENV: "preview", TARGET_FINGERPRINT: "production-mbs-v1", SUPABASE_URL: "https://production.example.invalid", SUPABASE_ANON_KEY: "preview-only" } });

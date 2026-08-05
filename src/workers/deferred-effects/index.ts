@@ -1,14 +1,23 @@
-import { randomFillSync } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
+import { createCorrelationId, describeError, logger } from "@/shared/observability";
 
 /**
- * Worker d'effets différés — story 1.3 (AD-1, AD-12).
+ * Worker d'effets différés — story 1.3 (AD-1, AD-12), observabilité story 1.4.
  *
  * Ce module contient TOUTE la logique métier de consommation. Le Route Handler HTTP
- * n'en est qu'un adaptateur (AD-2). Il est volontairement autonome : aucun import
- * relatif à l'exécution, uniquement `node:crypto` et des `import type`. Il reste donc
- * importable tel quel depuis un test Node (`node --test`) par effacement de types,
- * sans serveur HTTP ni build préalable.
+ * n'en est qu'un adaptateur (AD-2).
+ *
+ * ⚠️ DEPUIS LA STORY 1.4, IL A UN IMPORT À L'EXÉCUTION : `@/shared/observability`
+ * (`createCorrelationId`, `describeError`, `logger`). Le sens de dépendance est
+ * `workers → shared`, jamais l'inverse. L'affirmation précédente — « aucun import
+ * relatif à l'exécution, uniquement `node:crypto` » — est donc CADUQUE.
+ *
+ * Conséquence pour les tests : un `node --test` sur un fichier `.mjs` ne sait résoudre
+ * ni l'alias `@/…`, ni les imports relatifs sans extension entre fichiers `.ts`, ni les
+ * imports JSON sans attribut de type. `tests/unit/deferred-effects.test.mjs` et
+ * `tests/integration/database-outbox-canary.mjs` installent donc le même bloc
+ * `registerHooks` (`node:module`) qui fournit ces trois règles. Sans lui, l'import du
+ * worker échoue en `ERR_MODULE_NOT_FOUND`.
  *
  * Garanties :
  * - livraison at-least-once, idempotence assurée par `deferred.processed_messages` ;
@@ -18,6 +27,13 @@ import type { Pool, PoolClient } from "pg";
  */
 
 // --- Constantes du contrat -------------------------------------------------
+
+/**
+ * Nom du worker tel qu'il apparaît dans les journaux et dans l'action de reprise DLQ.
+ * C'est une constante du code source, pas une donnée d'exécution : elle est à ce titre
+ * dans la liste blanche du logger, sous la clé `worker`.
+ */
+export const WORKER_NAME = "src/workers/deferred-effects";
 
 export const DEFERRED_EFFECTS_SCHEMA = "deferred";
 export const DEFERRED_EFFECTS_QUEUE = "deferred_effects";
@@ -235,7 +251,6 @@ const SQL = {
 // --- Utilitaires -----------------------------------------------------------
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const ERROR_MESSAGE_MAX_LENGTH = 2000;
 /** ISO-8601 date-heure : `2026-08-05T00:00:00Z`, `2026-08-05T00:00:00.123+02:00`, … */
 const ISO_TIMESTAMP_PATTERN =
   /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,9})?)?(?:Z|z|[+-]\d{2}:?\d{2})?$/;
@@ -317,19 +332,15 @@ function toIsoString(value: unknown): string | null {
 }
 
 /**
- * `crypto.randomUUID()` de Node ne produit que de l'UUIDv4. On génère ici un UUIDv7
- * (RFC 9562) : 48 bits d'horodatage puis aléatoire, ce qui rend les `jobId` triables
- * par date — utile pour la corrélation logs/traces attendue par la story 1.4.
+ * `createJobId` a DÉMÉNAGÉ vers `@/shared/observability` sous le nom
+ * `createCorrelationId` (story 1.4) : le même UUIDv7 sert désormais de `requestId`, de
+ * `commandId` et de `jobId`, et `shared` ne peut pas dépendre de `workers`.
+ *
+ * L'export est conservé ici, à l'identique (même signature, même implémentation), parce
+ * que le canari outbox et le Route Handler l'appellent par ce nom. Ce n'est pas une
+ * duplication : c'est un alias.
  */
-export function createJobId(nowMs: number = Date.now()): string {
-  const bytes = Buffer.alloc(16);
-  bytes.writeUIntBE(nowMs, 0, 6);
-  randomFillSync(bytes, 6, 10);
-  bytes[6] = (bytes[6] & 0x0f) | 0x70;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = bytes.toString("hex");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
-}
+export const createJobId = createCorrelationId;
 
 /**
  * `occurredAt` est un instant, pas un mot. Sans cette vérification, `occurredAt: "hier"`
@@ -385,62 +396,19 @@ export function parseDeferredEffectEnvelope(raw: unknown): DeferredEffectEnvelop
 }
 
 /**
- * `String(value)` n'est PAS total : un objet sans prototype (`Object.create(null)`), un
- * objet dont `Symbol.toPrimitive` lève, ou un Proxy piégé font lever la conversion.
- * Trois filets successifs, du plus informatif au plus pauvre, et jamais de propagation.
+ * `describeError` a DÉMÉNAGÉ vers `@/shared/observability` (story 1.4), avec ses filets
+ * `safeStringify` / `safeProperty` et sa borne de 2000 caractères. Même raison que
+ * `createJobId` : le logger de `shared` en a besoin, et `shared` ne peut pas dépendre de
+ * `workers`. Réexporté ici pour les appelants existants — c'est un alias, pas une copie.
  */
-function safeStringify(value: unknown): string {
-  try {
-    if (typeof value === "string") return value;
-    if (value === null) return "null";
-    if (value === undefined) return "undefined";
-    if (typeof value === "symbol") return `Symbol(${value.description ?? ""})`;
-    return String(value);
-  } catch {
-    try {
-      return Object.prototype.toString.call(value);
-    } catch {
-      return "[erreur indescriptible]";
-    }
-  }
-}
-
-/** Lecture d'une propriété dont l'accesseur peut lever (Proxy, getter piégé). */
-function safeProperty(value: Record<string, unknown>, key: string): unknown {
-  try {
-    return value[key];
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Décrit une erreur SANS JAMAIS lever. `recordFailure` l'appelle hors de tout `try` :
- * une exception ici tuerait l'exécution entière au lieu de journaliser un simple échec
- * de message — l'inverse exact de ce que doit faire un chemin de journalisation.
- */
-export function describeError(error: unknown): { errorCode: string; errorMessage: string } {
-  try {
-    if (isRecord(error)) {
-      const rawCode = safeProperty(error, "code");
-      const errorCode = typeof rawCode === "string" && rawCode.length > 0 ? rawCode : "UNEXPECTED_ERROR";
-      const rawMessage = safeProperty(error, "message");
-      const message = typeof rawMessage === "string" ? rawMessage : safeStringify(error);
-      return { errorCode, errorMessage: message.slice(0, ERROR_MESSAGE_MAX_LENGTH) };
-    }
-    return { errorCode: "UNEXPECTED_ERROR", errorMessage: safeStringify(error).slice(0, ERROR_MESSAGE_MAX_LENGTH) };
-  } catch {
-    // Filet ultime : même `isRecord` peut être mis en défaut par un exotisme non prévu.
-    return { errorCode: "UNEXPECTED_ERROR", errorMessage: "[erreur indescriptible]" };
-  }
-}
+export { describeError };
 
 function buildReplayAction(deadLetterQueue: string, queue: string): DeadLetterReplayAction {
   return {
     kind: "replay-to-queue",
     sourceQueue: deadLetterQueue,
     targetQueue: queue,
-    worker: "src/workers/deferred-effects",
+    worker: WORKER_NAME,
     operation: "replayDeadLetteredEffects",
   };
 }
@@ -631,10 +599,16 @@ async function releaseAdvisoryLock(client: PoolClient, jobId: string): Promise<E
     return null;
   } catch (error) {
     const failure = error instanceof Error ? error : new Error(String(error));
-    console.error(
-      `[deferred-effects] libération du verrou consultatif impossible jobId=${jobId} key=${ADVISORY_LOCK_KEY} : ` +
-        "la session doit être détruite, sinon toutes les exécutions suivantes seront ignorées.",
-      failure,
+    // Message LITTÉRAL et champs de la liste blanche uniquement (story 1.4) : l'objet
+    // `error` brut n'est plus passé au journal, sa stack pouvant porter des fragments SQL.
+    logger.error(
+      "Libération du verrou consultatif impossible : la session doit être détruite, sinon toutes les exécutions suivantes seront ignorées.",
+      {
+        jobId,
+        worker: WORKER_NAME,
+        operation: "releaseAdvisoryLock",
+        ...describeError(error),
+      },
     );
     return failure;
   }
@@ -728,10 +702,15 @@ export async function processDeferredEffects(
       result.deadLettered += 1;
     } catch (error) {
       result.deadLetterFailed += 1;
-      console.error(
-        `[deferred-effects] routage DLQ impossible jobId=${jobId} msgId=${msgId} queue=${deadLetterQueue}`,
-        error,
-      );
+      logger.error("Routage DLQ impossible : le message reste en file et redeviendra visible.", {
+        jobId,
+        msgId,
+        queue,
+        deadLetterQueue,
+        worker: WORKER_NAME,
+        operation: "routeToDeadLetterQueue",
+        ...describeError(error),
+      });
     }
   };
 
@@ -962,20 +941,26 @@ export async function replayDeadLetteredEffects(
       result.archived += 1;
       return;
     } catch (error) {
-      console.error(
-        `[deferred-effects] archivage DLQ impossible jobId=${jobId} msgId=${msgId} queue=${deadLetterQueue} : ` +
-          "repli sur une mise à l'écart par timeout de visibilité.",
-        error,
-      );
+      logger.error("Archivage DLQ impossible : repli sur une mise à l'écart par timeout de visibilité.", {
+        jobId,
+        msgId,
+        deadLetterQueue,
+        worker: WORKER_NAME,
+        operation: "quarantine.archive",
+        ...describeError(error),
+      });
     }
     try {
       await client.query(SQL.setVisibilityTimeout, [deadLetterQueue, msgId, QUARANTINE_VISIBILITY_SECONDS]);
     } catch (error) {
-      console.error(
-        `[deferred-effects] mise à l'écart DLQ impossible jobId=${jobId} msgId=${msgId} queue=${deadLetterQueue} : ` +
-          "l'entrée illisible peut continuer de bloquer la tête de file.",
-        error,
-      );
+      logger.error("Mise à l'écart DLQ impossible : l'entrée illisible peut continuer de bloquer la tête de file.", {
+        jobId,
+        msgId,
+        deadLetterQueue,
+        worker: WORKER_NAME,
+        operation: "quarantine.setVisibilityTimeout",
+        ...describeError(error),
+      });
     }
   };
 
@@ -1026,11 +1011,16 @@ export async function replayDeadLetteredEffects(
         }
       } catch (error) {
         result.failed += 1;
-        console.error(
-          `[deferred-effects] rejeu DLQ impossible jobId=${jobId} msgId=${row.msg_id} ` +
-            `messageId=${envelope.messageId} queue=${queue}`,
-          error,
-        );
+        logger.error("Rejeu DLQ impossible : l'entrée reste en DLQ et redeviendra visible.", {
+          jobId,
+          msgId: row.msg_id,
+          messageId: envelope.messageId,
+          queue,
+          deadLetterQueue,
+          worker: WORKER_NAME,
+          operation: "replayDeadLetteredEffects",
+          ...describeError(error),
+        });
         continue;
       }
 

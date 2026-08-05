@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { readFileSync, statSync } from "node:fs";
+import { registerHooks } from "node:module";
 import { resolve as resolvePath, dirname } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -27,12 +29,61 @@ import { fileURLToPath, pathToFileURL } from "node:url";
  * sous-processus. Sans cela, `node:test` détecte un lancement récursif et n'exécute
  * AUCUN test — tout en rendant un succès, c'est-à-dire le pire des résultats.
  *
- * Le worker n'a aucun import relatif à l'exécution (`node:crypto` et des `import type`
- * seulement) : aucun hook de résolution n'est nécessaire, contrairement à `route.ts`.
+ * ────────────────────────────────────────────────────────────────────────────────
+ * SECOND POINT DUR : depuis la story 1.4, le worker A un import à l'exécution
+ * ────────────────────────────────────────────────────────────────────────────────
+ * `src/workers/deferred-effects/index.ts` importe `@/shared/observability` (logger,
+ * `describeError`, `createCorrelationId`). Trois choses que le résolveur ESM de Node ne
+ * sait pas faire apparaissent alors sur le chemin d'import, et l'effacement de types n'y
+ * change rien : l'alias `@/…` de tsconfig, les imports relatifs sans extension entre
+ * fichiers `.ts`, et — via `@/shared/config/environment` — un `import … from
+ * "…/environments.json"` sans attribut `with { type: "json" }`. Sans hooks, l'import
+ * échoue en `ERR_MODULE_NOT_FOUND` et AUCUN test de ce fichier ne s'exécute.
+ *
+ * `module.registerHooks()` (Node ≥ 22.15 et ≥ 23.5, donc disponible ici comme en CI)
+ * fournit les trois règles manquantes en une vingtaine de lignes. Bloc identique à celui
+ * de `tests/integration/database-outbox-canary.mjs` : les deux fichiers importent le même
+ * code source réel, ils ont donc le même besoin. Aucun transpileur, aucun loader tiers.
  */
 
 const RACINE = resolvePath(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const SENTINELLE_RELANCE = "TESTS_UNITAIRES_EFFACEMENT_TYPES";
+
+const estFichier = (chemin) => {
+  try {
+    return statSync(chemin).isFile();
+  } catch {
+    return false;
+  }
+};
+
+const resoudreSource = (base, specificateur) => {
+  const cible = resolvePath(base, specificateur);
+  for (const candidat of [cible, `${cible}.ts`, `${cible}.tsx`, resolvePath(cible, "index.ts")]) {
+    if (estFichier(candidat)) return candidat;
+  }
+  return null;
+};
+
+registerHooks({
+  resolve(specificateur, contexte, suivant) {
+    let cible = null;
+    if (specificateur.startsWith("@/")) {
+      cible = resoudreSource(resolvePath(RACINE, "src"), specificateur.slice(2));
+    } else if (specificateur.startsWith(".") && contexte.parentURL?.endsWith(".ts")) {
+      cible = resoudreSource(dirname(fileURLToPath(contexte.parentURL)), specificateur);
+    }
+    if (cible) return { url: pathToFileURL(cible).href, shortCircuit: true };
+    return suivant(specificateur, contexte);
+  },
+  load(url, contexte, suivant) {
+    if (url.startsWith("file:") && url.endsWith(".json")) {
+      const source = readFileSync(fileURLToPath(url), "utf8");
+      return { format: "module", shortCircuit: true, source: `export default ${source};` };
+    }
+    return suivant(url, contexte);
+  },
+});
 
 const estErreurEffacementTypes = (erreur) =>
   erreur?.code === "ERR_UNKNOWN_FILE_EXTENSION" ||
