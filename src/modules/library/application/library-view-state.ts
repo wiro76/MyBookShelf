@@ -8,12 +8,25 @@ import {
   type StoredLibraryViewState,
 } from "../domain/library-view-state";
 import { describeError, logger } from "@/shared/observability";
+import type { MutationReceipt } from "@/shared/mutations";
 
 export type LibraryViewStateReceipt = {
+  commandId: string;
+  commandType: "library.view-state.confirm";
   status: "confirmed" | "replayed";
   revision: number;
   confirmedAt: string;
 };
+
+export function toLibraryMutationReceipt(receipt: LibraryViewStateReceipt): MutationReceipt {
+  return {
+    commandId: receipt.commandId,
+    commandType: receipt.commandType,
+    status: receipt.status,
+    resultVersions: { libraryViewState: receipt.revision },
+    confirmedAt: receipt.confirmedAt,
+  };
+}
 
 export type ConfirmLibraryViewStateCommand = {
   commandId: string;

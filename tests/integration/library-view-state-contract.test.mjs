@@ -27,3 +27,15 @@ test("la migration force RLS sur le contexte et les reçus", () => {
   assert.match(migration, /to authenticated[\s\S]*\(select auth\.uid\(\)\) = user_id/i);
   assert.doesNotMatch(migration, /grant[^;]+\bto anon\b/i);
 });
+
+test("chaque reçu de contexte expose sa corrélation de commande sans modifier le hash", () => {
+  const application = read("src/modules/library/application/library-view-state.ts");
+  const adapter = read("src/modules/library/adapters/postgres-library-view-state.ts");
+
+  assert.match(application, /type LibraryViewStateReceipt = \{[\s\S]*commandId: string;[\s\S]*commandType: "library\.view-state\.confirm";/);
+  assert.match(application, /toLibraryMutationReceipt[\s\S]*resultVersions: \{ libraryViewState: receipt\.revision \}/);
+  assert.match(adapter, /const mapReceipt = \(row: ReceiptRow, commandId: string, requestSha256: string\)/);
+  assert.match(adapter, /return \{[\s\S]*commandId,[\s\S]*commandType: "library\.view-state\.confirm",[\s\S]*status: "replayed"/);
+  assert.match(adapter, /return \{[\s\S]*commandId,[\s\S]*commandType: "library\.view-state\.confirm",[\s\S]*status: "confirmed"/);
+  assert.match(application, /createHash\("sha256"\)[\s\S]*commandId: command\.commandId,[\s\S]*commandType: command\.commandType/);
+});

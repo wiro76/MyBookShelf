@@ -97,16 +97,19 @@ const nearest = (
   candidates: readonly LibraryResumeTarget[],
   state: StoredLibraryViewState,
   dimensions: readonly (keyof Pick<LibraryResumeTarget, "modulePosition" | "shelfPosition" | "itemPosition">)[],
-) => [...candidates].sort((left, right) => {
-  for (const dimension of dimensions) {
-    const anchor = state[dimension] ?? 0;
-    const distance = Math.abs(left[dimension] - anchor) - Math.abs(right[dimension] - anchor);
-    if (distance !== 0) return distance;
-    const lowerIndex = left[dimension] - right[dimension];
-    if (lowerIndex !== 0) return lowerIndex;
-  }
-  return canonicalCompare(left, right);
-})[0];
+) => candidates.reduce((selected, candidate) => {
+  const compare = (left: LibraryResumeTarget, right: LibraryResumeTarget) => {
+    for (const dimension of dimensions) {
+      const anchor = state[dimension] ?? 0;
+      const distance = Math.abs(left[dimension] - anchor) - Math.abs(right[dimension] - anchor);
+      if (distance !== 0) return distance;
+      const lowerIndex = left[dimension] - right[dimension];
+      if (lowerIndex !== 0) return lowerIndex;
+    }
+    return canonicalCompare(left, right);
+  };
+  return compare(candidate, selected) < 0 ? candidate : selected;
+});
 
 const adjusted = (target: LibraryResumeTarget) => ({
   status: "adjusted" as const,

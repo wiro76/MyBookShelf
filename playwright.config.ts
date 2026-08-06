@@ -52,6 +52,7 @@ export default defineConfig({
         ...process.env,
         APP_ENV: "local",
         TARGET_FINGERPRINT: "local-mbs-v1",
+        ENABLE_E2E_HARNESS: "1",
         SUPABASE_URL: `http://127.0.0.1:${FAUX_AUTH_PORT}`,
         SUPABASE_ANON_KEY: "local-test-only-anon-key",
       },

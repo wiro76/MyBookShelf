@@ -37,12 +37,14 @@ const safeRevision = (value: string | number) => {
   return revision;
 };
 
-const mapReceipt = (row: ReceiptRow, requestSha256: string): LibraryViewStateReceipt => {
+const mapReceipt = (row: ReceiptRow, commandId: string, requestSha256: string): LibraryViewStateReceipt => {
   if (row.request_sha256 !== requestSha256) throw new LibraryViewStateError("LIBRARY_VIEW_STATE_COMMAND_REUSED");
   const revision = safeRevision(row.result_revision);
   const confirmedAt = new Date(row.created_at);
   if (!Number.isFinite(confirmedAt.getTime())) throw new LibraryViewStateError();
   return {
+    commandId,
+    commandType: "library.view-state.confirm",
     status: "replayed",
     revision,
     confirmedAt: confirmedAt.toISOString(),
@@ -84,7 +86,7 @@ export function createPostgresLibraryViewStateRepository(
           from library.library_view_state_receipts
           where user_id = $1 and command_id = $2
         `, [userId, commandId]);
-        return result.rows[0] ? mapReceipt(result.rows[0], requestSha256) : null;
+        return result.rows[0] ? mapReceipt(result.rows[0], commandId, requestSha256) : null;
       });
     },
 
@@ -95,7 +97,7 @@ export function createPostgresLibraryViewStateRepository(
           from library.library_view_state_receipts
           where user_id = $1 and command_id = $2
         `, [userId, commandId]);
-        if (existingReceipt.rows[0]) return mapReceipt(existingReceipt.rows[0], requestSha256);
+        if (existingReceipt.rows[0]) return mapReceipt(existingReceipt.rows[0], commandId, requestSha256);
 
         const current = await client.query<{ revision: string | number }>(`
           select revision from library.library_view_states where user_id = $1 for update
@@ -105,7 +107,7 @@ export function createPostgresLibraryViewStateRepository(
           from library.library_view_state_receipts
           where user_id = $1 and command_id = $2
         `, [userId, commandId]);
-        if (receiptAfterLock.rows[0]) return mapReceipt(receiptAfterLock.rows[0], requestSha256);
+        if (receiptAfterLock.rows[0]) return mapReceipt(receiptAfterLock.rows[0], commandId, requestSha256);
         const currentRevision = current.rows[0] ? safeRevision(current.rows[0].revision) : 0;
         if (currentRevision !== expectedRevision) throw new LibraryViewStateError("LIBRARY_VIEW_STATE_CONFLICT");
         const nextRevision = expectedRevision + 1;
@@ -136,7 +138,7 @@ export function createPostgresLibraryViewStateRepository(
             from library.library_view_state_receipts
             where user_id = $1 and command_id = $2
           `, [userId, commandId]);
-          if (racedReceipt.rows[0]) return mapReceipt(racedReceipt.rows[0], requestSha256);
+          if (racedReceipt.rows[0]) return mapReceipt(racedReceipt.rows[0], commandId, requestSha256);
           throw new LibraryViewStateError("LIBRARY_VIEW_STATE_CONFLICT");
         }
 
@@ -146,7 +148,13 @@ export function createPostgresLibraryViewStateRepository(
             user_id, command_id, request_sha256, result_revision, created_at
           ) values ($1, $2, $3, $4, $5)
         `, [userId, commandId, requestSha256, nextRevision, confirmedAt]);
-        return { status: "confirmed", revision: nextRevision, confirmedAt };
+        return {
+          commandId,
+          commandType: "library.view-state.confirm",
+          status: "confirmed",
+          revision: nextRevision,
+          confirmedAt,
+        };
       });
     },
   };

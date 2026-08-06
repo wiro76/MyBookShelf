@@ -71,8 +71,8 @@ if (modules) {
   const SHELF_B = "b2222222-2222-4222-8222-222222222222";
   const COPY_A = "c1111111-1111-4111-8111-111111111111";
   const COPY_B = "c2222222-2222-4222-8222-222222222222";
-  const COMMAND = "d1111111-1111-4111-8111-111111111111";
-  const CONCURRENT_COMMAND = "d3333333-3333-4333-8333-333333333333";
+  const COMMAND = "018f1e23-4567-7a11-8111-111111111111";
+  const CONCURRENT_COMMAND = "018f1e23-4568-7a33-8333-333333333333";
 
   const target = (overrides = {}) => ({
     status: "finished",
@@ -97,7 +97,7 @@ if (modules) {
 
   const admin = new Client({ connectionString: databaseUrl });
   await admin.connect();
-  const { confirmLibraryContext, resumeLibraryContext } = modules.application;
+  const { confirmLibraryContext, resumeLibraryContext, toLibraryMutationReceipt } = modules.application;
   const { createPostgresLibraryViewStateRepository } = modules.adapter;
   const { closeDatabasePool } = modules.kernel;
   const repository = createPostgresLibraryViewStateRepository();
@@ -107,13 +107,28 @@ if (modules) {
     const original = target();
     const originalCommand = command(COMMAND, 0, original);
 
-    const confirmed = await confirmLibraryContext(OWNER, originalCommand, [original], repository);
-    assert.equal(confirmed.status, "confirmed");
-    assert.equal(confirmed.revision, 1);
+    let committedAt;
+    await assert.rejects(async () => {
+      const committed = await confirmLibraryContext(OWNER, originalCommand, [original], repository);
+      committedAt = committed.confirmedAt;
+      throw new Error("RESPONSE_LOST_AFTER_COMMIT");
+    }, /RESPONSE_LOST_AFTER_COMMIT/);
 
     const replayed = await confirmLibraryContext(OWNER, originalCommand, [original], repository);
-    assert.equal(replayed.status, "replayed");
-    assert.equal(replayed.revision, 1);
+    assert.deepEqual(replayed, {
+      commandId: COMMAND,
+      commandType: "library.view-state.confirm",
+      status: "replayed",
+      revision: 1,
+      confirmedAt: committedAt,
+    });
+    assert.deepEqual(toLibraryMutationReceipt(replayed), {
+      commandId: COMMAND,
+      commandType: "library.view-state.confirm",
+      status: "replayed",
+      resultVersions: { libraryViewState: 1 },
+      confirmedAt: committedAt,
+    });
 
     const alternative = target({ copyId: COPY_B, itemPosition: 1 });
     await assert.rejects(
@@ -149,6 +164,13 @@ if (modules) {
       "deux confirmations identiques concurrentes ne creent qu'une revision",
     );
     assert.deepEqual(concurrentResults.map(({ revision }) => revision), [2, 2]);
+    assert.deepEqual(
+      concurrentResults.map(({ commandId, commandType }) => ({ commandId, commandType })),
+      Array.from({ length: 2 }, () => ({
+        commandId: CONCURRENT_COMMAND,
+        commandType: "library.view-state.confirm",
+      })),
+    );
 
     const movedResult = await resumeLibraryContext(OWNER, [moved, alternative], repository);
     assert.equal(movedResult.status, "adjusted");
@@ -160,6 +182,17 @@ if (modules) {
 
     const persisted = await admin.query("select revision, copy_id from library.library_view_states where user_id = $1", [OWNER]);
     assert.deepEqual(persisted.rows, [{ revision: "2", copy_id: COPY_A }], "la reprise ne modifie jamais le signet confirme");
+    const persistedReceipts = await admin.query(`
+      select command_id, request_sha256, result_revision
+      from library.library_view_state_receipts
+      where user_id = $1
+      order by result_revision
+    `, [OWNER]);
+    assert.deepEqual(persistedReceipts.rows.map(({ command_id, result_revision }) => ({ command_id, result_revision })), [
+      { command_id: COMMAND, result_revision: "1" },
+      { command_id: CONCURRENT_COMMAND, result_revision: "2" },
+    ]);
+    assert.ok(persistedReceipts.rows.every(({ request_sha256 }) => /^[a-f0-9]{64}$/.test(request_sha256)));
     process.stdout.write("Canari contexte: confirmation, rejeu, conflit, RLS et replis exacts.\n");
   } finally {
     await closeDatabasePool().catch(() => {});

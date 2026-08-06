@@ -92,7 +92,7 @@ const {
   validateLibraryResumeTarget,
   validateStoredLibraryViewState,
 } = modules.domain;
-const { confirmLibraryContext, resumeLibraryContext } = modules.application;
+const { confirmLibraryContext, resumeLibraryContext, toLibraryMutationReceipt } = modules.application;
 
 test("restaure la cible exacte sans annonce", () => {
   const current = target();
@@ -200,25 +200,33 @@ test("la reprise distingue une indisponibilité d'une bibliothèque vide", async
 test("la confirmation valide la cible et transmet un hash canonique sans identifiant utilisateur", async () => {
   const current = target();
   const userId = "80000000-0000-4000-8000-000000000001";
+  const commandId = "90000000-0000-4000-8000-000000000001";
+  const commandType = "library.view-state.confirm";
   const calls = [];
   const repository = {
     load: async () => null,
     replay: async () => null,
     confirm: async (...args) => {
       calls.push(args);
-      return { status: "confirmed", revision: 1, confirmedAt: "2026-08-06T08:00:00.000Z" };
+      return { commandId, commandType, status: "confirmed", revision: 1, confirmedAt: "2026-08-06T08:00:00.000Z" };
     },
   };
   const command = {
-    commandId: "90000000-0000-4000-8000-000000000001",
-    commandType: "library.view-state.confirm",
+    commandId,
+    commandType,
     actorId: userId,
     aggregateIds: [userId],
     expectedVersions: { libraryViewState: 0 },
     payload: { target: current },
     occurredAt: "2026-08-06T08:00:00.000Z",
   };
-  assert.equal((await confirmLibraryContext(userId, command, [current], repository)).status, "confirmed");
+  assert.deepEqual(await confirmLibraryContext(userId, command, [current], repository), {
+    commandId,
+    commandType,
+    status: "confirmed",
+    revision: 1,
+    confirmedAt: "2026-08-06T08:00:00.000Z",
+  });
   assert.equal(calls.length, 1);
   assert.match(calls[0][2], /^[a-f0-9]{64}$/);
   assert.notEqual(calls[0][2], userId);
@@ -228,14 +236,20 @@ test("la confirmation valide la cible et transmet un hash canonique sans identif
   );
   assert.equal(calls.length, 1);
 
-  repository.replay = async () => ({ status: "replayed", revision: 1, confirmedAt: "2026-08-06T08:00:00.000Z" });
-  assert.equal((await confirmLibraryContext(userId, command, [], repository)).status, "replayed");
+  repository.replay = async () => ({ commandId, commandType, status: "replayed", revision: 1, confirmedAt: "2026-08-06T08:00:00.000Z" });
+  assert.deepEqual(await confirmLibraryContext(userId, command, [], repository), {
+    commandId,
+    commandType,
+    status: "replayed",
+    revision: 1,
+    confirmedAt: "2026-08-06T08:00:00.000Z",
+  });
   assert.equal(calls.length, 1, "un rejeu ne revalide pas une projection qui a pu evoluer");
 
   let firstDigest = null;
   repository.replay = async (_userId, _commandId, digest) => {
     firstDigest ??= digest;
-    return { status: "replayed", revision: 1, confirmedAt: "2026-08-06T08:00:00.000Z" };
+    return { commandId, commandType, status: "replayed", revision: 1, confirmedAt: "2026-08-06T08:00:00.000Z" };
   };
   const reorderedTarget = {
     itemPosition: current.itemPosition,
@@ -267,5 +281,21 @@ test("la confirmation valide la cible et transmet un hash canonique sans identif
     () => confirmLibraryContext(userId, command, [current], repository),
     (error) => error?.code === "LIBRARY_VIEW_STATE_UNAVAILABLE",
   );
+});
+
+test("convertit le reçu de contexte vers le contrat générique autocorrélé", () => {
+  assert.deepEqual(toLibraryMutationReceipt({
+    commandId: "018f1e23-4567-7abc-8def-0123456789ab",
+    commandType: "library.view-state.confirm",
+    status: "replayed",
+    revision: 4,
+    confirmedAt: "2026-08-06T08:00:00.000Z",
+  }), {
+    commandId: "018f1e23-4567-7abc-8def-0123456789ab",
+    commandType: "library.view-state.confirm",
+    status: "replayed",
+    resultVersions: { libraryViewState: 4 },
+    confirmedAt: "2026-08-06T08:00:00.000Z",
+  });
 });
 }
