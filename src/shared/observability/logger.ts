@@ -1,4 +1,5 @@
-import { correlationAttributes } from "./context";
+import { CORRELATION_KEYS, correlationAttributes, sanitizeCorrelationContext } from "./context";
+import { TRUNCATION_SUFFIX, redactSensitiveText } from "./redaction";
 
 /**
  * Logger structuré — story 1.4 (AC 2, AC 3 ; AD-12).
@@ -43,12 +44,6 @@ export type LogLevel = "debug" | "info" | "warn" | "error";
  * On tronque avant elle, sur les VALEURS, en re-sérialisant : le JSON reste valide.
  */
 export const LOG_LINE_MAX_BYTES = 256 * 1024;
-
-/** Suffixe apposé à toute valeur raccourcie, pour qu'une lecture ne se trompe pas. */
-export const TRUNCATION_SUFFIX = "…[tronqué]";
-
-/** Marqueur substitué à un fragment reconnu comme sensible. */
-export const REDACTION_PLACEHOLDER = "[expurgé]";
 
 /**
  * LISTE BLANCHE. Chaque entrée déclare les types acceptés pour cette clé.
@@ -103,51 +98,7 @@ const ALLOWED_FIELDS: Record<string, ReadonlyArray<"string" | "number" | "boolea
   stoppedForTime: ["boolean"],
 };
 
-/** Les seules clés dont la valeur échappe à l'expurgation : nous les produisons. */
-const CORRELATION_FIELDS = new Set(["requestId", "commandId", "actorId", "jobId"]);
-
-/**
- * Motifs à haut risque, du plus spécifique au plus général. Ils s'appliquent au texte
- * libre uniquement (voir l'en-tête : filet, pas garantie).
- */
-/**
- * Tous les quantificateurs sont BORNÉS, sans exception.
- *
- * Une borne supérieure n'est pas une coquetterie : avec `+` ou `{40,}` sur une classe
- * large, une chaîne longue et sans séparateur — un `errorMessage` volumineux renvoyé par
- * un fournisseur, par exemple — fait repartir le moteur d'expressions régulières depuis
- * chaque position. Mesuré avant correction : 72 secondes pour une seule valeur de 300 000
- * caractères, sur le chemin de journalisation, c'est-à-dire précisément là où l'on essaie
- * de comprendre un incident. Les bornes ci-dessous couvrent toutes les valeurs réelles
- * (RFC 5321 plafonne une partie locale à 64 caractères et un domaine à 255).
- */
-const REDACTION_PATTERNS: ReadonlyArray<RegExp> = [
-  // Adresse courriel.
-  /[\w!#$%&'*+/=?^`{|}~.-]{1,64}@[\w-]{1,63}(?:\.[\w-]{1,63}){1,8}/g,
-  // Toute URI à schéma : https signée, postgres://user:pass@host, supabase://…
-  /\b[a-z][a-z0-9+.-]{0,31}:\/\/\S{1,2048}/gi,
-  // Jeton JWT.
-  /\beyJ[A-Za-z0-9_-]{4,2048}\.[A-Za-z0-9_-]{4,2048}\.[A-Za-z0-9_-]{0,2048}/g,
-  // Secret opaque : 40 caractères ou plus sans séparateur. Un UUID (36) n'y tombe pas,
-  // un pseudonyme HMAC n'est jamais soumis à cette passe (voir CORRELATION_FIELDS).
-  /\b[A-Za-z0-9_-]{40,4096}\b/g,
-];
-
-/**
- * Plafond appliqué AVANT l'expurgation, en défense en profondeur : au-delà, aucune valeur
- * n'apporte de diagnostic, et la borner ici garantit un coût de journalisation prévisible
- * même si un motif futur était réintroduit sans borne.
- */
-const REDACTION_INPUT_MAX_LENGTH = 8192;
-
-function redact(value: string): string {
-  let redacted =
-    value.length > REDACTION_INPUT_MAX_LENGTH
-      ? `${value.slice(0, REDACTION_INPUT_MAX_LENGTH)}${TRUNCATION_SUFFIX}`
-      : value;
-  for (const pattern of REDACTION_PATTERNS) redacted = redacted.replace(pattern, REDACTION_PLACEHOLDER);
-  return redacted;
-}
+const CORRELATION_FIELDS = new Set<string>(CORRELATION_KEYS);
 
 function byteLength(value: string): number {
   return Buffer.byteLength(value, "utf8");
@@ -172,7 +123,13 @@ function applyWhitelist(fields: Record<string, unknown> | undefined): Record<str
     if (!allowedTypes) continue; // champ inconnu : DÉTRUIT.
     if (typeof value === "string" && allowedTypes.includes("string")) {
       if (value.length === 0) continue;
-      retained[key] = CORRELATION_FIELDS.has(key) ? value : redact(value);
+      if (CORRELATION_FIELDS.has(key)) {
+        const sanitized = sanitizeCorrelationContext({ [key]: value });
+        const safeValue = sanitized[key as keyof typeof sanitized];
+        if (safeValue) retained[key] = safeValue;
+        continue;
+      }
+      retained[key] = redactSensitiveText(value);
       continue;
     }
     if (typeof value === "number" && allowedTypes.includes("number") && Number.isFinite(value)) {
@@ -245,10 +202,10 @@ function serializeWithinLimit(record: Record<string, string | number | boolean>)
 export function formatLogLine(level: LogLevel, message: string, fields?: Record<string, unknown>): string {
   const record: Record<string, string | number | boolean> = {
     level,
-    message: redact(typeof message === "string" ? message : ""),
+    message: redactSensitiveText(typeof message === "string" ? message : ""),
     timestamp: new Date().toISOString(),
-    ...correlationAttributes(),
     ...applyWhitelist(fields),
+    ...correlationAttributes(),
   };
   return serializeWithinLimit(record);
 }

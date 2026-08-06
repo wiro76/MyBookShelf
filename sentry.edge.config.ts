@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
+import { sanitizeSentryEvent } from "./src/shared/observability/sentry";
 
 /**
  * Configuration Sentry — runtime Edge — story 1.4 (T4).
@@ -50,15 +51,11 @@ if (dsn) {
 
     beforeSend(event) {
       try {
-        delete event.user;
-        if (event.request) {
-          const url = typeof event.request.url === "string" ? event.request.url.split("?")[0] : undefined;
-          event.request = { method: event.request.method, url };
-        }
+        return sanitizeSentryEvent(event);
       } catch {
-        // Voir `sentry.server.config.ts` : un événement mal formé ne bloque pas l'envoi.
+        // Voir `sentry.server.config.ts` : un événement impossible à expurger est abandonné.
+        return null;
       }
-      return event;
     },
   });
 }

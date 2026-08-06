@@ -145,20 +145,53 @@ test("AC 1 — un cookie de session falsifié ne vaut pas une session", async ({
   expect(session.length).toBeGreaterThan(0);
   // Le jeton reste hors de portée d'un script injecté : c'est ce que `httpOnly` garantit, et
   // c'est la différence entre cette implémentation et un client d'authentification navigateur.
-  for (const cookie of session) expect(cookie.httpOnly).toBe(true);
+  const protocoleSecurise = new URL(baseURL!).protocol === "https:";
+  for (const cookie of session) {
+    expect(cookie.httpOnly).toBe(true);
+    expect(cookie.sameSite).toBe("Lax");
+    expect(cookie.path).toBe("/");
+    expect(cookie.secure).toBe(protocoleSecurise);
+  }
   expect(await page.evaluate(() => document.cookie)).not.toContain("auth-token");
+
+  // Le faux service n'expose aucune base : après authentification, la bibliothèque prouve
+  // donc aussi son état dégradé et sa commande explicite de nouvelle tentative.
+  await expect(page.getByRole("link", { name: "Réessayer" })).toHaveAttribute("href", "/bibliotheque");
 
   // Falsification : on altère la charge du jeton. Le serveur d'authentification ne le
   // reconnaît plus — `getUser()` le lui demande, `getSession()` ne l'aurait pas fait.
   await context.clearCookies();
-  await context.addCookies(
-    session.map((cookie) => ({ ...cookie, value: cookie.value.replace(/.$/, "X") })),
-  );
+  await context.addCookies([{ ...session[0], value: "base64-bm90LWEtc2Vzc2lvbg==" }]);
 
   await page.goto("/bibliotheque");
   await expect(page).toHaveURL(/\/connexion\?destination=%2Fbibliotheque$/);
   await expect(page.locator(IDENTIFIANTS.email)).toBeVisible();
   expect(await domRendu(page)).not.toContain("Te voilà");
+});
+
+test("AC 2 — le proxy rafraîchit une session courte avant le rendu privé", async ({ page }) => {
+  const lireCompteur = async () => {
+    const reponse = await page.request.get("http://127.0.0.1:3101/sante");
+    return ((await reponse.json()) as { rafraichissements: number }).rafraichissements;
+  };
+  const avant = await lireCompteur();
+
+  await ouvrirConnexion(page, "?destination=%2Fbibliotheque");
+  await soumettre(page, COMPTES.rafraichissement.email, COMPTES.rafraichissement.password);
+
+  await expect(page).toHaveURL(/\/bibliotheque$/);
+  await expect.poll(lireCompteur).toBeGreaterThan(avant);
+  await expect(page.getByRole("link", { name: "Réessayer" })).toBeVisible();
+});
+
+test("AC 1 — une panne de vérification ne simule pas une déconnexion", async ({ page }) => {
+  await ouvrirConnexion(page, "?destination=%2Fbibliotheque");
+  await soumettre(page, COMPTES.sessionIndisponible.email, COMPTES.sessionIndisponible.password);
+
+  await expect(page).toHaveURL(/\/bibliotheque$/);
+  await expect(page.getByText(/session n’a pas pu être vérifiée/i)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Réessayer" })).toBeVisible();
+  await expect(page.getByText("Te voilà", { exact: false })).toHaveCount(0);
 });
 
 // ── AC 3 — saisie conservée, erreur reliée, focus selon le nombre d'erreurs ───────────────
@@ -197,6 +230,10 @@ test("AC 3 — une seule erreur : le focus va sur le champ, jamais sur un résum
 
   // La saisie de l'e-mail est CONSERVÉE : c'est l'exigence explicite de l'AC 3.
   await expect(page.locator(IDENTIFIANTS.email)).toHaveValue(COMPTES.valide.email);
+
+  await motDePasse.fill("nouvelle-valeur");
+  await expect(page.locator(IDENTIFIANTS.erreurMotDePasse)).toHaveCount(0);
+  await expect(motDePasse).toHaveAttribute("aria-invalid", "false");
 });
 
 test("AC 3 — refus d'identifiants : UNE erreur, deux champs marqués, focus sur l'e-mail", async ({ page }) => {
@@ -229,6 +266,11 @@ test("AC 3 — refus d'identifiants : UNE erreur, deux champs marqués, focus su
   // Jamais la couleur seule : une icône ET du texte accompagnent le message.
   await expect(message.locator("svg")).toHaveCount(1);
   expect(texte.trim().length).toBeGreaterThan(20);
+
+  await page.locator(IDENTIFIANTS.email).fill("corrige@exemple.test");
+  await expect(message).toHaveCount(0);
+  await expect(page.locator(IDENTIFIANTS.email)).toHaveAttribute("aria-invalid", "false");
+  await expect(page.locator(IDENTIFIANTS.motDePasse)).toHaveAttribute("aria-invalid", "false");
 });
 
 test("AC 3 — panne du service : alerte distincte, saisie conservée, focus rendu au bouton", async ({ page }) => {
@@ -245,6 +287,40 @@ test("AC 3 — panne du service : alerte distincte, saisie conservée, focus ren
   await expect(page.getByRole("button", { name: /connecter/i })).toBeFocused();
   await expect(page.locator(IDENTIFIANTS.email)).toHaveValue(COMPTES.emailEnPanne);
   await expect(page.locator(IDENTIFIANTS.motDePasse)).toHaveValue(COMPTES.valide.password);
+
+  await page.locator(IDENTIFIANTS.email).fill("autre@exemple.test");
+  await expect(alerte).toBeVisible();
+});
+
+test("AC 3 — les champs sont désactivés pendant la soumission", async ({ page }) => {
+  await ouvrirConnexion(page);
+  await page.fill(IDENTIFIANTS.email, COMPTES.valide.email);
+  await page.fill(IDENTIFIANTS.motDePasse, COMPTES.mauvaisMotDePasse);
+
+  await page.route("**/connexion", async (route) => {
+    if (route.request().method() === "POST") {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    await route.continue();
+  });
+
+  const soumission = page.getByRole("button", { name: /connecter/i }).click();
+  await expect(page.locator(IDENTIFIANTS.email)).toBeDisabled();
+  await expect(page.locator(IDENTIFIANTS.motDePasse)).toBeDisabled();
+  await soumission;
+});
+
+test("AC 3 — deux pannes identiques remontent l'alerte pour une nouvelle annonce", async ({ page }) => {
+  await ouvrirConnexion(page);
+  await soumettre(page, COMPTES.emailEnPanne, COMPTES.valide.password);
+  const premiereAlerte = await page.locator(IDENTIFIANTS.alerteReseau).elementHandle();
+  expect(premiereAlerte).not.toBeNull();
+
+  await page.getByRole("button", { name: /connecter/i }).click();
+  await expect(page.locator(IDENTIFIANTS.alerteReseau)).toHaveAttribute("data-attempt", "2");
+  const secondeAlerte = await page.locator(IDENTIFIANTS.alerteReseau).elementHandle();
+  expect(secondeAlerte).not.toBeNull();
+  expect(await premiereAlerte!.evaluate((element, suivante) => element === suivante, secondeAlerte)).toBe(false);
 });
 
 test("AC 3 — deux échecs de suite redéplacent le focus", async ({ page }) => {
@@ -391,21 +467,8 @@ test("le reflow 400 % à 320 CSS px ne produit aucun défilement bidimensionnel"
   await expect(page.getByRole("button", { name: /connecter/i })).toBeVisible();
 });
 
-/**
- * ⚠️ Reflow et espacement sont vérifiés SÉPARÉMENT, et c'est délibéré.
- *
- * WCAG 1.4.10 exige l'absence de défilement bidimensionnel à 320 CSS px ; WCAG 1.4.12 exige
- * qu'aucun contenu ni aucune fonction ne se perde quand l'utilisateur impose son espacement.
- * Ni l'un ni l'autre n'exige la conjonction des deux, et les mesurer ensemble reviendrait à
- * inventer un critère plus strict que la norme.
- *
- * Cette distinction n'est pas théorique : mesuré sur cet écran, le cumul des deux contraintes
- * fait déborder le panneau de 2 px à 320 px, le mot « bibliothèque » du titre en Lora 36 px
- * augmenté de 0,12em d'interlettrage dépassant à lui seul la largeur disponible. Un titre est
- * insécable ; il n'y a rien à y couper. Ce constat est signalé plutôt que masqué — et plutôt
- * que gravé dans une assertion qui exigerait de la page plus que le plancher WCAG 2.2 AA.
- */
-test("l'espacement de texte WCAG 1.4.12 ne perd ni contenu ni lisibilité", async ({ page }) => {
+test("reflow 320 px et espacement WCAG cumulés ne perdent ni contenu ni lisibilité", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
   await ouvrirConnexion(page);
   await page.addStyleTag({ content: ESPACEMENT_1_4_12 });
 

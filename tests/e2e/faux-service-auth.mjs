@@ -50,6 +50,14 @@ export const COMPTES = {
     password: "mot-de-passe-de-test-1234",
     id: "11111111-1111-4111-8111-111111111111",
   },
+  rafraichissement: {
+    email: "session-courte@exemple.test",
+    password: "mot-de-passe-de-test-1234",
+  },
+  sessionIndisponible: {
+    email: "session-indisponible@exemple.test",
+    password: "mot-de-passe-de-test-1234",
+  },
   /** Mot de passe volontairement faux, pour la branche « refus d'identifiants ». */
   mauvaisMotDePasse: "mot-de-passe-de-test-faux",
   /** Adresse qui déclenche un 503 : la branche « panne », distincte du refus. */
@@ -86,6 +94,9 @@ const emettreJeton = (sub, dureeSecondes) => {
 
 /** Jetons émis pendant la vie du processus. `GET /auth/v1/user` ne reconnaît qu'eux. */
 const jetonsEmis = new Set();
+const jetonsIndisponibles = new Set();
+const refreshTokens = new Set();
+let rafraichissements = 0;
 
 const DUREE_JETON = 3600;
 
@@ -123,13 +134,29 @@ export function demarrerFauxServiceAuth(port) {
         reponse.end(texte);
       };
 
-      if (url.pathname === "/sante") return repondre(200, { ok: true });
+      if (url.pathname === "/sante") return repondre(200, { ok: true, rafraichissements });
 
       if (url.pathname === "/auth/v1/token" && requete.method === "POST") {
-        if (url.searchParams.get("grant_type") !== "password") {
-          // Rafraîchissement et autres flux : hors périmètre, et jamais atteints tant que
-          // `expires_in` reste large. Répondre 400 plutôt que 200 évite qu'un chemin non prévu
-          // passe inaperçu.
+        const grantType = url.searchParams.get("grant_type");
+        if (grantType === "refresh_token") {
+          if (!refreshTokens.delete(corps.refresh_token)) {
+            return repondre(400, { error_code: "refresh_token_not_found", code: 400 });
+          }
+          const jeton = emettreJeton(COMPTES.valide.id, DUREE_JETON);
+          const refreshToken = `refresh-${jetonsEmis.size + 1}`;
+          jetonsEmis.add(jeton);
+          refreshTokens.add(refreshToken);
+          rafraichissements += 1;
+          return repondre(200, {
+            access_token: jeton,
+            token_type: "bearer",
+            expires_in: DUREE_JETON,
+            expires_at: Math.floor(Date.now() / 1000) + DUREE_JETON,
+            refresh_token: refreshToken,
+            user: utilisateur(),
+          });
+        }
+        if (grantType !== "password") {
           return repondre(400, { error: "unsupported_grant_type" });
         }
         if (corps.email === COMPTES.emailEnPanne) {
@@ -137,15 +164,25 @@ export function demarrerFauxServiceAuth(port) {
           // `isCredentialRefusal`. C'est la branche `#alerte-reseau`.
           return repondre(503, { message: "service indisponible" });
         }
-        if (corps.email === COMPTES.valide.email && corps.password === COMPTES.valide.password) {
-          const jeton = emettreJeton(COMPTES.valide.id, DUREE_JETON);
+        const estCompteValide = corps.email === COMPTES.valide.email && corps.password === COMPTES.valide.password;
+        const estSessionCourte =
+          corps.email === COMPTES.rafraichissement.email && corps.password === COMPTES.rafraichissement.password;
+        const estSessionIndisponible =
+          corps.email === COMPTES.sessionIndisponible.email &&
+          corps.password === COMPTES.sessionIndisponible.password;
+        if (estCompteValide || estSessionCourte || estSessionIndisponible) {
+          const duree = estSessionCourte ? 1 : DUREE_JETON;
+          const jeton = emettreJeton(COMPTES.valide.id, duree);
+          const refreshToken = `refresh-${jetonsEmis.size + 1}`;
           jetonsEmis.add(jeton);
+          if (estSessionIndisponible) jetonsIndisponibles.add(jeton);
+          refreshTokens.add(refreshToken);
           return repondre(200, {
             access_token: jeton,
             token_type: "bearer",
-            expires_in: DUREE_JETON,
-            expires_at: Math.floor(Date.now() / 1000) + DUREE_JETON,
-            refresh_token: `refresh-${jetonsEmis.size}`,
+            expires_in: duree,
+            expires_at: Math.floor(Date.now() / 1000) + duree,
+            refresh_token: refreshToken,
             user: utilisateur(),
           });
         }
@@ -163,6 +200,7 @@ export function demarrerFauxServiceAuth(port) {
       if (url.pathname === "/auth/v1/user" && requete.method === "GET") {
         const entete = requete.headers.authorization ?? "";
         const jeton = entete.startsWith("Bearer ") ? entete.slice(7) : "";
+        if (jetonsIndisponibles.has(jeton)) return repondre(503, { message: "service indisponible" });
         // ⚠️ Le cœur du test du cookie falsifié : seul un jeton ÉMIS par ce service est reconnu.
         if (!jetonsEmis.has(jeton)) {
           return repondre(401, { message: "invalid claim: missing sub claim", code: 401 });

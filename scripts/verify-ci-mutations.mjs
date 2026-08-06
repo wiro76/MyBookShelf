@@ -46,6 +46,13 @@ mutate("tests/fixtures/ux-budget.html", (source) => source.replace("list.append(
 // Remplacement multi-lignes tolérant aux fins de ligne : une copie de travail Windows
 // est en CRLF et un "\n" littéral n'y matcherait jamais, rendant la mutation inopérante.
 mutate("supabase/tests/database/rls.test.sql", (source) => source.replace(/using \(owner_id = \(select auth\.uid\(\)\)\)\r?\n(\s*)with check \(owner_id = \(select auth\.uid\(\)\)\)/, "using (true)\n$1with check (true)"), () => runMustFail("database", "npm", ["run", "ci:database"]));
+// Intégrité du manifeste neutralisée : un digest fourni incorrectement n'est plus rejeté.
+// Le test ciblé garde cette preuve négative rapide sans lancer les deux stacks du drill.
+mutate(
+  "scripts/recovery/manifest.mjs",
+  (source) => source.replace("if (actualManifestDigest !== manifestSha256) fail(\"MANIFEST_DIGEST_MISMATCH\", \"Le digest du manifeste ne correspond pas\");", "if (false) fail(\"MANIFEST_DIGEST_MISMATCH\", \"Le digest du manifeste ne correspond pas\");"),
+  () => runMustFail("recovery", process.execPath, ["--test", "--test-name-pattern", "la vérification contrôle digest", "tests/unit/recovery.test.mjs"]),
+);
 // Isolation par utilisateur neutralisée : les politiques `own_profile` et `own_private_notes`
 // de la migration d'identité deviennent permissives. La table reste protégée par RLS, le rôle
 // `authenticated` garde ses privilèges — seul le PRÉDICAT tombe. C'est la mutation la plus
@@ -71,6 +78,18 @@ mutate(
     ),
   () => runMustFail("database", "npm", ["run", "ci:database"]),
 );
+// Story 1.7 : rendre permissifs le signet et son registre de reçus doit être détecté par
+// pgTAP et par le canari applicatif sous deux identités. On mute les deux politiques pour
+// éviter qu'une seconde barrière intacte ne masque la régression testée.
+mutate(
+  "supabase/migrations/20260806000200_library_view_state_expand.sql",
+  (source) =>
+    source.replace(
+      /using \(\(select auth\.uid\(\)\) = user_id\)\r?\n(\s*)with check \(\(select auth\.uid\(\)\) = user_id\)/g,
+      "using (true)\n$1with check (true)",
+    ),
+  () => runMustFail("database", "npm", ["run", "ci:database"]),
+);
 // Idempotence de consommation neutralisée : `do update` fait compter la ligne en conflit,
 // le doublon n'est plus reconnu et l'effet métier est appliqué deux fois. Le canari outbox
 // doit le voir. Mutation de comportement, pas de test : elle porte sur le worker lui-même.
@@ -80,5 +99,15 @@ mutate("src/workers/deferred-effects/index.ts", (source) => source.replace("on c
 // seule la seconde garde tombe, et le test de fuite doit malgré tout voir ressortir
 // l'adresse, l'URL signée, la chaîne Postgres, le JWT et le secret du worker par les
 // champs autorisés et par le message libre. Une seule ligne, donc aucun souci de CRLF.
-mutate("src/shared/observability/logger.ts", (source) => source.replace("for (const pattern of REDACTION_PATTERNS) redacted = redacted.replace(pattern, REDACTION_PLACEHOLDER);", "/* expurgation neutralisée */"), () => runMustFail("leak", "npm", ["run", "ci:leak"]));
+mutate("src/shared/observability/redaction.ts", (source) => source.replace("for (const pattern of REDACTION_PATTERNS) redacted = redacted.replace(pattern, REDACTION_PLACEHOLDER);", "/* expurgation neutralisée */"), () => runMustFail("leak", "npm", ["run", "ci:leak"]));
+// Liste blanche neutralisée : un champ personnel trivial devient autorisé. Cette mutation
+// prouve la garde principale, pas seulement le filet par motifs.
+mutate("src/shared/observability/logger.ts", (source) => source.replace('stoppedForTime: ["boolean"],', 'stoppedForTime: ["boolean"],\n  title: ["string"],'), () => runMustFail("leak", "npm", ["run", "ci:leak"]));
+// Pseudonymisation acteur neutralisée : un e-mail brut passé en actorId ne doit jamais
+// survivre au contexte ni au logger.
+mutate("src/shared/observability/context.ts", (source) => source.replace("if (ACTOR_PSEUDONYM_PATTERN.test(trimmed)) clean[key] = trimmed;", "clean[key] = trimmed;"), () => runMustFail("leak", "npm", ["run", "ci:leak"]));
+// Expurgation Sentry neutralisée : les sorties externes ne sont pas couvertes par les
+// seules lignes JSON. La porte de fuite doit casser si les données libres redeviennent
+// exportables dans `extra`.
+mutate("src/shared/observability/sentry.ts", (source) => source.replace("delete sanitized.extra;", "/* extra conservé */"), () => runMustFail("leak", "npm", ["run", "ci:leak"]));
 runMustFail("environment", process.execPath, ["scripts/verify-environment-isolation.mjs"], { env: { ...baseEnv, APP_ENV: "preview", TARGET_FINGERPRINT: "production-mbs-v1", SUPABASE_URL: "https://production.example.invalid", SUPABASE_ANON_KEY: "preview-only" } });

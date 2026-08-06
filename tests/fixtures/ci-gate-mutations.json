@@ -4,6 +4,7 @@
   { "gate": "unit", "mutation": "assertion unitaire fausse", "expectedExit": 1 },
   { "gate": "integration", "mutation": "contrat CI absent", "expectedExit": 1 },
   { "gate": "database", "mutation": "politique RLS permissive", "expectedExit": 1 },
+  { "gate": "recovery", "mutation": "contrôle d'intégrité du manifeste neutralisé", "expectedExit": 1 },
   { "gate": "outbox", "mutation": "idempotence de consommation neutralisée", "expectedExit": 1 },
   { "gate": "leak", "mutation": "expurgation par motifs neutralisée dans le logger", "expectedExit": 1 },
   { "gate": "browser", "mutation": "nom accessible absent", "expectedExit": 1 },

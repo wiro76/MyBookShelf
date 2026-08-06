@@ -4,7 +4,7 @@ baseline_commit: 948d5bae699f224bf3aa66506f1fe9baf822c46c
 
 # Story 1.4 : Corréler les incidents sans exposer de données personnelles
 
-Status: review
+Status: done
 
 ## Story
 
@@ -97,6 +97,14 @@ Non négociables. Toute autre interprétation est un écart à signaler, pas à 
     `["lint", "types", "unit", "integration", "database", "outbox", "leak", "browser", "budgets", "environment", "static"]`
     Cet ordre est celui du **fixture**, qui n'est pas l'ordre d'exécution de `verify-ci-mutations.mjs` — ne pas se fier à ce dernier pour choisir la position
   - [x] Ajouter la mutation dans `scripts/verify-ci-mutations.mjs` : casser la redaction et prouver que `ci:leak` échoue
+
+### Review Findings
+
+- [x] [Review][Patch] Expurger les événements Sentry avant toute sortie externe : supprimer `user`, `extra`, `contexts`, breadcrumbs et texte d'exception brut, puis réinjecter uniquement la corrélation sûre.
+- [x] [Review][Patch] Brancher la corrélation sur les spans Sentry via `beforeSendSpan`, sans installer `@vercel/otel`.
+- [x] [Review][Patch] Refuser un `actorId` brut dans le contexte et dans les champs explicites du logger ; seul le pseudonyme HMAC hexadécimal de 64 caractères est conservé.
+- [x] [Review][Patch] Expurger les motifs sensibles avant toute troncature pour éviter les fragments de secret au point de coupe.
+- [x] [Review][Patch] Étendre `ci:leak` et `ci:mutations` aux gardes principales : whitelist, actorId brut et expurgation Sentry.
 
 ## Notes de développement
 
@@ -242,7 +250,7 @@ Contrat d'API figé en amont par le superviseur, puis trois lots :
 
 ### Notes de complétion
 
-Les AC 1, 3 et 4 sont prouvés par exécution réelle. L'AC 2 est traité comme la story le prescrivait : `correlationAttributes()` est une fonction pure unique consommée par le logger et le scope Sentry, testée elle-même et par ses consommateurs.
+Les AC 1, 3 et 4 sont prouvés par exécution réelle. L'AC 2 est traité comme la story le prescrivait : `correlationAttributes()` est une fonction pure unique consommée par le logger, Sentry et les attributs de span, testée elle-même et par ses consommateurs.
 
 **La corrélation bout en bout entre logs, traces et erreurs n'est pas vérifiée** et ne peut pas l'être ici : sans DSN Sentry est un no-op, et aucun collecteur OpenTelemetry ne tourne. À vérifier au premier déploiement.
 
@@ -250,9 +258,9 @@ Les AC 1, 3 et 4 sont prouvés par exécution réelle. L'AC 2 est traité comme 
 
 `withSentryConfig` est conservé — Sentry 10 supporte Turbopack, le critère de sortie n'a pas eu à jouer. Les sourcemaps sont désactivées volontairement : sans organisation ni jeton, leur téléversement échouerait à chaque build.
 
-**Non fait, assumé :** `instrumentation-client.ts` et `app/global-error.tsx` (poids client inutile sans DSN) ; la corrélation sur le runtime Edge (jamais alimentée, la route est en runtime Node) ; aucun test sur `beforeSend` ni `onRequestError`.
+**Non fait, assumé :** `instrumentation-client.ts` et `app/global-error.tsx` (poids client inutile sans DSN) ; la corrélation sur le runtime Edge (jamais alimentée, la route est en runtime Node) ; aucun test d'intégration réel sur `onRequestError`.
 
-**Limites du filet d'expurgation, documentées et non assertées :** un titre de manga ou du contenu importé glissé dans le `message` libre ou dans `errorMessage` n'est reconnu par aucun motif — la garantie est la liste blanche, d'où la règle « `message` = littéral statique ». Les quatre champs de corrélation échappent volontairement à l'expurgation, sans quoi un pseudonyme HMAC de 64 caractères tomberait sous la règle « secret opaque » et la corrélation serait effacée ; la parade est `pseudonymizeActor`.
+**Limites du filet d'expurgation, documentées et non assertées :** un titre de manga ou du contenu importé glissé dans le `message` libre ou dans `errorMessage` n'est reconnu par aucun motif — la garantie est la liste blanche, d'où la règle « `message` = littéral statique ». `actorId` ne traverse plus le contexte qu'après pseudonymisation HMAC ; les autres champs de corrélation restent des identifiants techniques courts.
 
 **Champ abandonné :** `ADVISORY_LOCK_KEY` ne figure plus dans les journaux du verrou consultatif, aucune clé de la liste blanche ne lui convenant sémantiquement. C'est une constante du code source, donc retrouvable.
 
@@ -265,6 +273,8 @@ Fichiers créés :
 - `src/shared/observability/pseudonymize.ts`
 - `src/shared/observability/errors.ts`
 - `src/shared/observability/logger.ts`
+- `src/shared/observability/redaction.ts`
+- `src/shared/observability/sentry.ts`
 - `src/shared/observability/index.ts`
 - `src/instrumentation.ts`
 - `sentry.server.config.ts`
@@ -292,5 +302,6 @@ Fichiers modifiés :
 
 | Date | Description |
 |---|---|
+| 2026-08-05 | Revue BMAD appliquée : expurgation Sentry, corrélation de span, refus d'`actorId` brut, expurgation avant troncature et mutations renforcées. Portes `ci:types`, `ci:lint`, `ci:unit`, `ci:leak`, `ci:mutations` vertes. Statut `done`. |
 | 2026-08-05 | Implémentation livrée : socle, intégration, test de fuite et porte ci:leak. Dix portes vertes. Statut `review`. |
 | 2026-08-05 | Story créée, puis révisée après validation adverse : sens des dépendances tranché, `@vercel/otel` écarté au profit du seul SDK Sentry, `src/instrumentation.ts` imposé, noms et porte CI fixés. Statut `ready-for-dev`. |

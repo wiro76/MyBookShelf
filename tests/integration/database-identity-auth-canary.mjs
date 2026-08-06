@@ -74,6 +74,7 @@ const resoudreSource = (base, specificateur) => {
 
 registerHooks({
   resolve(specificateur, contexte, suivant) {
+    if (specificateur === "next/headers") return suivant("next/headers.js", contexte);
     let cible = null;
     if (specificateur.startsWith("@/")) {
       cible = resoudreSource(resolvePath(RACINE, "src"), specificateur.slice(2));
@@ -101,9 +102,13 @@ const estErreurEffacementTypes = (erreur) =>
 
 let noyau = null;
 let bibliothequePrivee = null;
+let sessionApplicative = null;
+let connexionApplicative = null;
 try {
   noyau = await importerSource("src/shared/kernel/index.ts");
   bibliothequePrivee = await importerSource("src/modules/identity/application/private-library.ts");
+  sessionApplicative = await importerSource("src/modules/identity/application/session.ts");
+  connexionApplicative = await importerSource("src/modules/identity/application/sign-in.ts");
 } catch (erreur) {
   if (process.env[SENTINELLE_RELANCE] || !estErreurEffacementTypes(erreur)) throw erreur;
   const relance = spawnSync(process.execPath, ["--experimental-strip-types", fileURLToPath(import.meta.url)], {
@@ -211,6 +216,90 @@ async function executerCanari() {
     assert.equal(verifiee.statut, 200, "(a) le serveur d'authentification doit reconnaître le jeton émis");
     assert.equal(verifiee.charge?.id, idProprietaire, "(a) le serveur doit rendre le MÊME compte que le jeton");
 
+    // Le même parcours par le VRAI code applicatif et l'adaptateur SSR : il doit classifier le
+    // verdict, sérialiser la session en cookies sécurisés, puis permettre à un second client de
+    // faire reconnaître ces cookies par le vrai GoTrue. Cette preuve ferme l'écart entre le
+    // canari HTTP réel et les e2e qui utilisent un faux service.
+    const cookiesApplicatifs = new Map();
+    const optionsCookies = new Map();
+    const adaptateurCookies = {
+      getAll: () => [...cookiesApplicatifs].map(([name, value]) => ({ name, value })),
+      setAll(cookiesToSet) {
+        for (const { name, value, options } of cookiesToSet) {
+          if (value.length === 0 || options.maxAge === 0) cookiesApplicatifs.delete(name);
+          else cookiesApplicatifs.set(name, value);
+          optionsCookies.set(name, options);
+        }
+      },
+    };
+    const environnementApplicatif = {
+      ...process.env,
+      APP_ENV: "local",
+      TARGET_FINGERPRINT: "local-mbs-v1",
+    };
+    const creerClientApplicatif = () =>
+      sessionApplicative.createSupabaseClientForCookies(adaptateurCookies, {
+        cookieWrites: "required",
+        source: environnementApplicatif,
+      });
+    const verdictApplicatif = await connexionApplicative.signInWithPassword(proprietaire, {
+      createClient: creerClientApplicatif,
+    });
+    assert.deepEqual(verdictApplicatif, { status: "success" }, "(a) le cas d'usage applicatif doit accepter le compte");
+    assert.ok(cookiesApplicatifs.size > 0, "(a) le client SSR doit persister au moins un cookie de session");
+    for (const options of optionsCookies.values()) {
+      assert.equal(options.httpOnly, true, "(a) chaque cookie de session doit être HttpOnly");
+      assert.equal(options.sameSite, "lax", "(a) chaque cookie de session doit être SameSite=Lax");
+      assert.equal(options.path, "/", "(a) chaque cookie de session doit couvrir toute l'application");
+      assert.equal(options.secure, false, "(a) la pile locale HTTP ne doit pas émettre de cookie Secure");
+    }
+    const utilisateurApplicatif = await creerClientApplicatif().auth.getUser();
+    assert.equal(utilisateurApplicatif.error, null, "(a) le vrai GoTrue doit reconnaître les cookies SSR applicatifs");
+    assert.equal(
+      utilisateurApplicatif.data.user?.id,
+      idProprietaire,
+      "(a) les cookies SSR doivent désigner le compte réellement authentifié",
+    );
+
+    const optionsPreview = [];
+    const clientPreview = sessionApplicative.createSupabaseClientForCookies(
+      {
+        getAll: () => [],
+        setAll(cookiesToSet) {
+          optionsPreview.push(...cookiesToSet.map(({ options }) => options));
+        },
+      },
+      {
+        cookieWrites: "required",
+        source: { ...process.env, APP_ENV: "preview", TARGET_FINGERPRINT: "preview-mbs-v1" },
+      },
+    );
+    const sessionPreview = await clientPreview.auth.setSession({
+      access_token: connexion.charge.access_token,
+      refresh_token: connexion.charge.refresh_token,
+    });
+    assert.equal(sessionPreview.error, null, "(a) les jetons réels doivent pouvoir être sérialisés en preview");
+    assert.ok(optionsPreview.length > 0, "(a) la sérialisation preview doit produire des cookies");
+    assert.ok(optionsPreview.every(({ secure }) => secure === true), "(a) tout cookie hors local doit porter Secure");
+
+    const ecritureImpossible = await connexionApplicative.signInWithPassword(proprietaire, {
+      createClient: () =>
+        sessionApplicative.createSupabaseClientForCookies(
+          {
+            getAll: () => [],
+            setAll() {
+              throw new Error("réponse déjà envoyée");
+            },
+          },
+          { cookieWrites: "required", source: environnementApplicatif },
+        ),
+    });
+    assert.deepEqual(
+      ecritureImpossible,
+      { status: "unavailable" },
+      "(a) une session non persistable doit être une panne, jamais un faux succès",
+    );
+
     // Un jeton forgé n'est pas une session : c'est ce qui distingue `getUser()` de
     // `getSession()`, et c'est la raison d'être de l'aller-retour réseau par requête.
     const forge = await appelerAuth("/auth/v1/user", { methode: "GET", jeton: `${connexion.charge.access_token}x` });
@@ -225,6 +314,16 @@ async function executerCanari() {
     assert.notEqual(refus.statut, 429, "(b) un refus ne doit pas être confondu avec une limitation de débit");
     assert.notEqual(refus.charge?.access_token, connexion.charge.access_token, "(b) aucun jeton ne doit être émis");
     assert.equal(refus.charge?.access_token, undefined, "(b) un refus ne rend aucun jeton");
+    assert.equal(
+      connexionApplicative.isCredentialRefusal({ status: 422, code: "email_provider_disabled" }),
+      false,
+      "(b) un 4xx de configuration ne doit jamais être classé comme refus d'identifiants",
+    );
+    assert.equal(
+      connexionApplicative.isCredentialRefusal({ status: 400, code: "invalid_credentials" }),
+      true,
+      "(b) seul un code Auth de refus attendu doit accuser les identifiants",
+    );
 
     // ── (c) aucun oracle d'énumération : compte inconnu = mot de passe erroné ─────────────
     const inexistant = await seConnecter(inconnu);

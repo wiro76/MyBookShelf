@@ -4,7 +4,7 @@ baseline_commit: d04e63b39140ab77701fc4596c5b7e9fcb963cdf
 
 # Story 1.6 : Se connecter à la bibliothèque privée
 
-Status: review
+Status: done
 
 ## Story
 
@@ -126,6 +126,19 @@ Non négociables. Tout nom figurant ici est imposé — il part en production.
   - [x] Prouver : redirection sans session, conservation de la saisie après échec, liaison erreur↔champ, **règle de focus selon le nombre d'erreurs**, focus visible à 3:1, zoom 200 %, reflow 400 % à 320 px, espacement de texte WCAG 1.4.12
   - [x] Session simulée par **cookie injecté** — le job `browser` n'a ni Docker ni Supabase. Ne pas tenter d'y démarrer une pile
   - [x] Ajouter la mutation dans `scripts/verify-ci-mutations.mjs`, ciblant la porte `database` existante. **Ne pas toucher** à `ci-mutation.test.mjs` ni à `ci-gate-mutations.json` : aucune porte n'est créée
+
+### Review Findings
+
+- [x] [Review][Patch][High] Fiabiliser la persistance des cookies : ajouter une frontière `proxy.ts` qui rafraîchit la session et propage les cookies sur la requête et la réponse, puis faire échouer explicitement une connexion si l'écriture des cookies est impossible dans la Server Action [`src/modules/identity/application/session.ts:97`]
+- [x] [Review][Patch][Medium] Distinguer une session absente d'un service d'authentification indisponible afin qu'une panne Supabase ne simule pas une déconnexion et ne renvoie pas systématiquement vers le formulaire [`src/modules/identity/application/session.ts:136`]
+- [x] [Review][Patch][Medium] Classer les refus sur les codes Auth attendus plutôt que sur tous les statuts 4xx hors 429, et étendre le canari aux erreurs 4xx non liées aux identifiants [`src/modules/identity/application/sign-in.ts:96`]
+- [x] [Review][Patch][Medium] Borner les appels réseau d'authentification et les transactions PostgreSQL afin qu'un service silencieux ou quatre requêtes bloquées ne saturent pas durablement l'application [`src/modules/identity/application/sign-in.ts:151`]
+- [x] [Review][Patch][Medium] Empêcher la modification des champs pendant une soumission et retirer les erreurs devenues obsolètes dès que leur champ change [`src/app/connexion/connexion-form.tsx:203`]
+- [x] [Review][Patch][Medium] Garantir qu'une deuxième panne identique est de nouveau annoncée par les technologies d'assistance en renouvelant l'alerte avec le compteur de tentative [`src/app/connexion/connexion-form.tsx:162`]
+- [x] [Review][Patch][Low] Fournir une commande explicite de nouvelle tentative dans l'état dégradé de la bibliothèque, conformément au contrat documenté du cas d'usage [`src/app/bibliotheque/page.tsx:65`]
+- [x] [Review][Patch][Medium] Ajouter une preuve d'intégration qui traverse le client SSR applicatif contre le vrai GoTrue, au lieu de séparer entièrement le canari réel et le parcours applicatif simulé [`tests/integration/database-identity-auth-canary.mjs:179`]
+- [x] [Review][Patch][Low] Vérifier les attributs `SameSite`, `Path` et `Secure` des cookies, pas seulement `HttpOnly` [`tests/e2e/connexion.spec.ts:135`]
+- [x] [Review][Patch][Low] Supprimer le débordement cumulé à 320 px avec l'espacement WCAG personnalisé, actuellement documenté mais laissé visible [`src/app/globals.css:50`]
 
 ## Notes de développement
 
@@ -251,7 +264,11 @@ Noms et règles figés en amont dans « Décisions tranchées », après une pas
 
 ### Notes de complétion
 
-Les quatre AC sont prouvés par exécution réelle. L'AC 2 et l'AC 4 le sont par le canari Node contre un vrai GoTrue ; les AC 1 et 3 par 88 tests e2e sur quatre projets Playwright.
+Les quatre AC sont prouvés par exécution réelle. L'AC 2 et l'AC 4 le sont par le canari Node qui traverse le client SSR applicatif contre un vrai GoTrue ; les AC 1 et 3 par 104 tests e2e sur quatre projets Playwright.
+
+La revue adversariale a fermé ses dix constats. Le proxy Next.js rafraîchit désormais les sessions courtes et propage les cookies sur la requête et la réponse ; une connexion échoue si ses cookies ne peuvent pas être persistés. Une session anonyme est distinguée d'une indisponibilité Auth, les refus d'identifiants sont classés par codes attendus, et les appels Auth comme les transactions PostgreSQL sont bornés à 10 secondes.
+
+Le formulaire fige ses champs pendant l'envoi, retire les erreurs obsolètes à l'édition et renouvelle l'alerte à chaque panne réseau. Les états dégradés proposent une nouvelle tentative explicite. Les attributs `HttpOnly`, `SameSite`, `Path` et `Secure` sont vérifiés, et le cumul reflow 320 px + espacement WCAG 1.4.12 ne déborde plus.
 
 **Le classement refus/panne est confirmé par mesure**, pas par supposition : mot de passe erroné et compte inexistant renvoient tous deux un **400 identique, même `error_code`**. GoTrue ne fournit aucun oracle d'énumération de comptes — le message unique de l'interface s'aligne sur ce comportement plutôt que de le compenser.
 
@@ -263,7 +280,7 @@ Les quatre AC sont prouvés par exécution réelle. L'AC 2 et l'AC 4 le sont par
 
 **Coût du harnais mesuré** : `ci:database` passe de 70 s à 86 s, soit +48 s sur l'ensemble de la CI qui l'invoque trois fois. Le plafond de 20 minutes n'a pas besoin d'être relevé.
 
-**Non prouvé, assumé :** le refus d'identifiants dans un vrai navigateur — le job `browser` n'a ni Docker ni Supabase, un faux service à trois verdicts rend les branches d'écran atteignables sans rien prouver de l'authentification elle-même. Le **cumul** reflow 320 px et espacement WCAG 1.4.12 fait déborder de 2 px, le mot « bibliothèque » en Lora 36 px dépassant ; aucun des deux critères n'exige leur conjonction et les deux passent séparément. `/bibliotheque` ne rend pas une 307 mais une redirection client, le `loading.tsx` racine ouvrant une frontière Suspense — aucune donnée privée ne fuit, l'en-tête est `private, no-store`, et les e2e assertent sur l'URL finale.
+**Limite de harnais assumée :** le refus d'identifiants n'est pas exercé contre le vrai GoTrue depuis un navigateur, car le job `browser` n'a ni Docker ni Supabase. Le canari réel prouve le parcours SSR et la classification des réponses Auth ; le faux service rend les branches d'interface déterministes. `/bibliotheque` ne rend pas une 307 mais une redirection client, le `loading.tsx` racine ouvrant une frontière Suspense — aucune donnée privée ne fuit, l'en-tête est `private, no-store`, et les e2e assertent sur l'URL finale.
 
 **Le rendu visuel reste à soumettre à Romane.** Aucun test ne dira si l'écran est accueillant.
 
@@ -279,6 +296,7 @@ Fichiers créés :
 - `src/modules/identity/application/redirect-allowlist.ts`
 - `src/modules/identity/application/messages.ts`
 - `src/modules/identity/application/private-library.ts`
+- `src/proxy.ts`
 - `src/app/connexion/` — `page.tsx`, `connexion-form.tsx`, `actions.ts`, `state.ts`
 - `src/app/bibliotheque/page.tsx`
 - `tests/unit/authenticated-transaction.test.mjs`
@@ -303,5 +321,6 @@ Fichiers modifiés :
 
 | Date | Description |
 |---|---|
+| 2026-08-05 | Revue adversariale clôturée : 10 constats corrigés, proxy de rafraîchissement, résilience Auth/DB, accessibilité renforcée, canari SSR réel et 104 tests e2e. Toutes les portes CI sont vertes. Statut `done`. |
 | 2026-08-05 | Implémentation livrée : identité en base, transaction authentifiée, écran de connexion, canari GoTrue, 88 tests e2e. Dix portes vertes. Statut `review`. |
 | 2026-08-05 | Story créée et contextualisée, statut `ready-for-dev`. Méthode d'authentification tranchée par l'utilisateur : e-mail + mot de passe. |

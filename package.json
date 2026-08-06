@@ -20,11 +20,12 @@
     "ci:integration": "node --test tests/integration/*.test.mjs",
     "ci:leak": "node --test tests/leak/*.test.mjs",
     "ci:database": "node scripts/run-database-gates.mjs",
+    "ci:recovery": "node scripts/run-recovery-gates.mjs",
     "ci:e2e": "playwright test --workers=1",
     "ci:budgets": "playwright test tests/e2e/ux-budgets.spec.ts --workers=1",
     "ci:environment": "node scripts/verify-environment-isolation.mjs",
     "ci:mutations": "node scripts/verify-ci-mutations.mjs",
-    "ci:all": "npm run ci:lint && npm run ci:types && npm run ci:unit && npm run ci:integration && npm run ci:leak && npm run ci:environment && npm run ci:database && npm run ci:e2e && npm run ci:budgets && npm run ci:static && npm run ci:mutations"
+    "ci:all": "npm run ci:lint && npm run ci:types && npm run ci:unit && npm run ci:integration && npm run ci:leak && npm run ci:environment && npm run ci:database && npm run ci:recovery && npm run ci:e2e && npm run ci:budgets && npm run ci:static && npm run ci:mutations"
   },
   "dependencies": {
     "@sentry/nextjs": "10.68.0",

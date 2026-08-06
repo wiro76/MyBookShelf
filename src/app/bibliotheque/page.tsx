@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { resumeLibraryContext } from "@/modules/library/application/library-view-state";
+import { createPostgresLibraryViewStateRepository } from "@/modules/library/adapters/postgres-library-view-state";
+import { LibraryResumeFocus } from "@/modules/library/ui/library-resume-focus";
 import { loadPrivateLibrarySummary } from "@/modules/identity/application/private-library";
 import { PRIVATE_LIBRARY_REDIRECT } from "@/modules/identity/application/redirect-allowlist";
-import { getVerifiedUser } from "@/modules/identity/application/session";
+import { getVerifiedSession } from "@/modules/identity/application/session";
 
 /**
  * Route privée témoin — story 1.6 (AC 1, AC 2, AC 4 ; CAP-1, AD-10).
@@ -33,43 +36,81 @@ export const metadata: Metadata = {
 };
 
 export default async function BibliothequePage() {
-  const user = await getVerifiedUser();
+  const session = await getVerifiedSession();
 
-  if (!user) {
+  if (session.status === "anonymous") {
     // La destination transmise est une CONSTANTE du code, jamais une valeur reçue : rien
     // d'externe ne transite par cette redirection.
     redirect(`/connexion?destination=${encodeURIComponent(PRIVATE_LIBRARY_REDIRECT)}`);
   }
 
-  const summary = await loadPrivateLibrarySummary(user.id);
+  if (session.status === "unavailable") {
+    return (
+      <main className="welcome-shell">
+        <section className="welcome-card auth-card" aria-labelledby="titre-bibliotheque">
+          <p className="eyebrow">My BookShelf</p>
+          <h1 id="titre-bibliotheque">Ta bibliothèque</h1>
+          <div role="status">
+            <p className="intro">
+              Ta session n’a pas pu être vérifiée pour le moment. Tes données restent privées. Réessaie dans un instant.
+            </p>
+            <a className="primary-action" href="/bibliotheque">
+              Réessayer
+            </a>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  const [summary, resume] = await Promise.all([
+    loadPrivateLibrarySummary(session.user.id),
+    // Les tables canoniques de rangement arrivent avec les stories 3.x. Jusqu'alors la
+    // projection courante est légitimement vide : aucun faux livre n'est créé pour donner
+    // l'illusion d'une reprise. Le port restera identique lorsque cette projection existera.
+    resumeLibraryContext(session.user.id, [], createPostgresLibraryViewStateRepository()),
+  ]);
+
+  if (!summary || resume.status === "unavailable") {
+    return (
+      <main className="welcome-shell">
+        <section className="welcome-card auth-card" aria-labelledby="titre-bibliotheque">
+          <p className="eyebrow">My BookShelf</p>
+          <h1 id="titre-bibliotheque">Ta bibliothèque</h1>
+          <div role="status">
+            <p className="intro">
+              Ta bibliothèque n’a pas pu reprendre sa dernière position. Tes livres restent privés. Réessaie dans un instant.
+            </p>
+            <a className="primary-action" href="/bibliotheque">
+              Réessayer
+            </a>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="welcome-shell">
       <section className="welcome-card auth-card" aria-labelledby="titre-bibliotheque">
         <p className="eyebrow">My BookShelf</p>
-        <h1 id="titre-bibliotheque">Ta bibliothèque</h1>
-        {summary ? (
-          <>
-            <p className="intro">
-              {summary.displayName
-                ? `Te voilà, ${summary.displayName}. Cet espace n’est visible que par toi.`
-                : "Te voilà. Cet espace n’est visible que par toi."}
-            </p>
-            <p className="project-status">
-              {summary.noteCount === 0
-                ? "Aucune note privée pour l’instant. Tes étagères arrivent dans un prochain incrément."
-                : `${summary.noteCount} note${summary.noteCount > 1 ? "s" : ""} privée${
-                    summary.noteCount > 1 ? "s" : ""
-                  } t’attendent ici. Tes étagères arrivent dans un prochain incrément.`}
-            </p>
-          </>
-        ) : (
-          // État dégradé, jamais une page vide : une bibliothèque affichée vide se lirait
-          // comme une bibliothèque effacée.
-          <p className="intro" role="status">
-            Tes livres n’ont pas pu être lus pour le moment. Recharge la page dans un instant.
-          </p>
-        )}
+        <h1 id="titre-bibliotheque" tabIndex={-1}>Ta bibliothèque</h1>
+        <p className="intro">
+          {summary.displayName
+            ? `Te voilà, ${summary.displayName}. Cet espace n’est visible que par toi.`
+            : "Te voilà. Cet espace n’est visible que par toi."}
+        </p>
+        <p className="project-status">
+          {summary.noteCount === 0
+            ? "Ta bibliothèque est prête. Tes étagères arriveront dans un prochain incrément."
+            : `${summary.noteCount} note${summary.noteCount > 1 ? "s" : ""} privée${
+                summary.noteCount > 1 ? "s" : ""
+              } t’attendent ici. Tes étagères arriveront dans un prochain incrément.`}
+        </p>
+        <LibraryResumeFocus
+          targetId={resume.status === "empty" ? "titre-bibliotheque" : "library-resume-target"}
+          announcement={"announcement" in resume ? resume.announcement : null}
+        />
       </section>
     </main>
   );

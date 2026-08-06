@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { redactSensitiveText } from "./redaction";
 
 /**
  * Contexte de corrélation — story 1.4 (AC 1, AD-12).
@@ -36,6 +37,8 @@ export const CORRELATION_KEYS = ["requestId", "commandId", "actorId", "jobId"] a
  */
 export const CORRELATION_VALUE_MAX_LENGTH = 128;
 
+const ACTOR_PSEUDONYM_PATTERN = /^[0-9a-f]{64}$/;
+
 let storage: AsyncLocalStorage<CorrelationContext> | undefined;
 
 function getStorage(): AsyncLocalStorage<CorrelationContext> {
@@ -47,7 +50,7 @@ function getStorage(): AsyncLocalStorage<CorrelationContext> {
  * Ne retient que les clés connues portant une chaîne non vide, bornée en longueur.
  * Un nombre, un objet, un tableau ou `undefined` sont écartés — pas convertis.
  */
-function sanitize(context: CorrelationContext | undefined): CorrelationContext {
+export function sanitizeCorrelationContext(context: CorrelationContext | undefined): CorrelationContext {
   const clean: CorrelationContext = {};
   if (!context) return clean;
   for (const key of CORRELATION_KEYS) {
@@ -55,7 +58,11 @@ function sanitize(context: CorrelationContext | undefined): CorrelationContext {
     if (typeof value !== "string") continue;
     const trimmed = value.trim();
     if (trimmed.length === 0) continue;
-    clean[key] = trimmed.slice(0, CORRELATION_VALUE_MAX_LENGTH);
+    if (key === "actorId") {
+      if (ACTOR_PSEUDONYM_PATTERN.test(trimmed)) clean[key] = trimmed;
+      continue;
+    }
+    clean[key] = redactSensitiveText(trimmed).slice(0, CORRELATION_VALUE_MAX_LENGTH);
   }
   return clean;
 }
@@ -65,7 +72,7 @@ function sanitize(context: CorrelationContext | undefined): CorrelationContext {
  * pas fusionné : c'est l'entrée d'une requête ou d'une tâche, pas un enrichissement.
  */
 export function runWithCorrelation<T>(context: CorrelationContext, fn: () => T): T {
-  return getStorage().run(sanitize(context), fn);
+  return getStorage().run(sanitizeCorrelationContext(context), fn);
 }
 
 /**
@@ -73,7 +80,7 @@ export function runWithCorrelation<T>(context: CorrelationContext, fn: () => T):
  * ou portant une valeur non exploitable — laisse la valeur héritée intacte.
  */
 export function withCorrelation<T>(patch: CorrelationContext, fn: () => T): T {
-  const merged: CorrelationContext = { ...currentCorrelation(), ...sanitize(patch) };
+  const merged: CorrelationContext = { ...currentCorrelation(), ...sanitizeCorrelationContext(patch) };
   return getStorage().run(merged, fn);
 }
 

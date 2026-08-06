@@ -48,6 +48,9 @@ import { getDatabasePool } from "./pool";
  */
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Limite fixe et locale : une transaction bloquée ne monopolise pas le Pool indéfiniment. */
+const SET_STATEMENT_TIMEOUT = "set local statement_timeout = '10s'";
+
 /** Portée transaction : `set local`, annulé par le `commit` comme par le `rollback`. */
 const SET_AUTHENTICATED_ROLE = "set local role authenticated";
 
@@ -73,6 +76,7 @@ export async function authenticatedTransaction<T>(
 
   try {
     await client.query("begin");
+    await client.query(SET_STATEMENT_TIMEOUT);
     await client.query(SET_AUTHENTICATED_ROLE);
     await client.query(SET_JWT_SUBJECT, [userId]);
     const result = await work(client);

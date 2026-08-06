@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
-import { correlationAttributes } from "@/shared/observability";
+import { correlationAttributes, sanitizeSentryEvent } from "@/shared/observability";
 
 /**
  * Configuration Sentry — runtime Node — story 1.4 (T4, AC 2 ; AD-12, NFR-7).
@@ -72,17 +72,16 @@ if (dsn) {
      */
     beforeSend(event) {
       try {
-        event.tags = { ...event.tags, ...correlationAttributes() };
-        delete event.user;
-        if (event.request) {
-          const url = typeof event.request.url === "string" ? event.request.url.split("?")[0] : undefined;
-          event.request = { method: event.request.method, url };
-        }
+        return sanitizeSentryEvent(event, correlationAttributes());
       } catch {
-        // Un événement mal formé ne doit pas empêcher l'envoi : on préfère l'événement
-        // brut, déjà filtré par `dataCollection`, à aucune remontée du tout.
+        // Un événement impossible à expurger est abandonné : aucune remontée ne vaut mieux
+        // qu'une remontée brute contenant l'incident privé que l'on refuse d'exfiltrer.
+        return null;
       }
-      return event;
+    },
+
+    beforeSendSpan(span) {
+      return { ...span, data: { ...span.data, ...correlationAttributes() } };
     },
   });
 }

@@ -38,11 +38,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
  *    importé ne sont exercés ici que par des chemins de CHAMPS, et pourquoi la règle
  *    « `message` est un littéral statique » n'est pas négociable. Aucune assertion ne
  *    peut la remplacer.
- * 2. Les champs de corrélation (`requestId`, `commandId`, `actorId`, `jobId`) échappent
- *    délibérément à l'expurgation : ce sont des UUID et des pseudonymes HMAC que nous
- *    produisons. Un appelant qui y logerait une adresse en clair fuiterait ; la parade est
- *    `pseudonymizeActor`, exercée plus bas, pas une expurgation qui effacerait la
- *    corrélation que la story livre.
+ * 2. Les champs de corrélation (`requestId`, `commandId`, `jobId`) sont des identifiants
+ *    techniques courts. `actorId` est plus strict : il doit déjà être un pseudonyme HMAC,
+ *    et une adresse brute est refusée au niveau du contexte avant toute journalisation.
  *
  * ────────────────────────────────────────────────────────────────────────────────
  * CLÉ DE PSEUDONYMISATION : FABRIQUÉE ICI
@@ -128,11 +126,13 @@ if (socle) {
   const {
     LOG_LINE_MAX_BYTES,
     REDACTION_PLACEHOLDER,
+    correlationAttributes,
     describeError,
     formatLogLine,
     pseudonymize,
     pseudonymizeActor,
     runWithCorrelation,
+    sanitizeSentryEvent,
     toStableError,
   } = socle;
 
@@ -231,6 +231,24 @@ if (socle) {
     aucuneFuite("champ non déclaré", ligne, TOUS_LES_HOSTILES);
     const objet = ligneExploitable("champ non déclaré", ligne);
     assert.deepEqual(Object.keys(objet), ["level", "message", "timestamp"]);
+  });
+
+  test("les identifiants de reprise bibliothèque ne peuvent pas rejoindre les logs", () => {
+    const identifiants = [
+      "a1111111-1111-4111-8111-111111111111",
+      "b1111111-1111-4111-8111-111111111111",
+      "c1111111-1111-4111-8111-111111111111",
+    ];
+    const ligne = formatLogLine("error", "Reprise de la bibliothèque impossible", {
+      moduleId: identifiants[0],
+      shelfId: identifiants[1],
+      copyId: identifiants[2],
+      operation: "library/resume",
+      outcome: "unavailable",
+    });
+    for (const identifiant of identifiants) assert.ok(!ligne.includes(identifiant));
+    const objet = ligneExploitable("identifiants de reprise", ligne);
+    assert.equal(objet.operation, "library/resume");
   });
 
   // --- Chemins indirects ----------------------------------------------------
@@ -370,5 +388,42 @@ if (socle) {
     const objet = ligneExploitable("ligne corrélée", ligne);
     assert.equal(objet.actorId, pseudonyme, "la corrélation par acteur doit survivre à l'expurgation");
     assert.equal(objet.requestId, "0198c3f2-5b7a-7e31-9d2c-4f6a8b1e0c37");
+  });
+
+  test("un actorId brut est refusé par le contexte de corrélation", () => {
+    runWithCorrelation({ requestId: "0198c3f2-5b7a-7e31-9d2c-4f6a8b1e0c37", actorId: EMAIL }, () => {
+      const attributs = correlationAttributes();
+      assert.ok(!("actorId" in attributs), "l'adresse brute ne doit pas devenir un attribut de corrélation");
+      aucuneFuite("actorId brut en contexte", JSON.stringify(attributs), [HOSTILE.email]);
+    });
+  });
+
+  test("un événement Sentry est expurgé avant toute sortie externe", () => {
+    const pseudonyme = pseudonymizeActor(EMAIL, { OBSERVABILITY_PSEUDONYM_KEY: CLE_PSEUDONYME });
+    const event = sanitizeSentryEvent(
+      {
+        message: `${EMAIL} ${TITRE_MANGA}`,
+        user: { email: EMAIL },
+        tags: { title: TITRE_MANGA, email: EMAIL },
+        extra: { payload: { imported: CONTENU_IMPORTE, url: URL_SIGNEE } },
+        contexts: { custom: { connection: CHAINE_POSTGRES } },
+        breadcrumbs: [{ message: CONTENU_IMPORTE, data: { token: JWT } }],
+        request: { method: "GET", url: URL_SIGNEE },
+        exception: {
+          values: [
+            {
+              type: "ProviderError",
+              value: `${EMAIL} ${URL_SIGNEE} ${CHAINE_POSTGRES} ${JWT} ${SECRET_WORKER}`,
+              stacktrace: { frames: [{ filename: "src/private.ts", function: "handler", vars: { title: TITRE_MANGA } }] },
+            },
+          ],
+        },
+      },
+      { requestId: "0198c3f2-5b7a-7e31-9d2c-4f6a8b1e0c37", actorId: pseudonyme },
+    );
+    const sortie = JSON.stringify(event);
+    aucuneFuite("sentry", sortie, TOUS_LES_HOSTILES);
+    assert.equal(event.tags.actorId, pseudonyme);
+    assert.equal(event.exception.values[0].value, REDACTION_PLACEHOLDER);
   });
 }

@@ -96,6 +96,7 @@ if (socle) {
     DEFAULT_STABLE_ERROR_CODE,
     ERROR_MESSAGE_MAX_LENGTH,
     LOG_LINE_MAX_BYTES,
+    REDACTION_PLACEHOLDER,
     UNEXPECTED_ERROR_CODE,
     correlationAttributes,
     createCorrelationId,
@@ -105,6 +106,7 @@ if (socle) {
     pseudonymize,
     pseudonymizeActor,
     runWithCorrelation,
+    sanitizeSentryEvent,
     toStableError,
     withCorrelation,
   } = socle;
@@ -151,7 +153,7 @@ if (socle) {
   });
 
   test("le contexte borne la longueur des valeurs stockées", () => {
-    runWithCorrelation({ requestId: "r".repeat(CORRELATION_VALUE_MAX_LENGTH + 500) }, () => {
+    runWithCorrelation({ requestId: "r ".repeat(CORRELATION_VALUE_MAX_LENGTH + 500) }, () => {
       assert.equal(correlationAttributes().requestId.length, CORRELATION_VALUE_MAX_LENGTH);
     });
   });
@@ -177,13 +179,22 @@ if (socle) {
   });
 
   test("runWithCorrelation imbriqué ouvre un contexte neuf sans fuir au retour", () => {
-    runWithCorrelation({ requestId: "req-1", actorId: "acteur-1" }, () => {
+    const actorId = pseudonymizeActor("zan@example.invalid", environnementAvecCle);
+    runWithCorrelation({ requestId: "req-1", actorId }, () => {
       runWithCorrelation({ jobId: "job-1" }, () => {
         assert.deepEqual(correlationAttributes(), { jobId: "job-1" });
       });
-      assert.deepEqual(correlationAttributes(), { requestId: "req-1", actorId: "acteur-1" });
+      assert.deepEqual(correlationAttributes(), { requestId: "req-1", actorId });
     });
     assert.deepEqual(correlationAttributes(), {});
+  });
+
+  test("actorId brut est refusé par le contexte et par les champs du logger", () => {
+    runWithCorrelation({ actorId: "zan@example.invalid" }, () => {
+      assert.deepEqual(correlationAttributes(), {});
+    });
+    const evenement = JSON.parse(formatLogLine("info", "commande acceptée", { actorId: "zan@example.invalid" }));
+    assert.ok(!("actorId" in evenement));
   });
 
   test("deux exécutions concurrentes ne partagent jamais leur contexte", async () => {
@@ -364,7 +375,7 @@ if (socle) {
     assert.equal(evenement.level, "error");
     assert.equal(evenement.message, "échec de traitement");
     assert.match(evenement.timestamp, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-    assert.deepEqual(Object.keys(evenement), ["level", "message", "timestamp", "requestId", "jobId", "errorCode", "queue"]);
+    assert.deepEqual(Object.keys(evenement), ["level", "message", "timestamp", "errorCode", "queue", "requestId", "jobId"]);
     assert.ok(!ligne.includes("Berserk"));
     assert.ok(!ligne.includes("zan@example.invalid"));
   });
@@ -389,5 +400,43 @@ if (socle) {
     const evenement = JSON.parse(ligne);
     assert.equal(evenement.level, "info");
     assert.equal(typeof evenement.message, "string");
+  });
+
+  test("sanitizeSentryEvent retire les sorties brutes et ajoute la corrélation", () => {
+    const actorId = pseudonymizeActor("zan@example.invalid", environnementAvecCle);
+    const event = sanitizeSentryEvent(
+      {
+        message: "zan@example.invalid lit Vagabond",
+        user: { email: "zan@example.invalid" },
+        tags: { livre: "Vagabond" },
+        extra: { payload: { title: "Vagabond" } },
+        contexts: { custom: { title: "Vagabond" }, trace: { trace_id: "abc" } },
+        breadcrumbs: [{ message: "zan@example.invalid", data: { url: "https://example.test/a?token=secret" } }],
+        request: { method: "GET", url: "https://example.test/a?token=secret" },
+        exception: {
+          values: [
+            {
+              type: "Error",
+              value: "zan@example.invalid https://example.test/a?token=secret",
+              stacktrace: { frames: [{ filename: "src/app.ts", function: "handler", vars: { email: "zan@example.invalid" } }] },
+            },
+          ],
+        },
+      },
+      { requestId: "req-1", actorId },
+    );
+
+    const serialized = JSON.stringify(event);
+    assert.ok(!serialized.includes("zan@example.invalid"));
+    assert.ok(!serialized.includes("Vagabond"));
+    assert.ok(!serialized.includes("token=secret"));
+    assert.equal(event.message, REDACTION_PLACEHOLDER);
+    assert.deepEqual(event.tags, { requestId: "req-1", actorId });
+    assert.deepEqual(event.request, { method: "GET", url: REDACTION_PLACEHOLDER });
+    assert.equal(event.exception.values[0].value, REDACTION_PLACEHOLDER);
+    assert.ok(!("user" in event));
+    assert.ok(!("extra" in event));
+    assert.ok(!("contexts" in event));
+    assert.ok(!("breadcrumbs" in event));
   });
 }

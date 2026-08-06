@@ -95,6 +95,10 @@ export function ConnexionForm({ destination }: { destination: string }) {
   const [state, formAction, isPending] = useActionState(connexionAction, CONNEXION_INITIAL_STATE);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [edited, setEdited] = useState<{
+    attempt: number;
+    fields: Partial<Record<AuthField, true>>;
+  }>({ attempt: 0, fields: {} });
 
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -102,8 +106,25 @@ export function ConnexionForm({ destination }: { destination: string }) {
   const submitRef = useRef<HTMLButtonElement>(null);
   const handledAttempt = useRef(0);
 
-  const invalidFields = AUTH_FIELDS.filter((field) => Boolean(state.fieldErrors[field]));
+  const editedFields = edited.attempt === state.attempt ? edited.fields : {};
+  const fieldErrors = Object.fromEntries(
+    AUTH_FIELDS.flatMap((field) =>
+      state.fieldErrors[field] && !editedFields[field] ? [[field, state.fieldErrors[field]]] : [],
+    ),
+  ) as Partial<Record<AuthField, string>>;
+  const credentialsRefused = state.credentialsRefused && AUTH_FIELDS.every((field) => !editedFields[field]);
+  const invalidFields = AUTH_FIELDS.filter((field) => Boolean(fieldErrors[field]));
   const showSummary = invalidFields.length >= 2;
+
+  const markEdited = (field: AuthField) => {
+    setEdited((current) => ({
+      attempt: state.attempt,
+      fields: {
+        ...(current.attempt === state.attempt ? current.fields : {}),
+        [field]: true,
+      },
+    }));
+  };
 
   useEffect(() => {
     // `attempt` garantit que deux échecs identiques redéplacent bien le focus : sans lui, le
@@ -140,27 +161,33 @@ export function ConnexionForm({ destination }: { destination: string }) {
 
   const emailDescribedBy = [
     IDS.emailHint,
-    state.fieldErrors.email ? IDS.emailError : null,
-    state.credentialsRefused ? IDS.credentials : null,
+    fieldErrors.email ? IDS.emailError : null,
+    credentialsRefused ? IDS.credentials : null,
   ]
     .filter((value) => value !== null)
     .join(" ");
 
   const passwordDescribedBy = [
     IDS.passwordHint,
-    state.fieldErrors.password ? IDS.passwordError : null,
-    state.credentialsRefused ? IDS.credentials : null,
+    fieldErrors.password ? IDS.passwordError : null,
+    credentialsRefused ? IDS.credentials : null,
   ]
     .filter((value) => value !== null)
     .join(" ");
 
-  const emailInvalid = Boolean(state.fieldErrors.email) || state.credentialsRefused;
-  const passwordInvalid = Boolean(state.fieldErrors.password) || state.credentialsRefused;
+  const emailInvalid = Boolean(fieldErrors.email) || credentialsRefused;
+  const passwordInvalid = Boolean(fieldErrors.password) || credentialsRefused;
 
   return (
     <>
       {state.serviceUnavailable ? (
-        <div className="auth-notice" id={IDS.networkAlert} role="alert">
+        <div
+          className="auth-notice"
+          id={IDS.networkAlert}
+          key={state.attempt}
+          role="alert"
+          data-attempt={state.attempt}
+        >
           <ErrorIcon />
           <p className="auth-notice-text">{AUTH_ERRORS.serviceUnavailable}</p>
         </div>
@@ -183,7 +210,7 @@ export function ConnexionForm({ destination }: { destination: string }) {
               {invalidFields.map((field) => (
                 <li key={field}>
                   <a href={`#${FIELD_IDS[field]}`}>
-                    {FIELD_LABELS[field]} — {state.fieldErrors[field]}
+                    {FIELD_LABELS[field]} — {fieldErrors[field]}
                   </a>
                 </li>
               ))}
@@ -211,15 +238,19 @@ export function ConnexionForm({ destination }: { destination: string }) {
             spellCheck={false}
             ref={emailRef}
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              markEdited("email");
+            }}
+            disabled={isPending}
             aria-invalid={emailInvalid}
             aria-describedby={emailDescribedBy}
           />
           <p className="auth-hint" id={IDS.emailHint}>
             {AUTH_LABELS.emailHint}
           </p>
-          {state.fieldErrors.email ? (
-            <FieldMessage id={IDS.emailError}>{state.fieldErrors.email}</FieldMessage>
+          {fieldErrors.email ? (
+            <FieldMessage id={IDS.emailError}>{fieldErrors.email}</FieldMessage>
           ) : null}
         </div>
 
@@ -235,21 +266,25 @@ export function ConnexionForm({ destination }: { destination: string }) {
             autoComplete="current-password"
             ref={passwordRef}
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            onChange={(event) => {
+              setPassword(event.target.value);
+              markEdited("password");
+            }}
+            disabled={isPending}
             aria-invalid={passwordInvalid}
             aria-describedby={passwordDescribedBy}
           />
           <p className="auth-hint" id={IDS.passwordHint}>
             {AUTH_LABELS.passwordHint}
           </p>
-          {state.fieldErrors.password ? (
-            <FieldMessage id={IDS.passwordError}>{state.fieldErrors.password}</FieldMessage>
+          {fieldErrors.password ? (
+            <FieldMessage id={IDS.passwordError}>{fieldErrors.password}</FieldMessage>
           ) : null}
         </div>
 
         {/* Message UNIQUE de refus, relié aux DEUX champs. Il ne nomme jamais lequel des deux
             est en cause — ce serait l'oracle d'énumération que la story interdit. */}
-        {state.credentialsRefused ? (
+        {credentialsRefused ? (
           <FieldMessage id={IDS.credentials}>{AUTH_ERRORS.credentialsRefused}</FieldMessage>
         ) : null}
 

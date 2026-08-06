@@ -15,12 +15,14 @@ test("la CI de pull request est bloquante, minimale et reproductible", () => {
   assert.match(workflow, /node-version: 24\.18\.0/);
   assert.match(workflow, /npm ci/);
   assert.doesNotMatch(workflow, /continue-on-error|\|\| true|environment:\s*production/);
-  for (const script of ["ci:static", "ci:lint", "ci:types", "ci:unit", "ci:integration", "ci:database", "ci:e2e", "ci:budgets", "ci:all"]) {
+  for (const script of ["ci:static", "ci:lint", "ci:types", "ci:unit", "ci:integration", "ci:database", "ci:recovery", "ci:e2e", "ci:budgets", "ci:all"]) {
     assert.equal(typeof pkg.scripts[script], "string", `script absent: ${script}`);
   }
+  assert.equal(pkg.scripts["ci:recovery"], "node scripts/run-recovery-gates.mjs");
   assert.match(pkg.scripts.build, /typecheck/);
   assert.match(workflow, /npm run ci:mutations/);
-  for (const gate of ["ci:environment", "ci:database", "ci:e2e", "ci:budgets", "ci:static", "ci:mutations"]) {
+  assert.match(workflow, /\n  recovery:\n[\s\S]*?npm run ci:recovery\n\n  browser:/);
+  for (const gate of ["ci:environment", "ci:database", "ci:recovery", "ci:e2e", "ci:budgets", "ci:static", "ci:mutations"]) {
     assert.match(pkg.scripts["ci:all"], new RegExp(gate.replace(":", "\\:")), `porte absente de ci:all: ${gate}`);
   }
 });

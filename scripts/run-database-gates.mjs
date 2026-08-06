@@ -141,6 +141,7 @@ try {
     "create extension if not exists pgtap with schema extensions;",
     readFileSync("supabase/tests/database/rls.test.sql", "utf8"),
     readFileSync("supabase/tests/database/identity-rls.test.sql", "utf8"),
+    readFileSync("supabase/tests/database/library-view-state-rls.test.sql", "utf8"),
     readFileSync("supabase/tests/database/migration-compatibility.test.sql", "utf8"),
     readFileSync("supabase/tests/database/deferred-effects.test.sql", "utf8"),
   ].join("\n");
@@ -172,6 +173,11 @@ try {
     },
   });
   if (auth.status !== 0) throw new Error("Le canari d'authentification a échoué.");
+  const libraryViewState = spawnSync(process.execPath, ["tests/integration/database-library-view-state-canary.mjs"], {
+    stdio: "inherit",
+    env: { ...process.env, TEST_DATABASE_URL: databaseUrl, DATABASE_URL: databaseUrl },
+  });
+  if (libraryViewState.status !== 0) throw new Error("Le canari de reprise du contexte a échoué.");
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;

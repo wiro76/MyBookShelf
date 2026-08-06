@@ -1,4 +1,4 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions, type GetAllCookies, type SetAllCookies } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { requireRuntimeEnvironment } from "@/shared/config/environment";
 
@@ -61,6 +61,25 @@ export type VerifiedUser = {
   id: string;
 };
 
+export type VerifiedSession =
+  | { status: "authenticated"; user: VerifiedUser }
+  | { status: "anonymous" }
+  | { status: "unavailable" };
+
+export type SupabaseCookie = { name: string; value: string; options: CookieOptions };
+
+export type SupabaseCookieAdapter = {
+  getAll: GetAllCookies;
+  setAll: SetAllCookies;
+};
+
+type ServerClientOptions = {
+  cookieWrites?: "best-effort" | "required";
+  source?: NodeJS.ProcessEnv;
+};
+
+export const AUTH_REQUEST_TIMEOUT_MS = 10_000;
+
 /**
  * `secure` partout sauf en local : le développement sert en http sur 127.0.0.1, et un cookie
  * `Secure` y serait purement et simplement ignoré par le navigateur.
@@ -72,51 +91,50 @@ function requiresSecureCookies(environment: string): boolean {
   return environment !== "local";
 }
 
-/**
- * Construit un client Supabase lié aux cookies de la requête EN COURS.
- *
- * Un client par rendu, jamais de singleton : un client partagé entre deux requêtes
- * partagerait leurs sessions. C'est la même règle que le client `pg`, pour la même raison.
- */
-export async function createServerSupabaseClient() {
-  const { environment, supabaseUrl, supabaseKey } = requireRuntimeEnvironment();
-  const cookieStore = await cookies();
+function authenticationFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const timeoutSignal = AbortSignal.timeout(AUTH_REQUEST_TIMEOUT_MS);
+  const signal = init?.signal ? AbortSignal.any([init.signal, timeoutSignal]) : timeoutSignal;
+  return fetch(input, { ...init, signal });
+}
+
+function secureCookie(cookie: SupabaseCookie, secure: boolean): SupabaseCookie {
+  return {
+    name: cookie.name,
+    value: cookie.value,
+    options: {
+      domain: cookie.options.domain,
+      expires: cookie.options.expires,
+      maxAge: cookie.options.maxAge,
+      httpOnly: true,
+      sameSite: "lax",
+      secure,
+      path: "/",
+    },
+  };
+}
+
+export function createSupabaseClientForCookies(
+  adapter: SupabaseCookieAdapter,
+  { cookieWrites = "best-effort", source = process.env }: ServerClientOptions = {},
+) {
+  const { environment, supabaseUrl, supabaseKey } = requireRuntimeEnvironment(source);
   const secure = requiresSecureCookies(environment);
 
   return createServerClient(supabaseUrl, supabaseKey, {
+    global: { fetch: authenticationFetch },
     auth: {
-      // Aucun jeton dans l'URL : le flux par mot de passe n'en a pas besoin, et
-      // `detectSessionInUrl` n'a de sens que côté navigateur.
       detectSessionInUrl: false,
       persistSession: true,
     },
     cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
+      getAll: adapter.getAll,
+      async setAll(cookiesToSet, headers) {
         try {
-          for (const { name, value, options } of cookiesToSet) {
-            cookieStore.set({
-              name,
-              value,
-              // Attributs de sécurité imposés, jamais négociés avec l'appelant.
-              httpOnly: true,
-              sameSite: "lax",
-              secure,
-              path: "/",
-              // Durée de vie : celle que la bibliothèque a calculée depuis le jeton.
-              domain: options.domain,
-              maxAge: options.maxAge,
-              expires: options.expires,
-            });
+          await adapter.setAll(cookiesToSet.map((cookie) => secureCookie(cookie, secure)), headers);
+        } catch (error) {
+          if (cookieWrites === "required") {
+            throw new Error("Écriture du cookie de session impossible", { cause: error });
           }
-        } catch {
-          // Un Server Component ne peut pas écrire de cookie : Next lève. Ce n'est pas une
-          // panne — le rafraîchissement de jeton sera réécrit par la prochaine Server Action
-          // ou le prochain Route Handler, qui, eux, le peuvent. Rien n'est journalisé : ce
-          // chemin est nominal à chaque rendu de page privée, et le bruit noierait les
-          // vraies erreurs.
         }
       },
     },
@@ -124,23 +142,56 @@ export async function createServerSupabaseClient() {
 }
 
 /**
- * Rend l'utilisateur **vérifié par le serveur**, ou `null`.
+ * Construit un client Supabase lié aux cookies de la requête EN COURS.
  *
- * `null` couvre indifféremment : aucun cookie, cookie expiré, cookie forgé, jeton révoqué,
- * serveur d'authentification injoignable. Aucun appelant n'a besoin de distinguer ces cas —
- * et les distinguer offrirait à un attaquant un moyen de sonder l'état du système.
- *
- * Ne lève jamais : une page privée doit pouvoir rediriger plutôt que rendre une erreur 500
- * quand l'authentification est indisponible.
+ * Un client par rendu, jamais de singleton : un client partagé entre deux requêtes
+ * partagerait leurs sessions. C'est la même règle que le client `pg`, pour la même raison.
  */
-export async function getVerifiedUser(): Promise<VerifiedUser | null> {
+export async function createServerSupabaseClient(options: ServerClientOptions = {}) {
+  const cookieStore = await cookies();
+  return createSupabaseClientForCookies(
+    {
+      getAll: () => cookieStore.getAll(),
+      setAll(cookiesToSet) {
+        for (const { name, value, options: cookieOptions } of cookiesToSet) {
+          cookieStore.set({ name, value, ...cookieOptions });
+        }
+      },
+    },
+    options,
+  );
+}
+
+/**
+ * Rend l'état de session après vérification par le serveur.
+ *
+ * Les erreurs 4xx correspondent à une session absente, expirée, forgée ou révoquée. Une panne
+ * réseau, une erreur 5xx ou une configuration invalide produit `unavailable`, afin qu'une panne
+ * du fournisseur ne soit jamais présentée comme une déconnexion de l'utilisateur.
+ *
+ * Ne lève jamais : la page privée choisit entre redirection et état indisponible sans rendre de
+ * donnée privée dans aucun des deux cas.
+ */
+export async function getVerifiedSession(): Promise<VerifiedSession> {
   try {
     const supabase = await createServerSupabaseClient();
     // ⚠️ `getUser()` — voir l'en-tête. `getSession()` est PROSCRIT dans tout le module.
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data?.user?.id) return null;
-    return { id: data.user.id };
+    if (data?.user?.id) return { status: "authenticated", user: { id: data.user.id } };
+    if (!error) return { status: "anonymous" };
+
+    const status = (error as { status?: unknown }).status;
+    const name = (error as { name?: unknown }).name;
+    if (name === "AuthSessionMissingError" || (typeof status === "number" && status >= 400 && status < 500)) {
+      return { status: "anonymous" };
+    }
+    return { status: "unavailable" };
   } catch {
-    return null;
+    return { status: "unavailable" };
   }
+}
+
+export async function getVerifiedUser(): Promise<VerifiedUser | null> {
+  const session = await getVerifiedSession();
+  return session.status === "authenticated" ? session.user : null;
 }

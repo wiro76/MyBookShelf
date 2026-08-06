@@ -79,24 +79,29 @@ function pseudonymOrNothing(value: string): string | undefined {
 }
 
 /**
- * Vrai si le service a répondu « ces identifiants ne conviennent pas », faux s'il n'a pas
- * répondu du tout.
+ * Vrai si le service a répondu « ces identifiants ne conviennent pas », faux pour toute autre
+ * erreur, y compris une configuration invalide rendue en 4xx.
  *
- * La distinction se lit sur le `status` HTTP porté par l'erreur d'authentification, par
- * typage structurel plutôt que par `instanceof` : les classes d'erreur de `@supabase/auth-js`
+ * La distinction se lit sur le `code` stable porté par l'erreur d'authentification, par typage
+ * structurel plutôt que par `instanceof` : les classes d'erreur de `@supabase/auth-js`
  * sont réexportées par `@supabase/supabase-js`, mais une comparaison d'identité de classe
  * casse silencieusement si deux copies du paquet coexistent dans l'arbre de dépendances — et
  * elle casserait du bon côté de l'échec le plus discret : tout deviendrait « indisponible »,
  * y compris un vrai refus.
  *
- * `429` (trop de tentatives) est délibérément classé indisponible et non refusé : c'est une
- * limitation de débit, pas un verdict sur le couple saisi, et l'annoncer comme un refus
- * inviterait à retaper des identifiants pourtant corrects.
+ * Une limitation de débit, un fournisseur désactivé ou un CAPTCHA invalide ne figurent pas
+ * dans cette liste : aucun ne constitue un verdict sur le couple saisi.
  */
-function isCredentialRefusal(error: unknown): boolean {
-  const status = (error as { status?: unknown } | null | undefined)?.status;
-  if (typeof status !== "number") return false;
-  return status >= 400 && status < 500 && status !== 429;
+const CREDENTIAL_REFUSAL_CODES = new Set([
+  "email_not_confirmed",
+  "invalid_credentials",
+  "user_banned",
+  "user_not_found",
+]);
+
+export function isCredentialRefusal(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null | undefined)?.code;
+  return typeof code === "string" && CREDENTIAL_REFUSAL_CODES.has(code);
 }
 
 export type SignInInput = {
@@ -104,7 +109,16 @@ export type SignInInput = {
   password: unknown;
 };
 
-export async function signInWithPassword({ email, password }: SignInInput): Promise<SignInOutcome> {
+type PasswordAuthClient = Awaited<ReturnType<typeof createServerSupabaseClient>>;
+
+export type SignInDependencies = {
+  createClient?: () => PasswordAuthClient | Promise<PasswordAuthClient>;
+};
+
+export async function signInWithPassword(
+  { email, password }: SignInInput,
+  dependencies: SignInDependencies = {},
+): Promise<SignInOutcome> {
   const emailValue = typeof email === "string" ? email : "";
   const passwordValue = typeof password === "string" ? password : "";
 
@@ -137,7 +151,9 @@ export async function signInWithPassword({ email, password }: SignInInput): Prom
 
   let supabase;
   try {
-    supabase = await createServerSupabaseClient();
+    // Une connexion réussie sans cookie persistant est un faux succès. Contrairement au rendu
+    // d'un Server Component, une Server Action sait écrire la réponse : tout échec doit remonter.
+    supabase = await (dependencies.createClient?.() ?? createServerSupabaseClient({ cookieWrites: "required" }));
   } catch (error) {
     logger.error("Connexion impossible : configuration d'authentification invalide", {
       operation: OPERATION,

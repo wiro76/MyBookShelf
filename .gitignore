@@ -21,6 +21,10 @@
 /build/
 /playwright-report/
 /test-results/
+/backups/
+/recovery-artifacts/
+/recovery-proofs/
+/.recovery/
 /supabase/.branches/
 /supabase/.temp/
 *.tsbuildinfo

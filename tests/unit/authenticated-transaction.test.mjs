@@ -216,8 +216,10 @@ if (noyau) {
 
   const ZAN = "11111111-1111-1111-1111-111111111111";
   const CLAIM = "request.jwt.claim.sub";
+  const DELAI_REQUETE = "set local statement_timeout = '10s'";
   const SEQUENCE_ATTENDUE = [
     "begin",
+    DELAI_REQUETE,
     "set local role authenticated",
     "select set_config('request.jwt.claim.sub', $1, true)",
   ];
@@ -256,6 +258,31 @@ if (noyau) {
     assert.deepEqual(
       client.requetes.map((requete) => requete.sql),
       [...SEQUENCE_ATTENDUE, "commit"],
+    );
+  });
+
+  test("la transaction borne localement les requêtes à 10 secondes avant tout travail", async () => {
+    let requetesAvantTravail;
+    const { client } = await executer(ZAN, async (emprunte) => {
+      requetesAvantTravail = [...emprunte.requetes];
+      return null;
+    });
+
+    assert.equal(requetesAvantTravail[0].sql, "begin");
+    assert.deepEqual(requetesAvantTravail[1], { sql: DELAI_REQUETE, valeurs: undefined });
+    assert.deepEqual(
+      requetesAvantTravail.map((requete) => requete.sql),
+      SEQUENCE_ATTENDUE,
+      "le délai doit être posé après BEGIN et avant le rôle, le claim et le callback",
+    );
+    assert.equal(
+      client.requetes.filter((requete) => requete.sql.includes("statement_timeout")).length,
+      1,
+      "une seule limite constante doit être appliquée par transaction",
+    );
+    assert.ok(
+      !client.requetes.some((requete) => /^set\s+statement_timeout\b/.test(requete.sql)),
+      "le délai ne doit jamais être posé en portée de session",
     );
   });
 

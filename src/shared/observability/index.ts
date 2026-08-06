@@ -28,9 +28,9 @@ export {
 export type { StableError } from "./errors";
 export {
   LOG_LINE_MAX_BYTES,
-  REDACTION_PLACEHOLDER,
-  TRUNCATION_SUFFIX,
   formatLogLine,
   logger,
 } from "./logger";
 export type { LogLevel } from "./logger";
+export { REDACTION_PLACEHOLDER, TRUNCATION_SUFFIX, redactSensitiveText } from "./redaction";
+export { sanitizeSentryEvent } from "./sentry";
