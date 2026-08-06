@@ -26,7 +26,7 @@ test("AC 3/4 — la reconnexion reprend une destination non sensible et une pann
   const retry = page.getByRole("link", { name: "Réessayer" });
   await expect(retry).toHaveAttribute("href", "/bibliotheque");
 
-  const rendered = await page.locator("body").innerText();
+  const rendered = await page.content();
   expect(rendered).not.toMatch(UUID);
   expect(rendered).not.toContain(COMPTES.valide.email);
 

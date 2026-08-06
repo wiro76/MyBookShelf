@@ -108,6 +108,13 @@ test("suit l'exemplaire déplacé sans faire du contexte une autorité", () => {
   assert.match(result.announcement, /position disponible la plus proche/i);
 });
 
+test("un changement d'indice du même exemplaire est une reprise ajustée", () => {
+  const reindexed = target({ itemPosition: 1 });
+  const result = resolveLibraryViewState(state(), [reindexed]);
+  assert.equal(result.status, "adjusted");
+  assert.equal(result.target, reindexed);
+});
+
 test("choisit le voisin le plus proche dans la même étagère et départage vers le plus petit indice", () => {
   const before = target({ copyId: ids.copyB, itemPosition: 1 });
   const after = target({ copyId: ids.copyC, itemPosition: 3 });
@@ -134,6 +141,13 @@ test("normalise l'ordre d'entrée et ne mute ni le contexte ni les cibles", () =
   const second = resolveLibraryViewState(inputState, [...inputTargets].reverse());
   assert.deepEqual(first, second);
   assert.deepEqual(inputTargets, [right, left]);
+});
+
+test("refuse une projection qui place deux fois le même exemplaire", () => {
+  assert.throws(
+    () => resolveLibraryViewState(state(), [target(), target({ itemPosition: 1 })]),
+    (error) => error?.code === "LIBRARY_VIEW_STATE_INVALID",
+  );
 });
 
 test("un contexte absent ouvre la première cible canonique et une bibliothèque vide focalise son titre", () => {
@@ -185,6 +199,7 @@ test("la reprise distingue une indisponibilité d'une bibliothèque vide", async
 
 test("la confirmation valide la cible et transmet un hash canonique sans identifiant utilisateur", async () => {
   const current = target();
+  const userId = "80000000-0000-4000-8000-000000000001";
   const calls = [];
   const repository = {
     load: async () => null,
@@ -196,21 +211,61 @@ test("la confirmation valide la cible et transmet un hash canonique sans identif
   };
   const command = {
     commandId: "90000000-0000-4000-8000-000000000001",
-    expectedRevision: 0,
-    target: current,
+    commandType: "library.view-state.confirm",
+    actorId: userId,
+    aggregateIds: [userId],
+    expectedVersions: { libraryViewState: 0 },
+    payload: { target: current },
+    occurredAt: "2026-08-06T08:00:00.000Z",
   };
-  assert.equal((await confirmLibraryContext("private-user-id", command, [current], repository)).status, "confirmed");
+  assert.equal((await confirmLibraryContext(userId, command, [current], repository)).status, "confirmed");
   assert.equal(calls.length, 1);
   assert.match(calls[0][2], /^[a-f0-9]{64}$/);
-  assert.notEqual(calls[0][2], "private-user-id");
+  assert.notEqual(calls[0][2], userId);
   await assert.rejects(
-    () => confirmLibraryContext("private-user-id", command, [target({ copyId: ids.copyB })], repository),
+    () => confirmLibraryContext(userId, command, [target({ copyId: ids.copyB })], repository),
     (error) => error?.code === "LIBRARY_VIEW_STATE_TARGET_MISSING",
   );
   assert.equal(calls.length, 1);
 
   repository.replay = async () => ({ status: "replayed", revision: 1, confirmedAt: "2026-08-06T08:00:00.000Z" });
-  assert.equal((await confirmLibraryContext("private-user-id", command, [], repository)).status, "replayed");
+  assert.equal((await confirmLibraryContext(userId, command, [], repository)).status, "replayed");
   assert.equal(calls.length, 1, "un rejeu ne revalide pas une projection qui a pu evoluer");
+
+  let firstDigest = null;
+  repository.replay = async (_userId, _commandId, digest) => {
+    firstDigest ??= digest;
+    return { status: "replayed", revision: 1, confirmedAt: "2026-08-06T08:00:00.000Z" };
+  };
+  const reorderedTarget = {
+    itemPosition: current.itemPosition,
+    copyId: current.copyId,
+    shelfPosition: current.shelfPosition,
+    shelfId: current.shelfId,
+    modulePosition: current.modulePosition,
+    moduleId: current.moduleId,
+    status: current.status,
+  };
+  await confirmLibraryContext(userId, { ...command, payload: { target: reorderedTarget } }, [], repository);
+  assert.equal(firstDigest, calls[0][2], "le hash ne depend pas de l'ordre des proprietes de la cible");
+
+  await assert.rejects(
+    () => confirmLibraryContext(userId, { ...command, actorId: ids.copyB }, [current], repository),
+    (error) => error?.code === "LIBRARY_VIEW_STATE_INVALID",
+  );
+
+  await assert.rejects(
+    () => confirmLibraryContext(userId, {
+      ...command,
+      expectedVersions: { libraryViewState: Number.MAX_SAFE_INTEGER },
+    }, [current], repository),
+    (error) => error?.code === "LIBRARY_VIEW_STATE_INVALID",
+  );
+
+  repository.replay = async () => { throw new Error("database down"); };
+  await assert.rejects(
+    () => confirmLibraryContext(userId, command, [current], repository),
+    (error) => error?.code === "LIBRARY_VIEW_STATE_UNAVAILABLE",
+  );
 });
 }

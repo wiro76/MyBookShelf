@@ -85,6 +85,16 @@ if (modules) {
     ...overrides,
   });
 
+  const command = (commandId, expectedRevision, targetValue) => ({
+    commandId,
+    commandType: "library.view-state.confirm",
+    actorId: OWNER,
+    aggregateIds: [OWNER],
+    expectedVersions: { libraryViewState: expectedRevision },
+    payload: { target: targetValue },
+    occurredAt: "2026-08-06T08:00:00.000Z",
+  });
+
   const admin = new Client({ connectionString: databaseUrl });
   await admin.connect();
   const { confirmLibraryContext, resumeLibraryContext } = modules.application;
@@ -95,27 +105,28 @@ if (modules) {
   try {
     await admin.query("insert into auth.users (id) values ($1), ($2)", [OWNER, OTHER]);
     const original = target();
-    const command = { commandId: COMMAND, expectedRevision: 0, target: original };
+    const originalCommand = command(COMMAND, 0, original);
 
-    const confirmed = await confirmLibraryContext(OWNER, command, [original], repository);
+    const confirmed = await confirmLibraryContext(OWNER, originalCommand, [original], repository);
     assert.equal(confirmed.status, "confirmed");
     assert.equal(confirmed.revision, 1);
 
-    const replayed = await confirmLibraryContext(OWNER, command, [original], repository);
+    const replayed = await confirmLibraryContext(OWNER, originalCommand, [original], repository);
     assert.equal(replayed.status, "replayed");
     assert.equal(replayed.revision, 1);
 
     const alternative = target({ copyId: COPY_B, itemPosition: 1 });
     await assert.rejects(
-      () => confirmLibraryContext(OWNER, { ...command, target: alternative }, [alternative], repository),
+      () => confirmLibraryContext(OWNER, { ...originalCommand, payload: { target: alternative } }, [alternative], repository),
       (error) => error?.code === "LIBRARY_VIEW_STATE_COMMAND_REUSED",
     );
     await assert.rejects(
-      () => confirmLibraryContext(OWNER, {
-        commandId: "d2222222-2222-4222-8222-222222222222",
-        expectedRevision: 0,
-        target: alternative,
-      }, [alternative], repository),
+      () => confirmLibraryContext(
+        OWNER,
+        command("d2222222-2222-4222-8222-222222222222", 0, alternative),
+        [alternative],
+        repository,
+      ),
       (error) => error?.code === "LIBRARY_VIEW_STATE_CONFLICT",
     );
 
@@ -124,10 +135,10 @@ if (modules) {
     assert.equal(await repository.load(OTHER), null, "RLS masque le contexte au second utilisateur");
 
     const moved = target({ moduleId: MODULE_B, shelfId: SHELF_B, modulePosition: 1, shelfPosition: 1 });
-    const replayedAfterMove = await confirmLibraryContext(OWNER, command, [moved], repository);
+    const replayedAfterMove = await confirmLibraryContext(OWNER, originalCommand, [moved], repository);
     assert.equal(replayedAfterMove.status, "replayed", "un recu reste rejouable apres evolution de la projection");
 
-    const concurrentCommand = { commandId: CONCURRENT_COMMAND, expectedRevision: 1, target: original };
+    const concurrentCommand = command(CONCURRENT_COMMAND, 1, original);
     const concurrentResults = await Promise.all([
       confirmLibraryContext(OWNER, concurrentCommand, [original], repository),
       confirmLibraryContext(OWNER, concurrentCommand, [original], repository),

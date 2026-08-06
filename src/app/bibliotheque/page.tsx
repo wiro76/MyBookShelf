@@ -71,7 +71,7 @@ export default async function BibliothequePage() {
     resumeLibraryContext(session.user.id, [], createPostgresLibraryViewStateRepository()),
   ]);
 
-  if (!summary || resume.status === "unavailable") {
+  if (resume.status === "unavailable") {
     return (
       <main className="welcome-shell">
         <section className="welcome-card auth-card" aria-labelledby="titre-bibliotheque">
@@ -80,6 +80,25 @@ export default async function BibliothequePage() {
           <div role="status">
             <p className="intro">
               Ta bibliothèque n’a pas pu reprendre sa dernière position. Tes livres restent privés. Réessaie dans un instant.
+            </p>
+            <a className="primary-action" href="/bibliotheque">
+              Réessayer
+            </a>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (!summary) {
+    return (
+      <main className="welcome-shell">
+        <section className="welcome-card auth-card" aria-labelledby="titre-bibliotheque">
+          <p className="eyebrow">My BookShelf</p>
+          <h1 id="titre-bibliotheque">Ta bibliothèque</h1>
+          <div role="status">
+            <p className="intro">
+              Ta bibliothèque n’a pas pu être chargée. Tes données restent privées. Réessaie dans un instant.
             </p>
             <a className="primary-action" href="/bibliotheque">
               Réessayer

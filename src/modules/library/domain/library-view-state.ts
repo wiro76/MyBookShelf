@@ -118,6 +118,7 @@ const adjusted = (target: LibraryResumeTarget) => ({
 export function resolveLibraryViewState(stateValue: unknown, targetValues: readonly unknown[]) {
   if (!Array.isArray(targetValues)) throw new LibraryViewStateError();
   const targets = targetValues.map(validateLibraryResumeTarget).sort(canonicalCompare);
+  if (new Set(targets.map(({ copyId }) => copyId)).size !== targets.length) throw new LibraryViewStateError();
   if (targets.length === 0) {
     return { status: "empty" as const, adjusted: false as const, focusTarget: "library-title" as const, announcement: null };
   }
@@ -129,7 +130,9 @@ export function resolveLibraryViewState(stateValue: unknown, targetValues: reado
   if (state.copyId !== null) {
     const currentCopy = targets.find(({ copyId }) => copyId === state.copyId);
     if (currentCopy) {
-      const samePath = currentCopy.status === state.status && currentCopy.moduleId === state.moduleId && currentCopy.shelfId === state.shelfId;
+      const samePath = currentCopy.status === state.status && currentCopy.moduleId === state.moduleId &&
+        currentCopy.shelfId === state.shelfId && currentCopy.modulePosition === state.modulePosition &&
+        currentCopy.shelfPosition === state.shelfPosition && currentCopy.itemPosition === state.itemPosition;
       return samePath
         ? { status: "exact" as const, target: currentCopy, adjusted: false as const, announcement: null }
         : adjusted(currentCopy);

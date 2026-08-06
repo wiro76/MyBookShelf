@@ -12,7 +12,7 @@ create table library.library_view_states (
   module_position integer,
   shelf_position integer,
   item_position integer,
-  revision bigint not null check (revision >= 1),
+  revision bigint not null check (revision between 1 and 9007199254740991),
   confirmed_at timestamptz not null default now(),
   constraint library_view_state_module_pair check ((module_id is null) = (module_position is null)),
   constraint library_view_state_shelf_pair check ((shelf_id is null) = (shelf_position is null)),
@@ -32,7 +32,7 @@ create table library.library_view_state_receipts (
   user_id uuid not null references auth.users(id) on delete cascade,
   command_id uuid not null,
   request_sha256 text not null check (request_sha256 ~ '^[0-9a-f]{64}$'),
-  result_revision bigint not null check (result_revision >= 1),
+  result_revision bigint not null check (result_revision between 1 and 9007199254740991),
   created_at timestamptz not null default now(),
   primary key (user_id, command_id)
 );

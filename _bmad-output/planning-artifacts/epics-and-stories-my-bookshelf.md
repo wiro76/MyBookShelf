@@ -381,6 +381,10 @@ En tant que Zan, je veux parcourir Envie de lire, Terminés et En cours, afin de
 - **Étant donné** un module, **quand** Zan navigue, **alors** la largeur logique reste 560 px, le vertical parcourt les étagères et l’horizontal ou les boutons parcourent les modules sans compression.
 - **Étant donné** une collection vide, **quand** un statut est ouvert, **alors** un module vide, une explication et des actions distinctes Catalogue/ajout manuel sont fournis sans faux livre.
 - **Étant donné** ordinateur large, ordinateur étroit, tablette paysage ou portrait, **quand** la vue s’adapte, **alors** les résultats et commandes restent équivalents et le téléphone n’est pas ciblé.
+- **Étant donné** la fondation technique de reprise livrée par la Story 1.7, **quand** la bibliothèque est ouverte, **alors** sa résolution consomme obligatoirement la projection réelle et courante Module > Shelf > Copy > Placement, sans table supplémentaire, faux rangement ni projection temporaire.
+- **Étant donné** un dernier contexte confirmé encore disponible ou devenu indisponible, **quand** la reprise est résolue, **alors** la cible exacte ou ajustée est rendue dans le DOM avec sa hiérarchie et sa position sémantiques réelles.
+- **Étant donné** une cible de reprise exacte ou ajustée, **quand** la vue est hydratée, **alors** le focus atteint l’élément réellement rendu et tout ajustement est annoncé de manière accessible sans exposer d’identifiant privé.
+- **Étant donné** les parcours de reprise exacte et ajustée, **quand** la Story 3.2 est validée, **alors** des tests E2E navigateur bloquants vérifient le rendu sémantique, le focus et l’annonce sur les quatre projets Playwright supportés.
 
 ### Story 3.3 : Naviguer entièrement au clavier et avec aides techniques
 

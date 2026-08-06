@@ -31,12 +31,21 @@ type ReceiptRow = {
   created_at: Date | string;
 };
 
+const safeRevision = (value: string | number) => {
+  const revision = Number(value);
+  if (!Number.isSafeInteger(revision) || revision < 1) throw new LibraryViewStateError();
+  return revision;
+};
+
 const mapReceipt = (row: ReceiptRow, requestSha256: string): LibraryViewStateReceipt => {
   if (row.request_sha256 !== requestSha256) throw new LibraryViewStateError("LIBRARY_VIEW_STATE_COMMAND_REUSED");
+  const revision = safeRevision(row.result_revision);
+  const confirmedAt = new Date(row.created_at);
+  if (!Number.isFinite(confirmedAt.getTime())) throw new LibraryViewStateError();
   return {
     status: "replayed",
-    revision: Number(row.result_revision),
-    confirmedAt: new Date(row.created_at).toISOString(),
+    revision,
+    confirmedAt: confirmedAt.toISOString(),
   };
 };
 
@@ -48,7 +57,7 @@ const mapState = (row: StateRow): StoredLibraryViewState => validateStoredLibrar
   modulePosition: row.module_position,
   shelfPosition: row.shelf_position,
   itemPosition: row.item_position,
-  revision: Number(row.revision),
+  revision: safeRevision(row.revision),
   confirmedAt: row.confirmed_at instanceof Date ? row.confirmed_at.toISOString() : new Date(row.confirmed_at).toISOString(),
 });
 
@@ -97,7 +106,7 @@ export function createPostgresLibraryViewStateRepository(
           where user_id = $1 and command_id = $2
         `, [userId, commandId]);
         if (receiptAfterLock.rows[0]) return mapReceipt(receiptAfterLock.rows[0], requestSha256);
-        const currentRevision = current.rows[0] ? Number(current.rows[0].revision) : 0;
+        const currentRevision = current.rows[0] ? safeRevision(current.rows[0].revision) : 0;
         if (currentRevision !== expectedRevision) throw new LibraryViewStateError("LIBRARY_VIEW_STATE_CONFLICT");
         const nextRevision = expectedRevision + 1;
         const confirmed = await client.query<{ revision: string | number; confirmed_at: Date | string }>(`

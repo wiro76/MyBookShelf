@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 type LibraryResumeFocusProps = {
   targetId: string;
@@ -8,12 +8,15 @@ type LibraryResumeFocusProps = {
 };
 
 export function LibraryResumeFocus({ targetId, announcement = null }: LibraryResumeFocusProps) {
+  const liveRegion = useRef<HTMLParagraphElement>(null);
+
   useEffect(() => {
-    const target = document.getElementById(targetId);
+    const target = document.getElementById(targetId) ?? document.getElementById("titre-bibliotheque");
     if (!(target instanceof HTMLElement)) return;
     target.focus({ preventScroll: true });
     target.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [targetId]);
+    if (liveRegion.current) liveRegion.current.textContent = announcement ?? "";
+  }, [announcement, targetId]);
 
-  return announcement ? <p role="status" className="project-status">{announcement}</p> : null;
+  return announcement ? <p ref={liveRegion} role="status" className="project-status" /> : null;
 }

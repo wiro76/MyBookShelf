@@ -1,5 +1,5 @@
 begin;
-select plan(19);
+select plan(22);
 
 insert into auth.users (id) values
   ('41111111-1111-4111-8111-111111111111'),
@@ -65,6 +65,14 @@ select throws_ok($$
   insert into library.library_view_states (user_id, status, revision)
   values ('42222222-2222-4222-8222-222222222222', 'unknown', 1)
 $$, '23514', null, 'un statut inconnu est refuse');
+select throws_ok($$
+  insert into library.library_view_states (user_id, status, revision)
+  values ('42222222-2222-4222-8222-222222222222', 'finished', 9007199254740992)
+$$, '23514', null, 'une revision de contexte hors domaine JavaScript sur est refusee');
+select throws_ok($$
+  insert into library.library_view_state_receipts (user_id, command_id, request_sha256, result_revision)
+  values ('42222222-2222-4222-8222-222222222222', gen_random_uuid(), repeat('c', 64), 9007199254740992)
+$$, '23514', null, 'une revision de recu hors domaine JavaScript sur est refusee');
 
 select set_config('request.jwt.claim.sub', '41111111-1111-4111-8111-111111111111', true);
 select ok(

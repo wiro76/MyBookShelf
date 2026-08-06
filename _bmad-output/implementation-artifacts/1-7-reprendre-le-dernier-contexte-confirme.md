@@ -4,7 +4,7 @@ baseline_commit: eb762a2cc67de2ee287ca3d0bcceb01f66dc071f
 
 # Story 1.7 : Reprendre le dernier contexte confirmé
 
-Status: review
+Status: done
 
 ## Story
 
@@ -15,6 +15,8 @@ afin de retrouver naturellement ma place dans la bibliothèque.
 **Traçabilité :** CAP-1, CAP-11, CAP-12 ; FR-2, FR-28, FR-29 ; NFR-1, NFR-3, NFR-8, NFR-9 ; AD-5, AD-6, AD-10, AD-11.
 
 Cette story prolonge la route privée livrée par la story 1.6. Elle pose le contrat durable de `LibraryViewState` avant que les stories 3.x ne livrent le meuble complet. Elle restaure une position de navigation confirmée ; elle ne crée, déplace, réordonne ni répare aucun exemplaire.
+
+**Disposition après revue :** Story 1.7 livre la fondation de reprise (domaine, persistance, protocole de confirmation, sécurité et états atteignables sans meuble). Story 3.2 est désormais propriétaire de l'intégration à la projection réelle `Module/Shelf/Copy/Placement`, du rendu sémantique de la cible exacte/ajustée, du focus réel et des E2E correspondants sur quatre navigateurs. Aucun modèle temporaire n'est autorisé entre les deux.
 
 ## Critères d'acceptation
 
@@ -33,7 +35,8 @@ Cette story prolonge la route privée livrée par la story 1.6. Elle pose le con
 | Contexte confirmé | Une ligne serveur écrite dans une transaction authentifiée après validation de la cible contre la projection courante. Aucun état optimiste, cookie, query string, `localStorage` ou IndexedDB ne devient « confirmé ». |
 | Périmètre | Un contexte global par utilisateur pour le MVP, repris sur tous ses appareils. Pas de contexte par viewport ou appareil. |
 | Version | La ligne porte une `revision bigint` strictement positive et un `confirmed_at`. L'écriture accepte une révision attendue ; une divergence retourne un conflit stable sans écraser silencieusement. L'interface de conflit appartient à 1.8. |
-| Idempotence | Toute confirmation porte `commandId` et un hash SHA-256 canonique de la demande. Le registre `library.library_view_state_receipts` rend un rejeu identique sans nouvelle révision et refuse la réutilisation du même `commandId` avec une autre charge. |
+| Commande | Toute confirmation utilise l'enveloppe AD-6 complète `{commandId, commandType, actorId, aggregateIds, expectedVersions, payload, occurredAt}`. `commandType` vaut `library.view-state.confirm`, l'acteur et l'unique agrégat correspondent à l'utilisateur vérifié, `expectedVersions.libraryViewState` porte la révision attendue et `payload.target` la cible validée. |
+| Idempotence | Un hash SHA-256 canonique couvre l'enveloppe complète. Le registre `library.library_view_state_receipts` rend un rejeu identique sans nouvelle révision et refuse la réutilisation du même `commandId` avec une autre charge. |
 | Persistance | La story livre le cas d'usage de confirmation et son adaptateur PostgreSQL. Les futurs composants de navigation l'appelleront après une navigation validée. Elle ne fabrique pas de faux livres pour déclencher cette écriture aujourd'hui. |
 | Destination après auth | La route publique reste uniquement `/bibliotheque`. Les identifiants de statut, module, étagère et exemplaire ne transitent jamais dans l'URL, le cookie d'authentification ou les logs. |
 | Caches | Route et lecture privées restent `force-dynamic`, `revalidate = 0`, `force-no-store`. Aucun contexte inter-utilisateur ne peut être partagé par cache. |
@@ -147,6 +150,21 @@ Les erreurs fournisseur ne traversent ni le cas d'usage ni l'interface. Les logs
   - [x] Vérifier 100 cibles : résolution déterministe sous les budgets existants ; aucun chevauchement ou ordre modifié puisque la reprise est en lecture seule
   - [x] Mettre à jour le registre de fichiers et les notes de complétion sans annoncer les composants de meuble non encore livrés
 
+### Review Findings
+
+- [x] [Review][Patch] Requalifier 1.7 en fondation et transférer à Story 3.2 la projection réelle, le focus et les E2E exact/ajusté — Décision utilisateur du 2026-08-06 : ne créer aucune projection temporaire avant les entités 3.x.
+- [x] [Review][Patch] Aligner la commande de confirmation sur l'enveloppe AD-6 complète — Décision utilisateur du 2026-08-06 : 1.7 livre le protocole et ses reçus ; 1.8 les consomme pour le feedback, le retry et l'arbitrage de conflit.
+- [x] [Review][Patch] Canoniser explicitement la cible avant le hash idempotent [src/modules/library/application/library-view-state.ts:39]
+- [x] [Review][Patch] Mapper les erreurs fournisseur de replay/confirmation vers une erreur stable sans masquer les erreurs métier [src/modules/library/application/library-view-state.ts:80]
+- [x] [Review][Patch] Considérer les positions dans l'égalité exacte d'un contexte [src/modules/library/domain/library-view-state.ts:132]
+- [x] [Review][Patch] Borner les révisions au domaine sûr JavaScript et valider les révisions des reçus [src/modules/library/adapters/postgres-library-view-state.ts:34]
+- [x] [Review][Patch] Refuser une projection qui contient plusieurs emplacements pour le même `copyId` [src/modules/library/domain/library-view-state.ts:120]
+- [x] [Review][Patch] Injecter l'annonce dans la région live après hydratation [src/modules/library/ui/library-resume-focus.tsx:18]
+- [x] [Review][Patch] Distinguer une panne du résumé privé d'une panne de reprise [src/app/bibliotheque/page.tsx:74]
+- [x] [Review][Patch] Vérifier les fuites dans le HTML complet et pas seulement `innerText` [tests/e2e/reprise-contexte.spec.ts:29]
+- [x] [Review][Patch] Corriger le plan pgTAP et couvrir les révisions hors domaine sûr avec 22 assertions [supabase/tests/database/library-view-state-rls.test.sql:2]
+- [x] [Review][Patch] Corriger la contradiction documentaire : 1.8 consomme les reçus livrés par 1.7 au lieu de les recréer [_bmad-output/implementation-artifacts/1-7-reprendre-le-dernier-contexte-confirme.md:180]
+
 ## Notes de développement
 
 ### État actuel des fichiers à modifier
@@ -177,7 +195,7 @@ src/modules/library/
 
 - Story 1.6 a durci la session, le refresh proxy, les cookies et `authenticatedTransaction`. Les réutiliser ; ne pas créer de second client Auth ou Pool.
 - Story 1.5 impose que la nouvelle table et ses preuves survivent au drill de restauration. Le canari recovery vérifie déjà l'historique et les données ; ne pas exclure le schéma `library` des dumps.
-- Story 1.8 ajoutera les retours « Sauvegarde…/Enregistré », les reçus idempotents et le choix de conflit local/distant. Ne pas anticiper ces composants ici.
+- Story 1.8 consommera les reçus idempotents livrés ici pour ajouter les retours « Sauvegarde…/Enregistré », le rejeu de la même commande et le choix de conflit local/distant. Elle ne recréera ni le registre ni le protocole AD-6.
 
 ### Contraintes de versions et documentation actuelle
 
@@ -194,7 +212,7 @@ src/modules/library/
 
 **Base réelle :** migration depuis zéro, pgTAP RLS sous deux identités, canari applicatif via le vrai chemin `authenticatedTransaction`.
 
-**E2E :** quatre projets Playwright ; reprise après auth, privacy URL/DOM, panne sans déconnexion, annonce/focus du repli, reflow et zoom.
+**E2E :** 1.7 prouve sur quatre projets Playwright la reprise après auth, la confidentialité URL/DOM et la panne sans déconnexion. Story 3.2 ajoutera obligatoirement les parcours exact/ajusté avec cible réelle, annonce/focus, reflow et zoom.
 
 **Mutations :** policy permissive ou ownership retiré doit faire échouer `ci:database`.
 
@@ -233,14 +251,16 @@ GPT-5 Codex
 - Persistance privée livrée sous double barrière ownership + RLS, avec révision attendue, reçus SHA-256, rejeu après évolution de projection et concurrence identique idempotente.
 - Suppression directe du signet interdite afin de ne jamais réinitialiser une révision en conservant des reçus historiques.
 - Route `/bibliotheque` composée après session vérifiée, avec état indisponible explicite, retry sans déconnexion et focus/annonce post-hydratation.
-- Limite assumée : la projection produit reste vide tant que Module/Shelf/Copy/Placement ne sont pas livrés par les stories 3.x ; aucun faux rangement n'a été introduit. Les chemins exact/ajusté sont prouvés par domaine + PostgreSQL réel, et le comportement focus/annonce par contrat d'intégration.
+- Limite arbitrée : la projection produit reste vide tant que Module/Shelf/Copy/Placement ne sont pas livrés ; aucun faux rangement n'a été introduit. Les chemins exact/ajusté sont prouvés par domaine + PostgreSQL réel. Story 3.2 porte désormais explicitement leur rendu, focus, annonce et E2E réels.
 - Audit adversarial par sous-agent intégré : correction du rejeu après déplacement, de la course concurrente et ajout de l'observabilité expurgée.
 - `npm run ci:all` vert le 2026-08-06 en 711 s, incluant quatre projets Playwright, base réelle, restauration, build et 17 mutations négatives détectées.
+- Revue BMAD clôturée : 12 correctifs appliqués, `npm run ci:all` de validation vert en 673 s et intégration produit transférée explicitement à Story 3.2.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/1-7-reprendre-le-dernier-contexte-confirme.md` (créé)
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` (modifié)
+- `_bmad-output/planning-artifacts/epics-and-stories-my-bookshelf.md` (modifié)
 - `scripts/run-database-gates.mjs` (modifié)
 - `scripts/verify-ci-mutations.mjs` (modifié)
 - `src/app/bibliotheque/page.tsx` (modifié)
@@ -262,3 +282,4 @@ GPT-5 Codex
 |---|---|
 | 2026-08-06 | Story créée et contextualisée, statut `ready-for-dev`. |
 | 2026-08-06 | Implémentation, audit adversarial et `ci:all` terminés ; story passée en `review`. |
+| 2026-08-06 | Revue BMAD : 12 findings corrigés, arbitrages 1.7/3.2 et AD-6 appliqués ; story passée en `done`. |

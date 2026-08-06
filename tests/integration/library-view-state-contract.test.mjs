@@ -13,6 +13,8 @@ test("la reprise reste une lecture et le focus client cible le résultat résolu
   assert.match(focus, /\.focus\(\{ preventScroll: true \}\)/);
   assert.match(focus, /scrollIntoView/);
   assert.match(focus, /role="status"/);
+  assert.match(focus, /textContent = announcement/);
+  assert.match(focus, /document\.getElementById\("titre-bibliotheque"\)/);
   assert.match(page, /getVerifiedSession\(\)/);
   assert.match(page, /resumeLibraryContext\(session\.user\.id/);
   assert.doesNotMatch(page, /searchParams|moduleId|shelfId|copyId/);
