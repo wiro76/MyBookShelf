@@ -1,0 +1,15 @@
+begin;
+select plan(10);
+insert into auth.users (id) values ('a6111111-1111-4111-8111-111111111111'), ('a6222222-2222-4222-8222-222222222222');
+select ok(has_table_privilege('authenticated', 'media.asset_references', 'select'), 'les références restent lisibles par leur propriétaire');
+select ok(not has_table_privilege('authenticated', 'media.asset_references', 'insert'), 'le navigateur ne forge pas une référence média');
+select ok(has_function_privilege('authenticated', 'media.transition_asset_state(uuid,uuid,text,text)', 'execute'), 'la transition passe par la façade serveur');
+select ok(not has_table_privilege('anon', 'media.asset_references', 'select'), 'anon ne lit pas les références');
+select ok(not has_table_privilege('authenticated', 'media.media_assets', 'update'), 'le navigateur ne change pas le cycle média');
+select ok(pg_get_functiondef('media.guard_media_asset_state()'::regprocedure) like '%MEDIA_INVALID_TRANSITION%', 'la transition illégale est bloquée');
+select ok(pg_get_functiondef('media.guard_media_asset_state()'::regprocedure) like '%rights_status%', 'la publication exige les droits connus');
+select ok(pg_get_functiondef('media.transition_asset_state(uuid,uuid,text,text)'::regprocedure) like '%p_user_id%', 'la façade vérifie le propriétaire');
+select ok(has_table_privilege('authenticated', 'media.media_assets', 'select'), 'les métadonnées restent consultables');
+select ok(not has_table_privilege('anon', 'media.media_assets', 'select'), 'anon ne consulte pas le cycle média');
+select * from finish();
+rollback;
