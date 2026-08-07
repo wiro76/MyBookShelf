@@ -63,7 +63,7 @@ function EditionComparison({ candidate }: { candidate: CatalogueCandidate }) {
         <input type="hidden" name="editionTitle" value={selectedEdition.title} />
         <input type="hidden" name="identifiers" value={JSON.stringify(selectedEdition.identifiers)} />
         <input type="hidden" name="provenance" value={JSON.stringify(selectedEdition.provenance)} />
-        <button className="primary-action" type="submit" disabled={addPending || addState.status === "confirmed"}>{addPending ? "Ajout…" : addState.status === "confirmed" ? "Ajouté comme envie de lire" : "Ajouter comme envie de lire"}</button>
+        <button className="primary-action" type="submit" disabled={addPending || addState.status === "confirmed" || addState.status === "replayed"}>{addPending ? "Ajout…" : addState.status === "confirmed" || addState.status === "replayed" ? "Ajouté comme envie de lire" : "Ajouter comme envie de lire"}</button>
       </form> : null}
       <p className="catalog-selection-status" role="status" aria-live="polite" data-selected-edition-ref={selectedEdition?.selectionRef}>
         {addState.status === "unavailable" ? "Ta session n’est plus disponible. Reconnecte-toi pour ajouter cette édition." : addState.status === "invalid" ? "L’ajout n’a pas pu être confirmé. Vérifie la sélection puis réessaie." : addState.status === "confirmed" || addState.status === "replayed" ? "L’édition est maintenant visible dans Envie de lire." : selectedEdition ? `Édition sélectionnée : ${selectedEdition.title}.` : "Aucune édition sélectionnée."}

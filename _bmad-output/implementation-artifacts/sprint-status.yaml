@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T16:13:22Z
-last_updated: 2026-08-07T00:00:00Z
+last_updated: 2026-08-07T16:40:00Z
 project: Bibiliothéque virtuelle
 project_key: NOKEY
 tracking_system: file-system
@@ -59,19 +59,19 @@ development_status:
   1-8-percevoir-et-reprendre-chaque-sauvegarde: done
   epic-1-retrospective: done
 
-  epic-2: in-progress
-  2-1-rechercher-une-oeuvre-par-titre-ou-auteur: review
-  2-2-comparer-et-choisir-une-edition: review
-  2-3-initialiser-le-rangement-reel-de-la-bibliotheque: review
-  2-4-ajouter-ledition-choisie-comme-envie-de-lire: review
-  2-5-importer-et-preparer-une-couverture-personnelle-en-securite: review
-  2-6-creer-manuellement-une-edition-comme-envie-de-lire: backlog
-  2-7-gouverner-la-publication-et-la-revocation-des-medias: backlog
-  2-8-collecter-les-medias-revoques-sans-compromettre-les-sauvegardes: backlog
-  epic-2-retrospective: optional
+  epic-2: done
+  2-1-rechercher-une-oeuvre-par-titre-ou-auteur: done
+  2-2-comparer-et-choisir-une-edition: done
+  2-3-initialiser-le-rangement-reel-de-la-bibliotheque: done
+  2-4-ajouter-ledition-choisie-comme-envie-de-lire: done
+  2-5-importer-et-preparer-une-couverture-personnelle-en-securite: done
+  2-6-creer-manuellement-une-edition-comme-envie-de-lire: done
+  2-7-gouverner-la-publication-et-la-revocation-des-medias: done
+  2-8-collecter-les-medias-revoques-sans-compromettre-les-sauvegardes: done
+  epic-2-retrospective: done
 
-  epic-3: backlog
-  3-1-choisir-lapparence-initiale-du-meuble: backlog
+  epic-3: in-progress
+  3-1-choisir-lapparence-initiale-du-meuble: ready-for-dev
   3-2-parcourir-les-trois-bibliotheques-physiques: backlog
   3-3-naviguer-entierement-au-clavier-et-avec-aides-techniques: backlog
   3-4-gerer-lextension-des-modules-sans-limite-arbitraire: backlog
@@ -104,6 +104,22 @@ development_status:
   epic-6-retrospective: optional
 
 action_items:
+  - epic: 2
+    action: "Remplacer les champs cachés catalogue par une sélection serveur signée ou rechargée."
+    owner: "Developer / Architect"
+    status: open
+  - epic: 2
+    action: "Ajouter des canaris SQL inter-utilisateurs pour reçus, transitions et GC."
+    owner: "QA / Developer"
+    status: open
+  - epic: 2
+    action: "Brancher le stockage privé, la promotion et le worker de suppression vérifiée."
+    owner: "Developer"
+    status: open
+  - epic: 2
+    action: "Normaliser l’ISBN et détecter les éditions existantes avant ajout manuel."
+    owner: "Product / Developer"
+    status: open
   - epic: 1
     action: "Ajouter une matrice AC -> preuve -> porte CI -> scénario négatif à la Definition of Done."
     owner: "Amelia et Dana"

@@ -53,12 +53,12 @@ export function createPostgresLibraryWantToReadRepository(transaction: Transacti
       const input = validateAddEditionAsWantToRead(rawInput);
       const digest = wantToReadRequestDigest(commandId, userId, input);
       return transaction(userId, async (client) => {
+        await client.query("select pg_advisory_xact_lock(hashtextextended($1 || ':want-to-read', 0))", [userId]);
         const replay = await client.query<{ request_sha256: string; copy_id: string; placement_id: string; created_at: Date | string }>(`select request_sha256, copy_id, placement_id, created_at from library.library_add_receipts where user_id = $1 and command_id = $2`, [userId, commandId]);
         if (replay.rows[0]) {
           if (replay.rows[0].request_sha256 !== digest) throw new LibraryWantToReadError("LIBRARY_WANT_TO_READ_COMMAND_REUSED");
           return { commandId, status: "replayed", copyId: replay.rows[0].copy_id, placementId: replay.rows[0].placement_id, confirmedAt: iso(replay.rows[0].created_at) };
         }
-        await client.query("select pg_advisory_xact_lock(hashtextextended($1 || ':want-to-read', 0))", [userId]);
         const work = await client.query<{ id: string }>(`insert into library.works (canonical_key, title, author, summary, provenance) values ($1, $2, $3, $4, $5::jsonb) on conflict (canonical_key) do update set title = excluded.title, author = excluded.author, summary = excluded.summary returning id`, [input.candidateKey, input.workTitle, input.author ?? null, input.summary ?? null, JSON.stringify(input.provenance)]);
         const metadata = { ...(input.pageCount !== undefined ? { pageCount: input.pageCount } : {}), ...(input.series ? { series: input.series } : {}), ...(input.volume ? { volume: input.volume } : {}), ...(input.publicationDate ? { publicationDate: input.publicationDate } : {}), ...(input.editionStatement ? { editionStatement: input.editionStatement } : {}), ...(input.coverAssetId ? { coverAssetId: input.coverAssetId } : {}) };
         const edition = await client.query<{ id: string }>(`insert into library.editions (work_id, canonical_key, title, identifiers, provenance, metadata) values ($1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb) on conflict (work_id, canonical_key) do update set title = excluded.title, identifiers = excluded.identifiers, provenance = excluded.provenance, metadata = excluded.metadata returning id`, [work.rows[0].id, input.editionKey, input.editionTitle, JSON.stringify(input.identifiers), JSON.stringify(input.provenance), JSON.stringify(metadata)]);
