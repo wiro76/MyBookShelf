@@ -146,6 +146,7 @@ try {
     readFileSync("supabase/tests/database/library-want-to-read-rls.test.sql", "utf8"),
     readFileSync("supabase/tests/database/media-personal-cover-rls.test.sql", "utf8"),
     readFileSync("supabase/tests/database/media-governance-rls.test.sql", "utf8"),
+    readFileSync("supabase/tests/database/media-gc-rls.test.sql", "utf8"),
     readFileSync("supabase/tests/database/migration-compatibility.test.sql", "utf8"),
     readFileSync("supabase/tests/database/deferred-effects.test.sql", "utf8"),
   ].join("\n");

@@ -1,0 +1,13 @@
+begin;
+select plan(8);
+insert into auth.users (id) values ('a7111111-1111-4111-8111-111111111111'), ('a7222222-2222-4222-8222-222222222222');
+select ok(has_function_privilege('authenticated', 'media.claim_gc_candidate(uuid,uuid,timestamptz)', 'execute'), 'le GC passe par une fonction contrôlée');
+select ok(not has_table_privilege('authenticated', 'media.backup_manifest_objects', 'select'), 'les manifestes restent hors lecture navigateur');
+select ok(has_table_privilege('authenticated', 'media.gc_claims', 'select'), 'le propriétaire peut suivre une décision GC');
+select ok(not has_table_privilege('authenticated', 'media.gc_claims', 'insert'), 'le navigateur ne forge pas une décision GC');
+select ok(not has_table_privilege('anon', 'media.gc_claims', 'select'), 'anon ne lit pas les décisions GC');
+select ok(pg_get_functiondef('media.claim_gc_candidate(uuid,uuid,timestamptz)'::regprocedure) like '%retained_until%', 'la rétention des manifestes est consultée');
+select ok(pg_get_functiondef('media.claim_gc_candidate(uuid,uuid,timestamptz)'::regprocedure) like '%asset_references%', 'les références actives protègent le média');
+select ok(not has_table_privilege('anon', 'media.backup_manifest_objects', 'select'), 'anon ne lit pas les hashes de sauvegarde');
+select * from finish();
+rollback;
