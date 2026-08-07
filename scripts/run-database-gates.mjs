@@ -22,9 +22,9 @@ const projectId = `mbs-ci-${process.pid}-${Date.now()}`;
 const configPath = join(workdir, "supabase/config.toml");
 const config = readFileSync(configPath, "utf8")
   .replace(/project_id = ".*"/, `project_id = "${projectId}"`)
-  .replace(/port = 54321/, `port = ${apiPort}`)
-  .replace(/port = 54322/, `port = ${dbPort}`)
-  .replace(/shadow_port = 54320/, `shadow_port = ${shadowPort}`);
+  .replace(/port = (?:54321|55321)/, `port = ${apiPort}`)
+  .replace(/port = (?:54322|55322)/, `port = ${dbPort}`)
+  .replace(/shadow_port = (?:54320|55320)/, `shadow_port = ${shadowPort}`);
 writeFileSync(configPath, config);
 
 const supabase = ["--yes", "supabase@2.101.0"];
