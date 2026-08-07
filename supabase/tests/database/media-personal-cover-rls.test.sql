@@ -1,0 +1,12 @@
+begin;
+select plan(7);
+insert into auth.users (id) values ('a5111111-1111-4111-8111-111111111111'), ('a5222222-2222-4222-8222-222222222222');
+select ok(has_table_privilege('authenticated', 'media.media_assets', 'select'), 'le propriétaire peut relire son média');
+select ok(has_table_privilege('authenticated', 'media.media_variants', 'select'), 'le propriétaire peut relire sa variante');
+select ok(not has_table_privilege('anon', 'media.media_assets', 'select'), 'anon ne lit pas les médias privés');
+select ok(has_function_privilege('authenticated', 'media.record_personal_cover_receipt(uuid,uuid,text,uuid,timestamptz)', 'execute'), 'le serveur peut enregistrer le reçu');
+select ok(not has_table_privilege('authenticated', 'media.media_assets', 'insert'), 'le navigateur ne dépose pas directement le média');
+select ok(not has_table_privilege('authenticated', 'media.personal_cover_receipts', 'insert'), 'le navigateur ne forge pas le reçu');
+select ok(not has_table_privilege('anon', 'media.media_variants', 'select'), 'anon ne lit pas les variantes privées');
+select * from finish();
+rollback;
