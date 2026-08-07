@@ -11,6 +11,7 @@ export default function Home() {
           <a className="primary-action" href="/connexion?destination=%2Fbibliotheque">Se connecter</a>
           <a className="catalog-secondary-action" href="/catalogue">Ouvrir le Catalogue</a>
           <a className="catalog-secondary-action" href="/bibliotheque">Voir ma bibliothèque</a>
+          <a className="catalog-secondary-action" href="/etat-du-projet">État du projet</a>
         </nav>
         <p id="etat-du-projet" className="project-status" tabIndex={-1}>
           Le socle privé, le Catalogue et l’ajout d’éditions sont disponibles pour test.
