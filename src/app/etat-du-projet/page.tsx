@@ -5,7 +5,7 @@ import { projectProgress, projectStatus, type ProjectEpic, type ProjectStoryStat
 export const metadata: Metadata = { title: "État du projet — My BookShelf", robots: { index: false, follow: false } };
 
 const epicStatusLabel = { done: "Terminé", "in-progress": "En cours", backlog: "À venir" } as const;
-const storyStatusLabel: Record<ProjectStoryStatus, string> = { done: "Terminé", review: "Revue", backlog: "À venir" };
+const storyStatusLabel: Record<ProjectStoryStatus, string> = { done: "Terminé", review: "Revue", "in-progress": "En cours", backlog: "À venir" };
 
 function countStories(epic: ProjectEpic) {
   return { done: epic.stories.filter((story) => story.status === "done").length, total: epic.stories.length };
