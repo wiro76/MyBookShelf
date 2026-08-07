@@ -248,6 +248,74 @@ h1 {
   font-size: 0.875rem;
 }
 
+.library-shelf {
+  display: block;
+  min-height: 3.25rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.library-shelf-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--ink-secondary);
+  font-size: 0.875rem;
+}
+
+.library-items {
+  display: flex !important;
+  align-items: end;
+  gap: 0.25rem !important;
+  min-height: 4.5rem;
+  margin: 0.5rem 0 0 !important;
+  padding: 0 0 0.25rem !important;
+  border-bottom: 0.25rem solid var(--border-strong);
+  overflow-x: auto;
+}
+
+.library-item {
+  display: flex !important;
+  flex: 0 0 auto;
+  align-items: stretch;
+  min-width: 3rem;
+  min-height: 3.5rem;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  background: var(--surface-subtle);
+}
+
+.library-item:focus-visible {
+  outline: 3px solid var(--focus-light);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px var(--focus-contrast);
+}
+
+.library-spine {
+  display: block;
+  min-width: 0.35rem;
+  background: var(--accent);
+}
+
+.library-item-copy {
+  display: grid;
+  max-width: 12rem;
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+}
+
+.library-item-copy strong,
+.library-item-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-item-copy small {
+  color: var(--ink-secondary);
+  font-size: 0.75rem;
+}
+
 .library-empty-state {
   color: var(--ink-secondary);
   font-size: 0.875rem;

@@ -56,19 +56,29 @@ export function createPostgresLibraryFoundationRepository(transaction: Transacti
           shelf_position: number;
           shelf_capacity_units: number;
           occupied_units: number;
+          placement_id: string | null;
+          copy_id: string | null;
+          item_position: number | null;
+          width_units: number | null;
+          work_title: string | null;
+          work_author: string | null;
+          edition_title: string | null;
         }>(`
           select modules.id as module_id, modules.status, modules.module_position, modules.capacity_units,
             shelves.id as shelf_id, shelves.shelf_position, shelves.capacity_units as shelf_capacity_units,
-            coalesce(sum(placements.width_units), 0)::int as occupied_units
+            coalesce((select sum(occupied.width_units) from library.placements occupied where occupied.shelf_id = shelves.id and occupied.user_id = modules.user_id), 0)::int as occupied_units,
+            placements.id as placement_id, placements.copy_id, placements.item_position, placements.width_units,
+            works.title as work_title, works.author as work_author, editions.title as edition_title
           from library.modules modules
           join library.shelves shelves on shelves.module_id = modules.id and shelves.user_id = modules.user_id
           left join library.placements placements on placements.shelf_id = shelves.id and placements.user_id = modules.user_id
+          left join library.copies copies on copies.id = placements.copy_id and copies.user_id = modules.user_id
+          left join library.editions editions on editions.id = copies.edition_id
+          left join library.works works on works.id = editions.work_id
           where modules.user_id = $1
-          group by modules.id, modules.status, modules.module_position, modules.capacity_units,
-            shelves.id, shelves.shelf_position, shelves.capacity_units
-          order by modules.status, modules.module_position, shelves.shelf_position
+          order by modules.status, modules.module_position, shelves.shelf_position, placements.item_position nulls last
         `, [userId]);
-        const byStatus = new Map<LibraryStatus, { status: LibraryStatus; modules: Array<{ id: string; status: LibraryStatus; modulePosition: number; capacityUnits: number; shelves: Array<{ id: string; moduleId: string; status: LibraryStatus; shelfPosition: number; capacityUnits: number; occupiedUnits: number }> }> }>();
+        const byStatus = new Map<LibraryStatus, { status: LibraryStatus; modules: Array<{ id: string; status: LibraryStatus; modulePosition: number; capacityUnits: number; shelves: Array<{ id: string; moduleId: string; status: LibraryStatus; shelfPosition: number; capacityUnits: number; occupiedUnits: number; items: Array<{ id: string; copyId: string; title: string; author: string | null; editionTitle: string; itemPosition: number; widthUnits: number }> }> }> }>();
         for (const status of FOUNDATION_STATUSES) byStatus.set(status, { status, modules: [] });
         for (const row of result.rows) {
           const entry = byStatus.get(row.status);
@@ -78,7 +88,22 @@ export function createPostgresLibraryFoundationRepository(transaction: Transacti
             moduleRow = { id: row.module_id, status: row.status, modulePosition: row.module_position, capacityUnits: row.capacity_units, shelves: [] };
             entry.modules.push(moduleRow);
           }
-          moduleRow.shelves.push({ id: row.shelf_id, moduleId: row.module_id, status: row.status, shelfPosition: row.shelf_position, capacityUnits: row.shelf_capacity_units, occupiedUnits: row.occupied_units });
+          const shelf = moduleRow.shelves.at(-1);
+          if (!shelf || shelf.id !== row.shelf_id) {
+            moduleRow.shelves.push({ id: row.shelf_id, moduleId: row.module_id, status: row.status, shelfPosition: row.shelf_position, capacityUnits: row.shelf_capacity_units, occupiedUnits: row.occupied_units, items: [] });
+          }
+          const currentShelf = moduleRow.shelves.at(-1)!;
+          if (row.placement_id && row.copy_id && row.item_position !== null && row.width_units !== null) {
+            currentShelf.items.push({
+              id: row.placement_id,
+              copyId: row.copy_id,
+              title: row.work_title ?? "Titre indisponible",
+              author: row.work_author,
+              editionTitle: row.edition_title ?? "Édition indisponible",
+              itemPosition: row.item_position,
+              widthUnits: row.width_units,
+            });
+          }
         }
         return { statuses: FOUNDATION_STATUSES.map((status) => byStatus.get(status)!) } satisfies LibraryProjection;
       });

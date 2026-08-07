@@ -3,6 +3,16 @@ import { LIBRARY_STATUSES, type LibraryStatus } from "./library-view-state";
 export const DEFAULT_SHELF_COUNT = 5;
 export const DEFAULT_SHELF_CAPACITY_UNITS = 20;
 
+export type LibraryItem = Readonly<{
+  id: string;
+  copyId: string;
+  title: string;
+  author: string | null;
+  editionTitle: string;
+  itemPosition: number;
+  widthUnits: number;
+}>;
+
 export type LibraryShelf = Readonly<{
   id: string;
   moduleId: string;
@@ -10,6 +20,7 @@ export type LibraryShelf = Readonly<{
   shelfPosition: number;
   capacityUnits: number;
   occupiedUnits: number;
+  items: readonly LibraryItem[];
 }>;
 
 export type LibraryModule = Readonly<{
