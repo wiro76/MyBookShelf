@@ -87,7 +87,7 @@ Les termes Œuvre, Édition, Exemplaire, Couverture, Tranche et Lecture sont emp
 | `vue-couvertures` | Terminés | Montre seulement les Couvertures des Exemplaires terminés ; activation ouvre la même Fiche ; aucun réordonnancement depuis cette vue. |
 | `panneau-lectures-en-cours` | En cours | Une ligne par Lecture active ; pages facultatives ; « Enregistrer » explicite. Atteindre le total ne termine jamais la Lecture. |
 | `recherche-interne` | Global | Résultats distincts par Exemplaire/Édition avec Couverture et statut. À l’activation, résoudre de nouveau la position courante ; un Exemplaire dans À ranger ouvre et focalise `panneau-a-ranger`. |
-| `recherche-catalogue` | Global | Résultat ouvre la Fiche complète de l’Œuvre ; aucun ajout rapide. Indisponibilité du Catalogue propose l’ajout manuel. |
+| `recherche-catalogue` | Global | Résultat ouvre la Fiche complète d’un candidat normalisé non persisté ; aucun ajout rapide. La provenance reste identifiable et seule l’action d’ajout explicite peut enrichir le canon. Indisponibilité du Catalogue propose l’ajout manuel. |
 | `fiche-oeuvre` | Toutes bibliothèques/Catalogue | Sections séparées : Œuvre, Édition, Exemplaire, Couverture/Tranche, Lectures. Les modifications utilisent « Enregistrer ». |
 | `selecteur-edition` | Fiche Catalogue/Exemplaire | Choix explicite avant ajout. Corriger l’Édition conserve Exemplaire, position et Lectures ; actualise les métadonnées. Une Couverture ou Tranche personnalisée est conservée sauf action explicite « Revenir aux visuels de l’Édition ». |
 | `groupe-durable` | Organisation | Création explicite ; une Série peut être suggérée, jamais appliquée. Groupe transversal ; déplacement collectif limité aux membres placés du statut courant. Les membres À ranger sont exclus et comptés dans l’annonce. |
@@ -234,11 +234,11 @@ La souris, le tactile et le clavier atteignent les mêmes résultats. Le thème 
 **Protagoniste : Romane, devant son ordinateur, veut ajouter l’Édition exacte qu’elle possède.**
 
 1. Romane ouvre « Rechercher dans le Catalogue », distinct de la recherche interne.
-2. Elle cherche une Œuvre et ouvre sa Fiche complète depuis un résultat.
+2. Elle cherche une Œuvre et ouvre la Fiche complète du candidat normalisé depuis un résultat, sans mutation du Catalogue canonique.
 3. Elle compare les Éditions et en choisit une dans `selecteur-edition`.
-4. Elle active « Ajouter à ma bibliothèque », puis choisit Envie de lire, En cours ou Terminés.
+4. Elle active « Ajouter à ma bibliothèque », puis confirme Envie de lire ; En cours et Terminés restent indisponibles tant qu’aucune Reading valide n’existe.
 5. Couverture et Tranche par défaut de l’Édition sont appliquées automatiquement.
-6. Envie de lire/En cours : l’Exemplaire rejoint la fin du dernier module. Terminés : il rejoint À ranger.
+6. L’Exemplaire rejoint atomiquement la fin du dernier module réel d’Envie de lire.
 7. **Climax : Romane voit la Tranche de l’Édition exacte prendre place dans la destination choisie.**
 
 Échec : si l’ajout échoue, aucun Exemplaire fantôme n’apparaît ; la Fiche, l’Édition et la destination choisies restent prêtes à être réessayées.

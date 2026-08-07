@@ -14,7 +14,7 @@ afin qu'une panne ne perde ni ne double une action confirmée.
 
 **Traçabilité :** CAP-12 ; NFR-1, NFR-2, NFR-8 ; AD-1, AD-3, AD-6, AD-12.
 
-Cette story ne livre aucune fonctionnalité visible. Elle pose l'infrastructure d'effets différés dont dépendent 2.4 (import de couverture), 2.6/2.7 (publication/révocation et GC des médias), 5.3 et 5.5 (fin de lecture et crédit de récompense). Si elle est bâclée, ces stories réinventeront chacune leur mécanique de reprise.
+Cette story ne livre aucune fonctionnalité visible. Elle pose l'infrastructure d'effets différés dont dépendent 2.5 (import de couverture), 2.7/2.8 (publication/révocation et GC des médias), 5.3 et 5.5 (fin de lecture et crédit de récompense). Si elle est bâclée, ces stories réinventeront chacune leur mécanique de reprise.
 
 ## Critères d'acceptation
 
@@ -130,7 +130,7 @@ Restent ouverts.
 
 Le projet est un scaffold d'ingénierie sans aucune fonctionnalité produit. Les six modules `src/modules/*` ne contiennent que des `.gitkeep`. Cette story reste de l'infrastructure : **ne pas créer de table métier, ni d'entité de domaine.** Aucun `Copy`, `UserWork`, `Reading` — `database-gates.test.mjs` l'assert explicitement.
 
-Périmètre exclu : aucune UI, aucun `RewardClaim` réel (story 5.5), aucun worker média (2.4/2.6/2.7). On livre le mécanisme générique et sa preuve, rien de plus.
+Périmètre exclu : aucune UI, aucun `RewardClaim` réel (story 5.5), aucun worker média (2.5/2.7/2.8). On livre le mécanisme générique et sa preuve, rien de plus.
 
 ### Exigences d'architecture
 

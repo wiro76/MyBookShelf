@@ -33,7 +33,7 @@ Ces décisions lèvent les ambiguïtés d'implémentation sans préjuger des obj
 |---|---|
 | Nature du point | Un point réunit toujours la protection plateforme (`pitr` si activé, sinon `daily`), un export logique PostgreSQL et une copie de tous les objets Storage inventoriés. PITR ne remplace jamais l'export ni la copie Storage. |
 | Cohérence DB/Storage | Maintenir jusqu'à finalisation une barrière de maintenance vérifiable bloquant écritures applicatives, workers, médias et migrations. Inventorier Storage avant et après l'export ; toute variation, écriture concurrente ou perte de la barrière annule le point. |
-| Inventaire initial | Tant que le domaine `media` n'existe pas, `storage.objects` est l'inventaire conservateur de référence. Tous ses objets sont sauvegardés. Les stories 2.4, 2.6 et 2.7 devront joindre leurs références métier à cette vérification sans remplacer le contrat de manifeste. |
+| Inventaire initial | Tant que le domaine `media` n'existe pas, `storage.objects` est l'inventaire conservateur de référence. Tous ses objets sont sauvegardés. Les stories 2.5, 2.7 et 2.8 devront joindre leurs références métier à cette vérification sans remplacer le contrat de manifeste. |
 | Hash | Le SHA-256 est calculé sur les octets copiés. Ne jamais faire confiance à l'ETag S3, qui n'est pas un hash de contenu fiable en multipart. Les futurs objets AD-8 portent aussi ce SHA-256 dans leur clé adressée par contenu. |
 | Objet orphelin | Un objet présent dans le point mais absent de l'inventaire final fait échouer la finalisation. Un objet supplémentaire trouvé sur la source après la fenêtre signale une reprise des écritures et fait également échouer le point. |
 | Cible de restauration | Toujours une pile jetable vide, isolée et distincte de la source. Le script refuse une cible `production`, un fingerprint identique à la source et toute restauration destructive implicite. |
@@ -148,7 +148,7 @@ La story peut passer à `done` avec ces valeurs encore absentes : le comportemen
   - [x] Décrire le déclenchement trimestriel (`workflow_dispatch` et calendrier) sans connecter la PR à un environnement protégé ; les preuves réelles restent hors des artefacts GitHub de courte durée
   - [x] Créer `config/recovery-policy.json` avec objectifs explicitement non approuvés, plus `scripts/verify-recovery-readiness.mjs` utilisé par la promotion production
   - [x] Mettre à jour `docs/operations/environment-promotion.md`, `.env.example` et `.gitignore` : noms des variables opérateur seulement, sauvegardes/preuves locales ignorées, aucune valeur secrète
-  - [x] Relier explicitement le futur GC média (story 2.7) aux manifestes encore dans la fenêtre de rétention ; aucun objet référencé par un point retenu n'est supprimable
+  - [x] Relier explicitement le futur GC média (story 2.8) aux manifestes encore dans la fenêtre de rétention ; aucun objet référencé par un point retenu n'est supprimable
 
 ### Review Findings
 
@@ -220,8 +220,8 @@ Le harnais base actuel exclut `storage-api`. Ne pas le rendre plus lent ni fragi
 
 - Stories 1.1 à 1.4 fournissent projet, CI, isolation, traitements et observabilité.
 - Story 1.6 ajoute Auth mais n'est pas un prérequis conceptuel ; sa présence doit néanmoins survivre au canari de restauration.
-- Stories 2.4 et 2.6 enrichiront l'inventaire avec les états média réels.
-- Story 2.7 consommera la politique de rétention et les manifestes pour empêcher un GC prématuré.
+- Stories 2.5 et 2.7 enrichiront l'inventaire avec les états média réels.
+- Story 2.8 consommera la politique de rétention et les manifestes pour empêcher un GC prématuré.
 - Story 1.8 traite le feedback de sauvegarde applicative visible ; ne pas créer d'interface utilisateur ici.
 
 ### Hors périmètre

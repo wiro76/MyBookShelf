@@ -147,7 +147,7 @@ Les identifiants de nouvelles commandes sont des UUIDv7 applicatifs. Réutiliser
 - Ne jamais traiter `resumeLibraryContext`, Realtime ou un état optimiste comme preuve d'écriture.
 - Le hash 1.7 couvre toute l'enveloppe ; un retry réseau ne doit donc muter aucun champ.
 - Les erreurs fournisseur restent mappées vers des codes stables, sans UUID utilisateur/cible dans logs, URL, HTML ou télémétrie.
-- La projection réelle et son focus exact/ajusté restent sous responsabilité Story 3.2.
+- La projection canonique réelle est livrée par Story 2.3 ; son rendu et son focus exact/ajusté restent sous responsabilité Story 3.2.
 
 ### Contraintes de versions
 

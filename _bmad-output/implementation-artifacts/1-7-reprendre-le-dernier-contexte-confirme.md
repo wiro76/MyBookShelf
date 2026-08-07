@@ -16,7 +16,7 @@ afin de retrouver naturellement ma place dans la bibliothèque.
 
 Cette story prolonge la route privée livrée par la story 1.6. Elle pose le contrat durable de `LibraryViewState` avant que les stories 3.x ne livrent le meuble complet. Elle restaure une position de navigation confirmée ; elle ne crée, déplace, réordonne ni répare aucun exemplaire.
 
-**Disposition après revue :** Story 1.7 livre la fondation de reprise (domaine, persistance, protocole de confirmation, sécurité et états atteignables sans meuble). Story 3.2 est désormais propriétaire de l'intégration à la projection réelle `Module/Shelf/Copy/Placement`, du rendu sémantique de la cible exacte/ajustée, du focus réel et des E2E correspondants sur quatre navigateurs. Aucun modèle temporaire n'est autorisé entre les deux.
+**Disposition après correct-course :** Story 1.7 livre la fondation de reprise (domaine, persistance, protocole de confirmation, sécurité et états atteignables sans meuble). Story 2.3 livre la projection canonique réelle `Module/Shelf/Copy/Placement` ; Story 3.2 reste propriétaire de son intégration visuelle aux trois bibliothèques, du rendu sémantique de la cible exacte/ajustée, du focus réel et des E2E correspondants sur quatre navigateurs. Aucun modèle temporaire n'est autorisé entre ces étapes.
 
 ## Critères d'acceptation
 
@@ -141,7 +141,7 @@ Les erreurs fournisseur ne traversent ni le cas d'usage ni l'interface. Les logs
 
 - [x] **T5 — Preuves réelles et sécurité (AC: 1 à 4)**
   - [x] Ajouter `tests/integration/database-library-view-state-canary.mjs` au job DB : deux utilisateurs réels, RLS, persistance/reconnexion, conflit, rejeu après déplacement, double confirmation concurrente et repli après suppression simulée dans la projection
-  - [x] Étendre les E2E sur les quatre projets pour expiration/reconnexion, URL/DOM privés et retry sans déconnexion ; prouver séparément repli par canari DB et focus/annonce par contrat d'intégration jusqu'à la projection réelle 3.x
+  - [x] Étendre les E2E sur les quatre projets pour expiration/reconnexion, URL/DOM privés et retry sans déconnexion ; prouver séparément repli par canari DB et focus/annonce par contrat d'intégration jusqu'à la projection réelle livrée en 2.3 puis rendue en 3.2
   - [x] Ajouter une mutation CI de politique RLS ou d'ownership à la porte `database`, exécutée réellement et restaurée en `finally`
   - [x] Ajouter une vérification de fuite pour le message et les logs de reprise
 
@@ -152,7 +152,7 @@ Les erreurs fournisseur ne traversent ni le cas d'usage ni l'interface. Les logs
 
 ### Review Findings
 
-- [x] [Review][Patch] Requalifier 1.7 en fondation et transférer à Story 3.2 la projection réelle, le focus et les E2E exact/ajusté — Décision utilisateur du 2026-08-06 : ne créer aucune projection temporaire avant les entités 3.x.
+- [x] [Review][Patch] Requalifier 1.7 en fondation ; le correct-course du 2026-08-07 attribue les entités réelles à 2.3 et conserve en 3.2 leur rendu, le focus et les E2E exact/ajusté, sans projection temporaire.
 - [x] [Review][Patch] Aligner la commande de confirmation sur l'enveloppe AD-6 complète — Décision utilisateur du 2026-08-06 : 1.7 livre le protocole et ses reçus ; 1.8 les consomme pour le feedback, le retry et l'arbitrage de conflit.
 - [x] [Review][Patch] Canoniser explicitement la cible avant le hash idempotent [src/modules/library/application/library-view-state.ts:39]
 - [x] [Review][Patch] Mapper les erreurs fournisseur de replay/confirmation vers une erreur stable sans masquer les erreurs métier [src/modules/library/application/library-view-state.ts:80]
@@ -251,7 +251,7 @@ GPT-5 Codex
 - Persistance privée livrée sous double barrière ownership + RLS, avec révision attendue, reçus SHA-256, rejeu après évolution de projection et concurrence identique idempotente.
 - Suppression directe du signet interdite afin de ne jamais réinitialiser une révision en conservant des reçus historiques.
 - Route `/bibliotheque` composée après session vérifiée, avec état indisponible explicite, retry sans déconnexion et focus/annonce post-hydratation.
-- Limite arbitrée : la projection produit reste vide tant que Module/Shelf/Copy/Placement ne sont pas livrés ; aucun faux rangement n'a été introduit. Les chemins exact/ajusté sont prouvés par domaine + PostgreSQL réel. Story 3.2 porte désormais explicitement leur rendu, focus, annonce et E2E réels.
+- Limite arbitrée : la projection produit reste vide tant que Module/Shelf/Copy/Placement ne sont pas livrés par 2.3 ; aucun faux rangement n'a été introduit. Les chemins exact/ajusté sont prouvés par domaine + PostgreSQL réel. Story 3.2 porte leur rendu, focus, annonce et E2E réels.
 - Audit adversarial par sous-agent intégré : correction du rejeu après déplacement, de la course concurrente et ajout de l'observabilité expurgée.
 - `npm run ci:all` vert le 2026-08-06 en 711 s, incluant quatre projets Playwright, base réelle, restauration, build et 17 mutations négatives détectées.
 - Revue BMAD clôturée : 12 correctifs appliqués, `npm run ci:all` de validation vert en 673 s et intégration produit transférée explicitement à Story 3.2.

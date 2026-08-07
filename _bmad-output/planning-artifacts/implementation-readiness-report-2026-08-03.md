@@ -19,6 +19,8 @@ previousReportUsedForResolutionCheck:
 **Date :** 2026-08-03
 **Projet :** My BookShelf
 
+> **Réévaluation post-correct-course — 2026-08-07 :** les matrices, constats et verdict ci-dessous ont été actualisés après insertion de la fondation réelle en Story 2.3 et renumérotation de l’ancien bloc 2.3–2.7 en 2.4–2.8. Cette note conserve la traçabilité du rapport initial.
+
 ## Inventaire documentaire
 
 - Contrat canonique : `SPEC.md` et tous les fichiers de son champ `companions:`.
@@ -98,17 +100,17 @@ Le contrat canonique est complet, cohérent et mesurable pour la planification. 
 |---|---|---|
 | FR-1 | 1.1, 1.4, 1.6 | Couvert |
 | FR-2 | 1.7 | Couvert |
-| FR-3 | 3.1, 3.2, 3.4 | Couvert |
-| FR-4 | 3.2, 3.4, 4.5 | Couvert |
+| FR-3 | 2.3, 3.1, 3.2, 3.4 | Couvert |
+| FR-4 | 2.3, 3.2, 3.4, 4.5 | Couvert |
 | FR-5 | 2.1 | Couvert |
-| FR-6 | 2.2, 2.3 | Couvert |
-| FR-7 | 2.4, 2.5, 2.6 | Couvert |
-| FR-8 | 2.2, 2.3, 3.5 | Couvert |
-| FR-9 | 2.2, 2.4–2.7, 3.5 | Couvert |
-| FR-10 | 2.2, 2.4–2.7, 3.5 | Couvert |
-| FR-11 | 2.2–2.7, 3.5 | Couvert |
-| FR-12 | 2.4–2.7, 3.5 | Couvert |
-| FR-13 | 2.4, 2.5, 2.6 | Couvert |
+| FR-6 | 2.2, 2.4 | Couvert |
+| FR-7 | 2.5, 2.6, 2.7 | Couvert |
+| FR-8 | 2.2, 2.4, 3.5 | Couvert |
+| FR-9 | 2.2, 2.5–2.8, 3.5 | Couvert |
+| FR-10 | 2.2, 2.5–2.8, 3.5 | Couvert |
+| FR-11 | 2.2, 2.4–2.8, 3.5 | Couvert |
+| FR-12 | 2.5–2.8, 3.5 | Couvert |
+| FR-13 | 2.5, 2.6, 2.7 | Couvert |
 | FR-14 | 4.1, 4.2 | Couvert |
 | FR-15 | 4.2, 4.3, 4.4 | Couvert |
 | FR-16 | 4.3, 4.4 | Couvert |
@@ -164,7 +166,7 @@ Le contrat canonique est complet, cohérent et mesurable pour la planification. 
 
 - Les six epics expriment un résultat utilisateur, pas un jalon technique.
 - L’ordre **1 → 2 → 3 → 4 → 5 → 6** est cohérent.
-- La story 2.3 livre le premier Exemplaire réellement manipulable avant les epics de contemplation/rangement.
+- La story 2.3 livre la projection et les opérations de rangement réelles ; la story 2.4 livre ensuite le premier Exemplaire réellement manipulable.
 - Les Epics 3 et 5 utilisent uniquement des fondations antérieures ; aucune dépendance vers un epic futur n’a été trouvée.
 - Scaffold, CI, traitements différés, observabilité et restauration sont séparés en stories 1.1 à 1.5, chacune testable.
 
@@ -172,13 +174,13 @@ Le contrat canonique est complet, cohérent et mesurable pour la planification. 
 
 - **Story 1.1 / AD-2 :** `create-next-app`, App Router, TypeScript strict, Tailwind, ESLint, Turbopack, alias `@/*`, `--src-dir`, Node.js LTS et lockfile sont tous explicites.
 - **AD-12 :** analyse statique/lint, types, unitaires, intégration, RLS, migrations, atomicité, idempotence, Playwright, accessibilité, budgets de performance, lots bornés, retries, DLQ, logs JSON, OpenTelemetry, Sentry, correlation IDs, absence de PII, sauvegarde et restauration ont des critères vérifiables.
-- **Médias :** 2.4, 2.6 et 2.7 couvrent validation/droits, `quarantined → private/published → revoked`, détachement, GC après rétention, retries/DLQ et manifestes de sauvegarde.
-- **Lectures :** 2.3 ne crée aucune Reading ; 5.1 crée une Reading ouverte avec date de début, édition et pagination figées ; 5.3 crée une Reading terminée avec dates valides, claim/outbox et atomicité.
+- **Médias :** 2.5, 2.7 et 2.8 couvrent validation/droits, `quarantined → private/published → revoked`, détachement, GC après rétention, retries/DLQ et manifestes de sauvegarde.
+- **Lectures :** 2.4 ne crée aucune Reading ; 5.1 crée une Reading ouverte avec date de début, édition et pagination figées ; 5.3 crée une Reading terminée avec dates valides, claim/outbox et atomicité.
 - **Erreurs et reprises :** conflits versionnés, rollback au dernier état confirmé, réutilisation de `commandId`, reçus autoritatifs, crédits/achats idempotents et absence d’état partiel sont préservés.
 
 ### Clôture des constats résiduels
 
-- **M1 résolu :** 2.4 livre désormais l’ingestion sécurisée et idempotente d’une Couverture avant sa consommation par 2.5. La story 2.5 crée atomiquement Work/Edition, Copy, UserWork « À lire » et Placement, sans Reading, avec visibilité/manipulabilité immédiate et rollback complet.
+- **M1 résolu :** 2.5 livre désormais l’ingestion sécurisée et idempotente d’une Couverture avant sa consommation par 2.6. La story 2.6 crée atomiquement Work/Edition, Copy, UserWork « À lire » et Placement, sans Reading, avec visibilité/manipulabilité immédiate et rollback complet.
 - **m1 résolu :** FR-19 pointe vers 4.3, dont la traçabilité et le critère couvrent les suggestions opt-in ; 4.5 pointe correctement vers FR-17.
 - **m2 résolu :** l’inventaire décrit NFR-9 comme budgets <100/<500 ms et NFR-10 comme invariants spatiaux.
 
@@ -192,17 +194,17 @@ Le contrat canonique est complet, cohérent et mesurable pour la planification. 
 
 | Constat antérieur | Statut après révision | Preuve / reste |
 |---|---|---|
-| Acquisition minimale avant manipulation réelle | **Résolu** | 2.3 crée Copy + UserWork « À lire » + Placement avant les Epics 3 et 4. |
-| Dépendances futures dans les Epics 2, 3 et 5 | **Résolu** | 2.4 prépare le média avant 2.5 ; les Epics 3 et 5 n’ont aucune dépendance future. |
-| Reading artificielle dans 2.3 | **Résolu** | 2.3 interdit explicitement toute Reading. |
+| Acquisition minimale avant manipulation réelle | **Résolu** | 2.3 livre le rangement canonique et 2.4 crée Copy + UserWork « À lire » + Placement avant les Epics 3 et 4. |
+| Dépendances futures dans les Epics 2, 3 et 5 | **Résolu** | 2.3 précède tout Copy/Placement et 2.5 prépare le média avant 2.6 ; les Epics 3 et 5 n’ont aucune dépendance future. |
+| Reading artificielle dans l’ajout Catalogue | **Résolu** | 2.4 interdit explicitement toute Reading. |
 | Choix En cours/Terminés sans dates/invariants | **Résolu** | 5.1 exige date de début, Reading ouverte, édition/pagination figées ; 5.3 exige dates valides, Reading close et claim/outbox atomique. |
 | Scaffold AD-2 incomplet | **Résolu** | Tous les paramètres imposés figurent dans 1.1, Node LTS et lockfile compris. |
 | Stories techniques trop agrégées | **Résolu** | Scaffold, CI, jobs, observabilité et restauration sont séparés en 1.1–1.5. |
 | Contrôles AD-12 non vérifiables | **Résolu** | 1.2–1.5 couvrent chaque contrôle demandé par un résultat testable. |
-| Cycle média incomplet | **Résolu** | 2.4, 2.6 et 2.7 couvrent droits, états, révocation, détachement, GC/rétention et manifestes. |
+| Cycle média incomplet | **Résolu** | 2.5, 2.7 et 2.8 couvrent droits, états, révocation, détachement, GC/rétention et manifestes. |
 | FR-28/FR-29 non auditables | **Résolu** | Matrice dédiée par stories et modalités, avec preuves Playwright/WCAG. |
 | Stories trop larges, mal ordonnées ou futures | **Résolu** | L’ingestion média précède la création manuelle ; chaque story livre un résultat testable sans story future. |
-| Erreurs, conflits, reprise, atomicité, idempotence insuffisants | **Résolu** | Critères transversaux et cas métier explicites dans 1.3, 1.8, 2.3, 4.1–4.4, 5.3–5.5 et 6.2–6.5. |
+| Erreurs, conflits, reprise, atomicité, idempotence insuffisants | **Résolu** | Critères transversaux et cas métier explicites dans 1.3, 1.8, 2.3, 2.4, 4.1–4.4, 5.3–5.5 et 6.2–6.5. |
 | Dérive vers les non-objectifs | **Résolu** | Les non-objectifs sont rappelés et aucune story ne les introduit. |
 
 Tous les problèmes majeurs et mineurs du rapport précédent sont maintenant résolus.
@@ -213,7 +215,7 @@ Tous les problèmes majeurs et mineurs du rapport précédent sont maintenant r�
 
 **READY — prêt pour l’implémentation planifiée.**
 
-Le contrat, l’architecture, l’UX et le découpage sont alignés. Les 29 FR, 10 NFR, 13 capacités et 12 décisions d’architecture disposent d’un chemin d’implémentation testable, correctement ordonné et sans dépendance future.
+Le contrat, l’architecture, l’UX et le découpage corrigé le 2026-08-07 sont alignés. Les 29 FR, 10 NFR, 13 capacités, 37 stories et 12 décisions d’architecture disposent d’un chemin d’implémentation testable, correctement ordonné et sans dépendance future.
 
 ### Blocages avant sprint planning
 

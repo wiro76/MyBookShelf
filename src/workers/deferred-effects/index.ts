@@ -138,8 +138,8 @@ export type DeferredEffectHandlerContext = {
 };
 
 /**
- * Point d'extension. Cette story ne livre AUCUN effet métier réel : les stories 2.4,
- * 2.6/2.7, 5.3 et 5.5 brancheront le leur ici. Le handler s'exécute dans la même
+ * Point d'extension. Cette story ne livre AUCUN effet métier réel : les stories 2.5,
+ * 2.7/2.8, 5.3 et 5.5 brancheront le leur ici. Le handler s'exécute dans la même
  * transaction que l'insertion dans `deferred.processed_messages` : lever une erreur
  * annule l'effet ET l'idempotence, et le message reste en file.
  */

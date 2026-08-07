@@ -93,6 +93,6 @@ Après chaque exercice, l'opérateur vérifie la preuve hors site, consigne l'ap
 
 ## Rétention et futur GC média
 
-Le futur garbage collector de la story 2.7 doit consulter tous les manifestes finalisés dont la fenêtre de rétention n'est pas expirée. Un objet présent dans au moins un point retenu n'est pas supprimable, même s'il n'est plus référencé par l'état courant de la base. Une absence de hash ou l'impossibilité de lire les manifestes bloque le GC en mode fail-closed.
+Le futur garbage collector de la story 2.8 doit consulter tous les manifestes finalisés dont la fenêtre de rétention n'est pas expirée. Un objet présent dans au moins un point retenu n'est pas supprimable, même s'il n'est plus référencé par l'état courant de la base. Une absence de hash ou l'impossibilité de lire les manifestes bloque le GC en mode fail-closed.
 
-Les stories média 2.4 et 2.6 étendront l'inventaire aux états et variantes métier sans modifier cette garantie.
+Les stories média 2.5 et 2.7 étendront l'inventaire aux états et variantes métier sans modifier cette garantie.

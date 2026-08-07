@@ -88,17 +88,17 @@ Ce document décompose le contrat canonique de My BookShelf en incréments de va
 |---|---|
 | FR-1 | 1.1, 1.4, 1.6 |
 | FR-2 | 1.7 |
-| FR-3 | 3.1, 3.2, 3.4 |
-| FR-4 | 3.2, 3.4, 4.5 |
+| FR-3 | 2.3, 3.1, 3.2, 3.4 |
+| FR-4 | 2.3, 3.2, 3.4, 4.5 |
 | FR-5 | 2.1 |
-| FR-6 | 2.2, 2.3 |
-| FR-7 | 2.4, 2.5, 2.6 |
-| FR-8 | 2.2, 2.3, 3.5 |
-| FR-9 | 2.2, 2.4–2.7, 3.5 |
-| FR-10 | 2.2, 2.4–2.7, 3.5 |
-| FR-11 | 2.2–2.7, 3.5 |
-| FR-12 | 2.4–2.7, 3.5 |
-| FR-13 | 2.4, 2.5, 2.6 |
+| FR-6 | 2.2, 2.4 |
+| FR-7 | 2.5, 2.6, 2.7 |
+| FR-8 | 2.2, 2.4, 3.5 |
+| FR-9 | 2.2, 2.5–2.8, 3.5 |
+| FR-10 | 2.2, 2.5–2.8, 3.5 |
+| FR-11 | 2.2, 2.4–2.8, 3.5 |
+| FR-12 | 2.5–2.8, 3.5 |
+| FR-13 | 2.5, 2.6, 2.7 |
 | FR-14 | 4.1, 4.2 |
 | FR-15 | 4.2, 4.3, 4.4 |
 | FR-16 | 4.3, 4.4 |
@@ -121,7 +121,7 @@ Ce document décompose le contrat canonique de My BookShelf en incréments de va
 | Stories interactives | Ordinateur | Tablette | Souris | Tactile | Clavier | Preuves WCAG 2.2 AA obligatoires |
 |---|---|---|---|---|---|---|
 | 1.1, 1.6–1.8 | large + étroit | paysage + portrait | parcours complet | parcours complet | parcours complet | focus 3:1, erreurs reliées, régions live, zoom 200 %, reflow 400 %/320 px |
-| 2.1–2.7 | large + étroit | paysage + portrait | recherche, choix, ajout, import | mêmes résultats | mêmes résultats sans geste | cibles 44/48 px, libellés, erreurs de champs, dialogues/focus, aucune couleur ou image seule |
+| 2.1–2.8 | large + étroit | paysage + portrait | recherche, choix, rangement initial, ajout, import | mêmes résultats | mêmes résultats sans geste | cibles 44/48 px, libellés, erreurs de champs, dialogues/focus, aucune couleur ou image seule |
 | 3.1–3.5 | large + étroit | paysage + portrait | navigation spatiale | scroll prioritaire et actions | hiérarchie complète | DOM sémantique, focus deux tons, régions nommées, reflow et ordre canonique |
 | 4.1–4.5 | large + étroit | paysage + portrait | drag + commande | drag + commande | commande visible complète | aucune dépendance au geste/couleur, annonces globales, focus destination, erreur perceptible |
 | 5.1–5.5 | large + étroit | paysage + portrait | formulaires/dialogues | mêmes résultats | dates et actions complètes | erreurs reliées, focus modal/restauration, live regions, mouvement réduit |
@@ -273,8 +273,9 @@ En tant que Zan, je veux interroger un Catalogue distinct de ma recherche person
 **Critères d’acceptation :**
 
 - **Étant donné** un titre ou auteur, **quand** Zan recherche, **alors** Google Books est interrogé en principal, Open Library en complément et la BnF pour le français ; Amazon n’est jamais utilisé.
-- **Étant donné** des résultats, **quand** Zan en active un, **alors** la fiche complète de l’Œuvre s’ouvre avant tout ajout et aucun ajout rapide ambigu n’est proposé.
-- **Étant donné** aucun résultat, **quand** la recherche se termine, **alors** la requête est conservée et l’ajout manuel est proposé.
+- **Étant donné** une réponse fournisseur, **quand** l’adaptateur la traite, **alors** il produit uniquement un `NormalizedCandidate` portant source, identifiant fournisseur, empreinte, date de collecte, droits et provenance disponibles ; aucune entité canonique Work, Edition, Copy, UserWork ou Placement n’est créée ou modifiée.
+- **Étant donné** des résultats, **quand** Zan en active un, **alors** la fiche complète du candidat normalisé s’ouvre avant tout ajout, sa provenance reste identifiable et aucun ajout rapide ambigu n’est proposé.
+- **Étant donné** aucun résultat, **quand** la recherche se termine, **alors** la requête est conservée et transmise à l’ajout manuel sans mutation du canon.
 - **Étant donné** un fournisseur indisponible, **quand** la recherche échoue, **alors** le message ne reprend aucun texte fournisseur, propose Réessayer et ne bloque pas l’ajout manuel.
 
 ### Story 2.2 : Comparer et choisir une édition
@@ -286,24 +287,38 @@ En tant que Zan, je veux comparer les éditions d’une œuvre, afin d’ajouter
 **Critères d’acceptation :**
 
 - **Étant donné** une Œuvre, **quand** ses éditions s’affichent, **alors** Couverture, ISBN, pagination, date et provenance sont comparables et la sélection utilise radio, texte et contour.
-- **Étant donné** une édition, **quand** Zan la choisit au pointeur, tactile ou clavier, **alors** le même identifiant d’édition alimente la commande d’ajout.
+- **Étant donné** une édition candidate, **quand** Zan la choisit au pointeur, tactile ou clavier, **alors** la même référence stable de candidat alimente la future commande d’ajout sans créer ni modifier Work ou Edition.
 - **Étant donné** un rapprochement non exact, **quand** il est proposé, **alors** il reste explicite, réversible et sans effet avant confirmation.
 - **Étant donné** une correction ultérieure d’édition, **quand** elle est enregistrée, **alors** Exemplaire, position, Lectures et visuels personnels sont conservés sauf action explicite de retour aux visuels d’édition.
 
-### Story 2.3 : Ajouter l’édition choisie comme envie de lire
+### Story 2.3 : Initialiser le rangement réel de la bibliothèque
 
-En tant que Zan, je veux ajouter explicitement une édition comme envie de lire, afin d’obtenir un premier exemplaire manipulable sans dépendre d’une future Lecture.
+En tant que Zan, je veux ouvrir une bibliothèque vide fondée sur le rangement réel, afin que mon premier ajout et tous les suivants utilisent immédiatement la structure persistante définitive.
 
-**Traçabilité :** CAP-3, CAP-5, CAP-12 ; FR-6, FR-8, FR-11 ; NFR-1 à NFR-3, NFR-8 ; AD-3 à AD-6.
+**Traçabilité :** CAP-2, CAP-11, CAP-12 ; FR-3, FR-4, FR-28, FR-29 ; NFR-1 à NFR-6, NFR-8 à NFR-10 ; AD-3, AD-5, AD-6, AD-10 à AD-12.
 
 **Critères d’acceptation :**
 
-- **Étant donné** une Edition choisie, **quand** Zan confirme « Ajouter comme envie de lire », **alors** une transaction crée exactement un Copy relié à l’Edition et un UserWork portant l’intention explicite « À lire », sans créer de Reading.
-- **Étant donné** le premier ajout de la collection, **quand** la fin du dernier module est une destination valide, **alors** Copy, intention et Placement sont créés atomiquement et la Tranche devient immédiatement manipulable dans Envie de lire.
+- **Étant donné** une première ouverture authentifiée, **quand** un statut de bibliothèque est résolu, **alors** les modèles, migrations, repositories et ports canoniques de Copy, UserWork, Module, Shelf et Placement sont disponibles et la structure Module > Shelf réelle est initialisée idempotemment sans faux Copy, UserWork ou Placement.
+- **Étant donné** une collection vide, **quand** Envie de lire est ouverte, **alors** un module et ses étagères réels sont projetés avec une explication et des actions distinctes Catalogue/ajout manuel, sans table supplémentaire, faux rangement ni projection temporaire.
+- **Étant donné** une destination valide, **quand** `appendPlacement` ajoute un objet en fin de rayon, **alors** capacité, versions et ownership sont validés et le Placement est créé atomiquement ; si le dernier module est plein, exactement un module suivant est créé dans la même transaction.
+- **Étant donné** une double soumission, une réponse inconnue ou un échec, **quand** l’initialisation ou `appendPlacement` est rejoué avec le même `commandId`, **alors** le même reçu est retourné sans doublon et aucun module, shelf ou placement orphelin ne subsiste.
+- **Étant donné** la fondation de reprise livrée par 1.7, **quand** le contexte confirmé est résolu, **alors** il cible uniquement cette projection canonique réelle et revient à la destination valide la plus proche si la cible n’existe plus.
+
+### Story 2.4 : Ajouter l’édition choisie comme envie de lire
+
+En tant que Zan, je veux ajouter explicitement une édition comme envie de lire, afin d’obtenir un premier exemplaire manipulable sans dépendre d’une future Lecture.
+
+**Traçabilité :** CAP-3, CAP-5, CAP-12, CAP-13 ; FR-6, FR-8, FR-11 ; NFR-1 à NFR-3, NFR-8 ; AD-3 à AD-7.
+
+**Critères d’acceptation :**
+
+- **Étant donné** une édition candidate choisie, **quand** Zan confirme « Ajouter comme envie de lire », **alors** une transaction résout ou crée le Work et l’Edition canoniques avec leur provenance, puis crée exactement un Copy relié à l’Edition et un UserWork portant l’intention explicite « À lire », sans créer de Reading.
+- **Étant donné** tout ajout confirmé, **quand** la destination Envie de lire est valide, **alors** la commande réutilise `appendPlacement` livré par 2.3 et crée atomiquement canon, Copy, intention et Placement ; la Tranche devient immédiatement manipulable dans la projection réelle.
 - **Étant donné** que « En cours » et « Terminés » exigent une Reading valide, **quand** cette story est livrée, **alors** ces choix ne sont pas proposés et aucune projection de lecture artificielle n’est créée.
 - **Étant donné** une double soumission, une réponse inconnue ou un échec, **quand** la commande est rejouée avec le même `commandId`, **alors** le même reçu retourne le même exemplaire sans doublon, ou aucun exemplaire fantôme n’apparaît si aucun reçu n’existe.
 
-### Story 2.4 : Importer et préparer une couverture personnelle en sécurité
+### Story 2.5 : Importer et préparer une couverture personnelle en sécurité
 
 En tant que Zan, je veux préparer une couverture que j’ai le droit d’utiliser, afin de pouvoir créer ensuite une édition absente sans exposer mon fichier original.
 
@@ -316,7 +331,7 @@ En tant que Zan, je veux préparer une couverture que j’ai le droit d’utilis
 - **Étant donné** un média accepté, **quand** les variantes sont produites, **alors** le worker Sharp est idempotent, les fichiers sont adressés par SHA-256 et les métadonnées gardent provenance et droits.
 - **Étant donné** le contrôle des octets et du droit réussi, **quand** la Couverture est acceptée, **alors** le MediaAsset passe atomiquement de `quarantined` à `private` et son identifiant stable est retourné par un reçu idempotent sans publication ni création de Work, Edition, Copy ou Reading.
 
-### Story 2.5 : Créer manuellement une édition comme envie de lire
+### Story 2.6 : Créer manuellement une édition comme envie de lire
 
 En tant que Zan, je veux créer une édition absente et l’ajouter comme envie de lire, afin d’obtenir un exemplaire immédiatement visible et manipulable sans dépendre d’un fournisseur externe ni d’une future Lecture.
 
@@ -324,13 +339,13 @@ En tant que Zan, je veux créer une édition absente et l’ajouter comme envie 
 
 **Critères d’acceptation :**
 
-- **Étant donné** le formulaire manuel et un MediaAsset privé accepté par 2.4, **quand** titre et Couverture sont fournis, **alors** auteur, résumé, pagination, série, tome, date, ISBN et mention d’édition restent facultatifs.
+- **Étant donné** le formulaire manuel et un MediaAsset privé accepté par 2.5, **quand** titre et Couverture sont fournis, **alors** auteur, résumé, pagination, série, tome, date, ISBN et mention d’édition restent facultatifs.
 - **Étant donné** un ISBN normalisé identique, **quand** Zan soumet, **alors** la recréation est bloquée et « Ajouter un autre Exemplaire » de l’édition existante est proposé ; une forte similarité sans identifiant exact avertit mais permet « Créer quand même » après examen.
-- **Étant donné** la confirmation « Ajouter comme envie de lire », **quand** la commande réussit, **alors** contribution commune révisionnée Work/Edition, provenance, contributeur, date, Copy privé, UserWork portant l’intention explicite « À lire » et Placement de fin sont créés atomiquement, sans Reading.
+- **Étant donné** la confirmation « Ajouter comme envie de lire », **quand** la commande réussit, **alors** contribution commune révisionnée Work/Edition, provenance, contributeur, date, Copy privé, UserWork portant l’intention explicite « À lire » et Placement obtenu par `appendPlacement` sont créés atomiquement, sans Reading.
 - **Étant donné** une Tranche authentique absente, **quand** la recette de fallback attend ou échoue, **alors** le Copy reste visible et manipulable dans Envie de lire avec un placeholder accessible, déterministe et remplaçable.
 - **Étant donné** une double soumission, une validation ou un échec, **quand** la commande est rejouée avec le même `commandId`, **alors** le même reçu retourne le même ensemble sans doublon, ou aucun Work, Edition, Copy, UserWork ou Placement partiel ne subsiste si aucun reçu n’existe ; les saisies et erreurs accessibles sont conservées.
 
-### Story 2.6 : Gouverner la publication et la révocation des médias
+### Story 2.7 : Gouverner la publication et la révocation des médias
 
 En tant que Zan, je veux que mes médias restent privés, révocables et restaurables, afin de maîtriser leur usage sans casser les visuels encore utilisés.
 
@@ -338,11 +353,11 @@ En tant que Zan, je veux que mes médias restent privés, révocables et restaur
 
 **Critères d’acceptation :**
 
-- **Étant donné** un MediaAsset `private` issu de 2.4, **quand** une contribution commune est demandée, **alors** seul un dérivé dont les droits sont connus peut passer à `published` ; sans preuve de droits, l’actif reste privé et aucune URL externe ne devient autoritative.
+- **Étant donné** un MediaAsset `private` issu de 2.5, **quand** une contribution commune est demandée, **alors** seul un dérivé dont les droits sont connus peut passer à `published` ; sans preuve de droits, l’actif reste privé et aucune URL externe ne devient autoritative.
 - **Étant donné** une ressource personnelle ou commune, **quand** ses accès sont servis, **alors** originaux, quarantaine et personnels restent privés par URL signée et seul le dérivé commun `published` est public.
 - **Étant donné** une révocation, **quand** elle est confirmée, **alors** l’état devient `revoked`, toutes les références autoritatives sont détachées et un actif commun encore référencé n’est jamais supprimé en cascade avec un choix personnel.
 
-### Story 2.7 : Collecter les médias révoqués sans compromettre les sauvegardes
+### Story 2.8 : Collecter les médias révoqués sans compromettre les sauvegardes
 
 En tant que Zan, je veux que les fichiers devenus inutiles soient supprimés sans casser une restauration, afin de conserver une bibliothèque intègre dans le temps.
 
@@ -381,7 +396,7 @@ En tant que Zan, je veux parcourir Envie de lire, Terminés et En cours, afin de
 - **Étant donné** un module, **quand** Zan navigue, **alors** la largeur logique reste 560 px, le vertical parcourt les étagères et l’horizontal ou les boutons parcourent les modules sans compression.
 - **Étant donné** une collection vide, **quand** un statut est ouvert, **alors** un module vide, une explication et des actions distinctes Catalogue/ajout manuel sont fournis sans faux livre.
 - **Étant donné** ordinateur large, ordinateur étroit, tablette paysage ou portrait, **quand** la vue s’adapte, **alors** les résultats et commandes restent équivalents et le téléphone n’est pas ciblé.
-- **Étant donné** la fondation technique de reprise livrée par la Story 1.7, **quand** la bibliothèque est ouverte, **alors** sa résolution consomme obligatoirement la projection réelle et courante Module > Shelf > Copy > Placement, sans table supplémentaire, faux rangement ni projection temporaire.
+- **Étant donné** la fondation technique de reprise livrée par 1.7 et la projection canonique livrée par 2.3, **quand** la bibliothèque est ouverte, **alors** sa résolution consomme obligatoirement la projection réelle et courante Module > Shelf > Copy > Placement, sans table supplémentaire, faux rangement ni projection temporaire.
 - **Étant donné** un dernier contexte confirmé encore disponible ou devenu indisponible, **quand** la reprise est résolue, **alors** la cible exacte ou ajustée est rendue dans le DOM avec sa hiérarchie et sa position sémantiques réelles.
 - **Étant donné** une cible de reprise exacte ou ajustée, **quand** la vue est hydratée, **alors** le focus atteint l’élément réellement rendu et tout ajustement est annoncé de manière accessible sans exposer d’identifiant privé.
 - **Étant donné** les parcours de reprise exacte et ajustée, **quand** la Story 3.2 est validée, **alors** des tests E2E navigateur bloquants vérifient le rendu sémantique, le focus et l’annonce sur les quatre projets Playwright supportés.
@@ -407,7 +422,7 @@ En tant que Zan, je veux que ma bibliothèque s’agrandisse, afin d’organiser
 
 **Critères d’acceptation :**
 
-- **Étant donné** le dernier module plein, **quand** un placement valide est ajouté, **alors** exactement un module suivant est créé dans la même transaction.
+- **Étant donné** l’invariant `appendPlacement` livré par 2.3 et un dernier module plein, **quand** un placement valide est ajouté, **alors** les tests de charge et E2E prouvent qu’exactement un module suivant est créé dans la même transaction.
 - **Étant donné** un module intermédiaire vide, **quand** son dernier objet part, **alors** il persiste ; seuls les modules terminaux vides sont supprimables sans renumérotation.
 - **Étant donné** 100 exemplaires, **quand** Zan navigue et manipule, **alors** visibles, voisins et cible opérationnelle sont rendus sans démonter la cible focalisée.
 - **Étant donné** un échec de création ou placement, **quand** la transaction échoue, **alors** aucun module vide orphelin ni placement partiel n’existe.
@@ -647,7 +662,8 @@ En tant que Zan, je veux changer le style du meuble ou appliquer un ornement acq
 
 ## Dépendances, risques et hypothèses
 
-- L’ordre recommandé est 1 → 2 → 3 → 4 → 5 → 6 ; chaque epic livre toutefois un résultat complet sur les fondations précédentes et ne requiert aucun epic futur.
+- L’ordre recommandé reste 1 → 2 → 3 → 4 → 5 → 6 ; la fondation de rangement réelle est désormais livrée en 2.3 avant toute création de Copy, et chaque epic livre un résultat complet sans requérir un epic futur.
+- Dans l’Epic 2, l’ordre est strict : 2.1 et 2.2 sont non mutantes ; 2.3 livre le rangement canonique ; 2.4 est la première mutation issue d’un candidat fournisseur ; 2.5 précède l’ajout manuel 2.6 ; 2.7 et 2.8 ferment le cycle média.
 - Les risques majeurs sont la concurrence de rangement, l’idempotence des crédits/achats, la qualité des médias importés, la performance du viewport à 100 exemplaires, l’accessibilité de la métaphore spatiale et la résilience des fournisseurs.
 - Les objectifs RPO/RTO et la rétention restent une question ouverte avant production ; ils ne bloquent ni le développement ni la validation fonctionnelle du MVP.
 - Les structures et finitions gratuites sont traitées comme projections cosmétiques de base, conformément à l’hypothèse adoptée de la SPEC.
