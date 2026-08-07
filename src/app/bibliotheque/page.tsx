@@ -4,6 +4,7 @@ import { resumeLibraryContext } from "@/modules/library/application/library-view
 import { createPostgresLibraryViewStateRepository } from "@/modules/library/adapters/postgres-library-view-state";
 import { LibraryResumeFocus } from "@/modules/library/ui/library-resume-focus";
 import { loadPrivateLibrarySummary } from "@/modules/identity/application/private-library";
+import { createPostgresLibraryFoundationRepository } from "@/modules/library/adapters/postgres-library-foundation";
 import { PRIVATE_LIBRARY_REDIRECT } from "@/modules/identity/application/redirect-allowlist";
 import { getVerifiedSession } from "@/modules/identity/application/session";
 
@@ -63,13 +64,45 @@ export default async function BibliothequePage() {
     );
   }
 
-  const [summary, resume] = await Promise.all([
+  const foundation = createPostgresLibraryFoundationRepository();
+  const [summary, ensured] = await Promise.all([
     loadPrivateLibrarySummary(session.user.id),
-    // Les tables canoniques de rangement arrivent avec la story 2.3. Jusqu'alors la
-    // projection courante est légitimement vide : aucun faux livre n'est créé pour donner
-    // l'illusion d'une reprise. Le port restera identique lorsque cette projection existera.
-    resumeLibraryContext(session.user.id, [], createPostgresLibraryViewStateRepository()),
+    foundation.ensure(session.user.id).then(() => true).catch(() => false),
   ]);
+
+  if (!ensured) {
+    return (
+      <main className="welcome-shell">
+        <section className="welcome-card auth-card" aria-labelledby="titre-bibliotheque">
+          <p className="eyebrow">My BookShelf</p>
+          <h1 id="titre-bibliotheque">Ta bibliothèque</h1>
+          <div role="status">
+            <p className="intro">Ta bibliothèque n’a pas pu reprendre sa dernière position ni initialiser sa structure réelle. Tes données restent privées.</p>
+            <a className="primary-action" href="/bibliotheque">Réessayer</a>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  let projection;
+  let resume;
+  try {
+    [projection, resume] = await Promise.all([
+      foundation.load(session.user.id),
+      resumeLibraryContext(session.user.id, [], createPostgresLibraryViewStateRepository()),
+    ]);
+  } catch {
+    return (
+      <main className="welcome-shell">
+        <section className="welcome-card auth-card" aria-labelledby="titre-bibliotheque">
+          <p className="eyebrow">My BookShelf</p>
+          <h1 id="titre-bibliotheque">Ta bibliothèque</h1>
+          <div role="status"><p className="intro">La projection réelle de ta bibliothèque n’a pas pu être chargée. Tes données restent privées.</p><a className="primary-action" href="/bibliotheque">Réessayer</a></div>
+        </section>
+      </main>
+    );
+  }
 
   if (resume.status === "unavailable") {
     return (
@@ -124,8 +157,35 @@ export default async function BibliothequePage() {
             ? "Ta bibliothèque est prête. Tes étagères arriveront dans un prochain incrément."
             : `${summary.noteCount} note${summary.noteCount > 1 ? "s" : ""} privée${
                 summary.noteCount > 1 ? "s" : ""
-              } t’attendent ici. Tes étagères arriveront dans un prochain incrément.`}
+              } t’attendent ici.`}
         </p>
+        <section className="library-foundation" aria-labelledby="library-foundation-title">
+          <h2 id="library-foundation-title">Ton rangement réel</h2>
+          <p className="project-status">Chaque statut possède maintenant son module et ses étagères persistants. Aucun livre n’a été créé.</p>
+          <div className="library-status-grid">
+            {projection.statuses.map((entry) => {
+              const label = entry.status === "want-to-read" ? "Envie de lire" : entry.status === "reading" ? "En cours" : "Terminés";
+              return (
+                <section className="library-status-section" key={entry.status} aria-labelledby={`library-status-${entry.status}`}>
+                  <h3 id={`library-status-${entry.status}`}>{label}</h3>
+                  {entry.modules.map((module) => (
+                    <div className="library-module" key={module.id}>
+                      <strong>Module {module.modulePosition + 1}</strong>
+                      <ul aria-label={`Étagères du module ${module.modulePosition + 1}`}>
+                        {module.shelves.map((shelf) => <li key={shelf.id}>Étagère {shelf.shelfPosition + 1}<span>{shelf.occupiedUnits} / {shelf.capacityUnits} unités</span></li>)}
+                      </ul>
+                    </div>
+                  ))}
+                  <p className="library-empty-state">Aucun exemplaire placé dans ce statut.</p>
+                  <div className="library-actions">
+                    <a className="primary-action" href="/catalogue">Rechercher dans le Catalogue</a>
+                    <a className="catalog-secondary-action" href="/catalogue/ajout-manuel">Ajouter manuellement</a>
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </section>
         <nav className="library-actions" aria-label="Actions de la bibliothèque">
           <a className="primary-action" href="/catalogue">
             Rechercher dans le Catalogue

@@ -142,6 +142,7 @@ try {
     readFileSync("supabase/tests/database/rls.test.sql", "utf8"),
     readFileSync("supabase/tests/database/identity-rls.test.sql", "utf8"),
     readFileSync("supabase/tests/database/library-view-state-rls.test.sql", "utf8"),
+    readFileSync("supabase/tests/database/library-foundation-rls.test.sql", "utf8"),
     readFileSync("supabase/tests/database/migration-compatibility.test.sql", "utf8"),
     readFileSync("supabase/tests/database/deferred-effects.test.sql", "utf8"),
   ].join("\n");
@@ -178,6 +179,11 @@ try {
     env: { ...process.env, TEST_DATABASE_URL: databaseUrl, DATABASE_URL: databaseUrl },
   });
   if (libraryViewState.status !== 0) throw new Error("Le canari de reprise du contexte a échoué.");
+  const libraryFoundation = spawnSync(process.execPath, ["tests/integration/database-library-foundation-canary.mjs"], {
+    stdio: "inherit",
+    env: { ...process.env, TEST_DATABASE_URL: databaseUrl, DATABASE_URL: databaseUrl },
+  });
+  if (libraryFoundation.status !== 0) throw new Error("Le canari de fondation du rangement a échoué.");
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;

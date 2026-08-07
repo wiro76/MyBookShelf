@@ -125,6 +125,76 @@ h1 {
   margin-top: 1.5rem;
 }
 
+.library-foundation {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-default);
+}
+
+.library-foundation h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.library-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.library-status-section {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--border-default);
+  border-radius: 0.5rem;
+  background: var(--surface-subtle);
+}
+
+.library-status-section h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.library-module {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-raised);
+}
+
+.library-module ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.library-module li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.library-module li span {
+  color: var(--ink-secondary);
+  font-size: 0.875rem;
+}
+
+.library-empty-state {
+  color: var(--ink-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.library-status-section .library-actions {
+  display: grid;
+  align-items: stretch;
+  margin-top: 1rem;
+}
+
 /* Catalogue — story 2.1. Surface de travail dense, distincte de la bibliothèque. */
 .catalog-shell {
   width: min(100%, 78rem);
@@ -469,6 +539,10 @@ h1 {
     padding: 1.5rem 0 0;
     border-top: 1px solid var(--border-default);
     border-left: 0;
+  }
+
+  .library-status-grid {
+    grid-template-columns: 1fr;
   }
 }
 
