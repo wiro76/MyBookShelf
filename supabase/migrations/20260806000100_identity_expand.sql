@@ -73,13 +73,13 @@ alter table identity.private_notes force row level security;
 
 drop policy if exists own_profile on identity.profiles;
 create policy own_profile on identity.profiles
-  using (true)
-  with check (true);
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
 
 drop policy if exists own_private_notes on identity.private_notes;
 create policy own_private_notes on identity.private_notes
-  using (true)
-  with check (true);
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Droits
