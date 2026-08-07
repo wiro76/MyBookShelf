@@ -57,6 +57,23 @@ test("recherche par auteur et ouverture de la fiche au clavier", async ({ page }
   await expect(page.getByRole("heading", { name: "Le Comte de Monte-Cristo", exact: true })).toBeFocused();
 });
 
+test("compare et sélectionne une édition sans mutation", async ({ page }) => {
+  await ouvrirCatalogue(page);
+  await rechercher(page, "Le Comte de Monte-Cristo");
+  await page.getByRole("button", { name: /Le Comte de Monte-Cristo/ }).first().click();
+
+  const edition = page.locator(".edition-option").first();
+  await expect(edition).toContainText("9782070405374");
+  await expect(edition).toContainText("1488 pages");
+  await expect(edition).toContainText("Couverture non fournie");
+  await expect(edition).toContainText("Google Books");
+  await edition.locator("input[type=radio]").check();
+  await expect(edition).toHaveClass(/is-selected/);
+  await expect(page.locator(".catalog-selection-status")).toContainText("Édition sélectionnée");
+  await expect(page.locator("[data-selected-edition-ref]")).toHaveAttribute("data-selected-edition-ref", /^edition-[0-9a-f]{32}$/);
+  await expect(page.getByRole("button", { name: /ajout|ajouter/i })).toHaveCount(0);
+});
+
 test("empty conserve la requête et prépare le transfert manuel", async ({ page }) => {
   await ouvrirCatalogue(page);
   await rechercher(page, "introuvable");

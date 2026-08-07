@@ -120,7 +120,13 @@ if (action) {
         authors: [{ value: "Frank Herbert", claimRefs: ["claim-secret"] }],
         languages: [],
         identifiers: [],
-        editions: [],
+        editions: [{
+          editionRef: "google-books:source-secret-edition",
+          title: { value: "Dune", claimRefs: ["claim-secret"] },
+          pageCount: { value: 500, claimRefs: ["claim-secret"] },
+          languages: [{ value: "fr", claimRefs: ["claim-secret"] }],
+          identifiers: [{ value: { scheme: "isbn-13", value: "9782070405374" }, claimRefs: ["claim-secret"] }],
+        }],
         primaryClaim: { provider: "google-books", sourceId: "source-secret", claimRef: "claim-secret", fingerprintSha256: "fingerprint-secret", collectedAt: "2026-08-07T10:00:00.000Z", rights: { status: "unknown" } },
         sources: [{ provider: "google-books", sourceId: "source-secret", claimRef: "claim-secret", fingerprintSha256: "fingerprint-secret", collectedAt: "2026-08-07T10:00:00.000Z", rights: { status: "unknown" } }],
       }],
@@ -135,7 +141,11 @@ if (action) {
       assert.doesNotMatch(serialized, new RegExp(forbidden));
     }
     assert.equal(state.outcome.candidates[0].title, "Dune");
-    assert.deepEqual(state.outcome.candidates[0].editions, []);
+    assert.equal(state.outcome.candidates[0].editions.length, 1);
+    assert.match(state.outcome.candidates[0].editions[0].selectionRef, /^edition-[0-9a-f]{32}$/);
+    assert.equal(state.outcome.candidates[0].editions[0].coverage, "not-provided");
+    assert.deepEqual(state.outcome.candidates[0].editions[0].provenance, ["google-books"]);
+    assert.doesNotMatch(serialized, /source-secret-edition|claim-secret|fingerprint-secret/);
     assert.deepEqual(state.outcome.candidates[0].providers, ["google-books"]);
   });
 }

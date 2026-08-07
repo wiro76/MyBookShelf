@@ -6,6 +6,7 @@ import { createBnfSruAdapter } from "@/modules/catalog/adapters/bnf-sru";
 import { createGoogleBooksAdapter } from "@/modules/catalog/adapters/google-books";
 import { createOpenLibraryAdapter } from "@/modules/catalog/adapters/open-library";
 import { searchCatalog } from "@/modules/catalog/application/search-catalog";
+import { createEditionSelectionRef } from "@/modules/catalog/application/edition-selection";
 import type { NormalizedCandidate } from "@/modules/catalog/domain/normalized-candidate";
 import type { CatalogueSearchState } from "./state";
 
@@ -20,11 +21,14 @@ function toPresentationCandidate(candidate: NormalizedCandidate) {
     ...(candidate.publicationDate ? { publicationDate: candidate.publicationDate.value } : {}),
     identifiers: candidate.identifiers.map(({ value }) => `${value.scheme.toUpperCase()} ${value.value}`),
     editions: candidate.editions.map((edition) => ({
+      selectionRef: createEditionSelectionRef(candidate.candidateRef, edition.editionRef),
       title: edition.title.value,
       ...(edition.publicationDate ? { publicationDate: edition.publicationDate.value } : {}),
       ...(edition.pageCount ? { pageCount: edition.pageCount.value } : {}),
       languages: edition.languages.map(({ value }) => value),
       identifiers: edition.identifiers.map(({ value }) => `${value.scheme.toUpperCase()} ${value.value}`),
+      provenance: [...new Set(edition.title.claimRefs.flatMap((claimRef) => candidate.sources.filter((source) => source.claimRef === claimRef).map((source) => source.provider)))],
+      coverage: "not-provided" as const,
     })),
     primaryProvider: candidate.primaryClaim.provider,
     providers: [...new Set(candidate.sources.map(({ provider }) => provider))],

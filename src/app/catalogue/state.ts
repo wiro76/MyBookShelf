@@ -10,11 +10,14 @@ export type CatalogueCandidate = Readonly<{
   publicationDate?: string;
   identifiers: readonly string[];
   editions: readonly Readonly<{
+    selectionRef: string;
     title: string;
     publicationDate?: string;
     pageCount?: number;
     languages: readonly string[];
     identifiers: readonly string[];
+    provenance: readonly CatalogProviderId[];
+    coverage: "not-provided" | "available";
   }>[];
   primaryProvider: CatalogProviderId;
   providers: readonly CatalogProviderId[];

@@ -15,6 +15,50 @@ function manualHref(mode: "title" | "author", query: string) {
   return `/catalogue/ajout-manuel?${params.toString()}`;
 }
 
+function EditionComparison({ candidate }: { candidate: CatalogueCandidate }) {
+  const [selectedEditionRef, setSelectedEditionRef] = useState<string>();
+  const selectedEdition = candidate.editions.find((edition) => edition.selectionRef === selectedEditionRef);
+
+  return (
+    <section className="edition-comparison" aria-labelledby="edition-comparison-title">
+      <h3 id="edition-comparison-title">Comparer et choisir une édition</h3>
+      <p className="catalog-hint">La sélection est locale à cette fiche. Elle prépare la prochaine étape. Rien n’a été ajouté à ta bibliothèque.</p>
+      <fieldset className="edition-selector">
+        <legend className="sr-only">Éditions disponibles pour {candidate.title}</legend>
+        <div className="edition-selector-grid">
+          {candidate.editions.map((edition) => {
+            const selected = selectedEditionRef === edition.selectionRef;
+            return (
+              <label className={`edition-option${selected ? " is-selected" : ""}`} key={edition.selectionRef}>
+                <input
+                  type="radio"
+                  name={`edition-${candidate.candidateRef}`}
+                  value={edition.selectionRef}
+                  checked={selected}
+                  onChange={() => setSelectedEditionRef(edition.selectionRef)}
+                />
+                <span className="edition-option-body">
+                  <strong>{edition.title}</strong>
+                  <span className="edition-cover" aria-label={edition.coverage === "available" ? "Couverture disponible" : "Couverture non fournie"}>
+                    {edition.coverage === "available" ? "Couverture disponible" : "Couverture non fournie"}
+                  </span>
+                  <span><b>ISBN</b> {edition.identifiers.join(", ") || "Non renseigné"}</span>
+                  <span><b>Pagination</b> {edition.pageCount ? `${edition.pageCount} pages` : "Non renseignée"}</span>
+                  <span><b>Date</b> {edition.publicationDate ?? "Non renseignée"}</span>
+                  <span><b>Provenance</b> {edition.provenance.map((provider) => PROVIDERS[provider]).join(", ") || "Non renseignée"}</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
+      <p className="catalog-selection-status" role="status" aria-live="polite" data-selected-edition-ref={selectedEdition?.selectionRef}>
+        {selectedEdition ? `Édition sélectionnée : ${selectedEdition.title}. La confirmation d’ajout sera proposée dans une prochaine étape.` : "Aucune édition sélectionnée."}
+      </p>
+    </section>
+  );
+}
+
 function CandidateDetail({ candidate, activation }: { candidate: CatalogueCandidate; activation: number }) {
   const titleRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => titleRef.current?.focus(), [candidate.candidateRef, activation]);
@@ -32,8 +76,7 @@ function CandidateDetail({ candidate, activation }: { candidate: CatalogueCandid
         <dt>Éditions repérées</dt><dd>{candidate.editions.length}</dd>
         <dt>Provenance</dt><dd>{candidate.providers.map((provider) => PROVIDERS[provider]).join(", ")}</dd>
       </dl>
-      {candidate.editions.length ? <div><h3>Éditions disponibles</h3><ul>{candidate.editions.map((edition, index) => <li key={`${candidate.candidateRef}-${index}`}><strong>{edition.title}</strong>{edition.publicationDate ? ` · ${edition.publicationDate}` : ""}{edition.pageCount ? ` · ${edition.pageCount} pages` : ""}{edition.languages.length ? ` · ${edition.languages.join(", ")}` : ""}{edition.identifiers.length ? ` · ${edition.identifiers.join(", ")}` : ""}</li>)}</ul></div> : null}
-      <p className="catalog-hint">Le choix d’édition sera proposé dans l’étape suivante. Rien n’a été ajouté à ta bibliothèque.</p>
+      {candidate.editions.length ? <EditionComparison key={candidate.candidateRef} candidate={candidate} /> : <p className="catalog-hint">Aucune édition exploitable n’est fournie par les sources. Rien n’a été ajouté à ta bibliothèque.</p>}
     </section>
   );
 }

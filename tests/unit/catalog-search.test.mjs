@@ -25,11 +25,12 @@ registerHooks({
 
 let modules = null;
 try {
-  const [domain, search] = await Promise.all([
+  const [domain, search, selection] = await Promise.all([
     import(pathToFileURL(resolve(ROOT, "src/modules/catalog/domain/normalized-candidate.ts")).href),
     import(pathToFileURL(resolve(ROOT, "src/modules/catalog/application/search-catalog.ts")).href),
+    import(pathToFileURL(resolve(ROOT, "src/modules/catalog/application/edition-selection.ts")).href),
   ]);
-  modules = { domain, search };
+  modules = { domain, search, selection };
 } catch (error) {
   const strippingError = error?.code === "ERR_UNKNOWN_FILE_EXTENSION" || /Unknown file extension/.test(String(error?.message ?? ""));
   if (process.env[RELAUNCH] || !strippingError) throw error;
@@ -41,6 +42,7 @@ try {
 if (modules) {
   const { createNormalizedCandidate, createSourceClaim } = modules.domain;
   const { searchCatalog } = modules.search;
+  const { createEditionSelectionRef } = modules.selection;
   const makeCandidate = (provider, sourceId = provider) => {
     const source = createSourceClaim({ provider, sourceId, projection: { title: "Dune" }, collectedAt: "2026-08-07T10:00:00.000Z", rights: { status: "unknown" } });
     return createNormalizedCandidate({ primaryClaimRef: source.claimRef, sources: [source], title: { value: "Dune", claimRefs: [source.claimRef] } });
@@ -56,6 +58,14 @@ if (modules) {
     const outcome = await searchCatalog({ mode: "title", query: "  Ｄｕｎｅ   saga " }, { providers: ps });
     assert.equal(outcome.query, "Dune saga");
     assert.equal(calls, 3);
+  });
+
+  test("produit une référence d'édition opaque et stable", () => {
+    const first = createEditionSelectionRef("candidate-a", "google-books:volume-1");
+    assert.equal(first, createEditionSelectionRef("candidate-a", "google-books:volume-1"));
+    assert.match(first, /^edition-[0-9a-f]{32}$/);
+    assert.notEqual(first, createEditionSelectionRef("candidate-a", "google-books:volume-2"));
+    assert.doesNotMatch(first, /volume-1|google-books|claim|source/iu);
   });
 
   test("appelle les trois fournisseurs en parallèle, une fois, dans l'ordre de priorité", async () => {
