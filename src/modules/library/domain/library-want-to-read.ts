@@ -7,11 +7,19 @@ export type AddEditionAsWantToReadInput = Readonly<{
   editionTitle: string;
   identifiers: readonly string[];
   provenance: readonly CatalogProviderId[];
+  author?: string;
+  summary?: string;
+  pageCount?: number;
+  series?: string;
+  volume?: string;
+  publicationDate?: string;
+  editionStatement?: string;
+  coverAssetId?: string;
 }>;
 
 const HEX_KEY = /^edition-[0-9a-f]{32}$/u;
 const CANDIDATE_KEY = /^candidate_[0-9a-f]{64}$/u;
-const PROVIDERS: readonly CatalogProviderId[] = ["google-books", "open-library", "bnf"];
+const PROVIDERS: readonly CatalogProviderId[] = ["google-books", "open-library", "bnf", "manual"];
 
 export class LibraryWantToReadError extends Error {
   readonly code: string;
@@ -41,5 +49,18 @@ export function validateAddEditionAsWantToRead(value: unknown): AddEditionAsWant
     editionTitle: text(input.editionTitle, 500),
     identifiers: input.identifiers.map((identifier) => text(identifier, 200)),
     provenance: [...new Set(input.provenance as CatalogProviderId[])],
-  };
+    ...(input.author !== undefined ? { author: text(input.author, 500) } : {}),
+    ...(input.summary !== undefined ? { summary: text(input.summary, 10_000) } : {}),
+    ...(input.pageCount !== undefined ? { pageCount: validatePageCount(input.pageCount) } : {}),
+    ...(input.series !== undefined ? { series: text(input.series, 500) } : {}),
+    ...(input.volume !== undefined ? { volume: text(input.volume, 100) } : {}),
+    ...(input.publicationDate !== undefined ? { publicationDate: text(input.publicationDate, 100) } : {}),
+    ...(input.editionStatement !== undefined ? { editionStatement: text(input.editionStatement, 500) } : {}),
+    ...(input.coverAssetId !== undefined ? { coverAssetId: text(input.coverAssetId, 100) } : {}),
+};
+
+function validatePageCount(value: unknown): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1 || value > 100_000) throw new LibraryWantToReadError();
+  return value;
+}
 }

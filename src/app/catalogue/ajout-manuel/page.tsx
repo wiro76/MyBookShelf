@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { normalizeCatalogSearchRequest } from "@/modules/catalog/application/search-catalog";
 import { CATALOG_REDIRECT } from "@/modules/identity/application/redirect-allowlist";
 import { getVerifiedSession } from "@/modules/identity/application/session";
+import { ManualEditionForm } from "./manual-edition-form";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,7 +19,7 @@ export default async function AjoutManuelPage({ searchParams }: { searchParams: 
   return (
     <main className="catalog-shell">
       <header className="catalog-header"><div><p className="eyebrow">My BookShelf</p><h1>Ajout manuel</h1></div><a className="catalog-back" href="/catalogue">Retour au Catalogue</a></header>
-      <section className="catalog-detail" aria-labelledby="manual-title"><h2 id="manual-title">Préparation</h2><p>La création manuelle sera disponible avec la Story 2.6. Aucune donnée n’est enregistrée ici.</p><dl className="catalog-detail-list"><dt>Mode</dt><dd>{request?.mode === "author" ? "Auteur" : "Titre"}</dd><dt>Recherche</dt><dd>{request?.query || "Non renseignée"}</dd></dl></section>
+      <section className="catalog-detail" aria-labelledby="manual-title"><h2 id="manual-title">Créer une édition absente</h2><p>Ajoute les informations que tu connais. Les champs facultatifs pourront être complétés plus tard.</p><dl className="catalog-detail-list"><dt>Recherche précédente</dt><dd>{request?.query || "Aucune"}</dd></dl><ManualEditionForm /></section>
     </main>
   );
 }

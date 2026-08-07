@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-export type CatalogProviderId = "google-books" | "open-library" | "bnf";
+export type CatalogProviderId = "google-books" | "open-library" | "bnf" | "manual";
 export type CandidateKind = "work-with-editions" | "edition-only";
 
 export type SourceClaim = Readonly<{
@@ -57,6 +57,7 @@ const PROVIDER_PRIORITY: Readonly<Record<CatalogProviderId, number>> = {
   "google-books": 0,
   "open-library": 1,
   bnf: 2,
+  manual: 3,
 };
 const MAX_TEXT = 500;
 const MAX_DESCRIPTION = 10_000;

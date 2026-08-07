@@ -11,10 +11,10 @@ export type ProjectEpic = Readonly<{
 export const projectStatus = {
   updatedAt: "7 août 2026",
   totalStories: 37,
-  advancedStories: 13,
+  advancedStories: 14,
   sprint: "Sprint Epic 2",
-  currentFocus: "Story 2.5 · Importer et préparer une couverture personnelle en sécurité",
-  nextFocus: "Story 2.6 · Créer manuellement une édition comme envie de lire",
+  currentFocus: "Story 2.6 · Créer manuellement une édition comme envie de lire",
+  nextFocus: "Story 2.7 · Gouverner la publication et la révocation des médias",
   epics: [
     {
       id: "1",
@@ -43,7 +43,7 @@ export const projectStatus = {
         { id: "2.3", title: "Initialiser le rangement réel", status: "review" },
         { id: "2.4", title: "Ajouter l’édition comme envie de lire", status: "review" },
         { id: "2.5", title: "Préparer une couverture personnelle", status: "review" },
-        { id: "2.6", title: "Créer manuellement une édition", status: "backlog" },
+        { id: "2.6", title: "Créer manuellement une édition", status: "review" },
         { id: "2.7", title: "Gouverner publication et révocation", status: "backlog" },
         { id: "2.8", title: "Collecter les médias révoqués", status: "backlog" },
       ],

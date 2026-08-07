@@ -10,6 +10,9 @@ create table if not exists library.works (
   unique (id, canonical_key)
 );
 
+alter table library.works add column if not exists author text;
+alter table library.works add column if not exists summary text;
+
 create table if not exists library.editions (
   id uuid primary key default gen_random_uuid(),
   work_id uuid not null references library.works(id) on delete cascade,
@@ -22,6 +25,8 @@ create table if not exists library.editions (
   unique (work_id, canonical_key),
   unique (id, work_id)
 );
+
+alter table library.editions add column if not exists metadata jsonb not null default '{}'::jsonb check (jsonb_typeof(metadata) = 'object');
 
 alter table library.works enable row level security;
 alter table library.works force row level security;

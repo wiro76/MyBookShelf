@@ -8,6 +8,7 @@ const PROVIDERS = {
   "google-books": "Google Books",
   "open-library": "Open Library",
   bnf: "BnF",
+  manual: "Saisie manuelle",
 } as const;
 
 function manualHref(mode: "title" | "author", query: string) {
