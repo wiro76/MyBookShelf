@@ -841,6 +841,55 @@ h1 {
   line-height: 1.55;
 }
 
+.appearance-configurator {
+  display: grid;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-default);
+}
+
+.appearance-configurator-heading,
+.appearance-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.appearance-configurator h2 { margin: 0; font-size: 1.35rem; }
+.appearance-preview {
+  display: grid;
+  gap: 0.65rem;
+  width: min(100%, 30rem);
+  min-height: 9rem;
+  padding: 1.25rem;
+  border: 0.45rem solid #795548;
+  border-radius: 0.35rem;
+  background: #c99b68;
+  box-shadow: inset 0 0 0 0.35rem rgb(255 255 255 / 0.18);
+}
+.appearance-preview[data-finish="walnut"] { background: #795548; border-color: #4e342e; }
+.appearance-preview[data-finish="white"] { background: #e7e5e4; border-color: #a8a29e; }
+.appearance-preview[data-structure="arch"] { border-radius: 2rem 2rem 0.35rem 0.35rem; }
+.appearance-preview[data-structure="wide"] { border-width: 0.8rem; }
+.appearance-preview-shelf { display: block; min-height: 1rem; border-radius: 0.2rem; background: rgb(36 24 17 / 0.48); }
+.appearance-preview[data-selected="false"] { filter: grayscale(1); opacity: 0.62; }
+.appearance-options { display: grid; gap: 0.65rem; border: 0; padding: 0; margin: 0; }
+.appearance-options legend { margin-bottom: 0.25rem; font-weight: 700; }
+.appearance-option { display: flex; align-items: center; gap: 0.75rem; min-height: 3rem; padding: 0.65rem 0.75rem; border: 1px solid var(--border-default); border-radius: 0.35rem; cursor: pointer; }
+.appearance-option.is-selected { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.appearance-option:has(input:focus-visible) { outline: 3px solid var(--focus-light); outline-offset: 2px; box-shadow: 0 0 0 5px var(--focus-contrast); }
+.appearance-option span { display: grid; gap: 0.15rem; }
+.appearance-option small { color: var(--ink-secondary); }
+.appearance-swatch { width: 1.25rem; height: 1.25rem; display: inline-block; border: 1px solid var(--border-strong); border-radius: 50%; }
+.appearance-status { min-height: 1.55rem; margin: 0; color: var(--ink-secondary); }
+
+@media (max-width: 38rem) {
+  .appearance-configurator-heading, .appearance-actions { align-items: stretch; flex-direction: column; }
+  .appearance-actions > * { width: 100%; }
+}
+
 @media (max-width: 22rem) {
   .welcome-shell {
     padding: 0.75rem;

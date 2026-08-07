@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T16:13:22Z
-last_updated: 2026-08-07T16:40:00Z
+last_updated: 2026-08-07T17:30:00Z
 project: Bibiliothéque virtuelle
 project_key: NOKEY
 tracking_system: file-system
@@ -71,7 +71,7 @@ development_status:
   epic-2-retrospective: done
 
   epic-3: in-progress
-  3-1-choisir-lapparence-initiale-du-meuble: ready-for-dev
+  3-1-choisir-lapparence-initiale-du-meuble: review
   3-2-parcourir-les-trois-bibliotheques-physiques: backlog
   3-3-naviguer-entierement-au-clavier-et-avec-aides-techniques: backlog
   3-4-gerer-lextension-des-modules-sans-limite-arbitraire: backlog

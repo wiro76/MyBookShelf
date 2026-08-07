@@ -7,6 +7,8 @@ import { loadPrivateLibrarySummary } from "@/modules/identity/application/privat
 import { createPostgresLibraryFoundationRepository } from "@/modules/library/adapters/postgres-library-foundation";
 import { PRIVATE_LIBRARY_REDIRECT } from "@/modules/identity/application/redirect-allowlist";
 import { getVerifiedSession } from "@/modules/identity/application/session";
+import { createPostgresLibraryAppearanceRepository } from "@/modules/library/adapters/postgres-library-appearance";
+import { AppearanceOnboarding } from "./appearance-onboarding";
 
 /**
  * Route privée témoin — story 1.6 (AC 1, AC 2, AC 4 ; CAP-1, AD-10).
@@ -87,10 +89,12 @@ export default async function BibliothequePage() {
 
   let projection;
   let resume;
+  let appearance = null;
   try {
-    [projection, resume] = await Promise.all([
+    [projection, resume, appearance] = await Promise.all([
       foundation.load(session.user.id),
       resumeLibraryContext(session.user.id, [], createPostgresLibraryViewStateRepository()),
+      createPostgresLibraryAppearanceRepository().load(session.user.id),
     ]);
   } catch {
     return (
@@ -159,6 +163,7 @@ export default async function BibliothequePage() {
                 summary.noteCount > 1 ? "s" : ""
               } t’attendent ici.`}
         </p>
+        <AppearanceOnboarding initialPreference={appearance ? { structureId: appearance.structureId, finishId: appearance.finishId } : null} />
         <section className="library-foundation" aria-labelledby="library-foundation-title">
           <h2 id="library-foundation-title">Ton rangement réel</h2>
           <p className="project-status">Chaque statut possède maintenant son module et ses étagères persistants. La projection ci-dessous reflète uniquement les exemplaires réellement placés.</p>

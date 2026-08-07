@@ -11,9 +11,9 @@ export type ProjectEpic = Readonly<{
 export const projectStatus = {
   updatedAt: "7 août 2026",
   totalStories: 37,
-  advancedStories: 16,
+  advancedStories: 17,
   sprint: "Sprint Epic 3",
-  currentFocus: "Story 3.1 · Choisir l’apparence initiale du meuble",
+  currentFocus: "Story 3.1 · Revue finale et preuve E2E de l’apparence",
   nextFocus: "Story 3.2 · Parcourir les trois bibliothèques physiques",
   epics: [
     {
@@ -49,7 +49,7 @@ export const projectStatus = {
       ],
     },
     { id: "3", title: "Bibliothèque physique et personnelle", value: "Contempler et personnaliser une bibliothèque alimentée.", status: "in-progress", stories: [
-      { id: "3.1", title: "Choisir l’apparence initiale du meuble", status: "backlog" },
+      { id: "3.1", title: "Choisir l’apparence initiale du meuble", status: "review" },
       { id: "3.2", title: "Parcourir les trois bibliothèques physiques", status: "backlog" },
       { id: "3.3", title: "Naviguer au clavier et avec aides techniques", status: "backlog" },
       { id: "3.4", title: "Gérer l’extension des modules", status: "backlog" },
