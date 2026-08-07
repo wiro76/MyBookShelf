@@ -59,8 +59,8 @@ development_status:
   1-8-percevoir-et-reprendre-chaque-sauvegarde: done
   epic-1-retrospective: done
 
-  epic-2: backlog
-  2-1-rechercher-une-oeuvre-par-titre-ou-auteur: backlog
+  epic-2: in-progress
+  2-1-rechercher-une-oeuvre-par-titre-ou-auteur: ready-for-dev
   2-2-comparer-et-choisir-une-edition: backlog
   2-3-initialiser-le-rangement-reel-de-la-bibliotheque: backlog
   2-4-ajouter-ledition-choisie-comme-envie-de-lire: backlog
@@ -119,7 +119,7 @@ action_items:
   - epic: 1
     action: "Générer project-context.md avec les invariants consolidés du projet."
     owner: "Paige"
-    status: open
+    status: done
   - epic: 1
     action: "Exécuter un correct-course ciblé sur l'Epic 2 avant Story 2.1."
     owner: "John et Winston"
