@@ -24,6 +24,7 @@ const IPAD = devices["iPad (gen 7)"];
  * GoTrue.
  */
 const FAUX_AUTH_PORT = 3101;
+const FAUX_CATALOGUE_PORT = 3102;
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -44,10 +45,17 @@ export default defineConfig({
       env: { ...process.env, FAUX_AUTH_PORT: String(FAUX_AUTH_PORT) },
     },
     {
+      command: `${process.execPath} tests/e2e/faux-service-catalogue.mjs`,
+      url: `http://127.0.0.1:${FAUX_CATALOGUE_PORT}/sante`,
+      reuseExistingServer: false,
+      timeout: 30_000,
+      env: { ...process.env, FAUX_CATALOGUE_PORT: String(FAUX_CATALOGUE_PORT) },
+    },
+    {
       command: `${process.execPath} node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3100`,
       url: "http://127.0.0.1:3100",
       reuseExistingServer: false,
-      timeout: 120_000,
+      timeout: 240_000,
       env: {
         ...process.env,
         APP_ENV: "local",
@@ -55,6 +63,9 @@ export default defineConfig({
         ENABLE_E2E_HARNESS: "1",
         SUPABASE_URL: `http://127.0.0.1:${FAUX_AUTH_PORT}`,
         SUPABASE_ANON_KEY: "local-test-only-anon-key",
+        CATALOG_GOOGLE_BOOKS_BASE_URL: `http://127.0.0.1:${FAUX_CATALOGUE_PORT}`,
+        CATALOG_OPEN_LIBRARY_BASE_URL: `http://127.0.0.1:${FAUX_CATALOGUE_PORT}`,
+        CATALOG_BNF_BASE_URL: `http://127.0.0.1:${FAUX_CATALOGUE_PORT}`,
       },
     },
   ],

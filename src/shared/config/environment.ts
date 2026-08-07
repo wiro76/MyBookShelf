@@ -2,8 +2,88 @@ import targets from "../../../config/environments.json";
 
 export type AppEnvironment = keyof typeof targets;
 
+const CATALOG_DEFAULTS = {
+  googleBooksBaseUrl: "https://www.googleapis.com",
+  openLibraryBaseUrl: "https://openlibrary.org",
+  bnfBaseUrl: "https://catalogue.bnf.fr",
+} as const;
+
 const POSTGRES_CONNECTION_PATTERN = /^postgres(ql)?:\/\/[^\s]+$/i;
 const PRODUCTION_MARKER_PATTERN = /production|prod-/i;
+
+export type CatalogEnvironment = {
+  googleBooksBaseUrl: string;
+  googleBooksApiKey?: string;
+  openLibraryBaseUrl: string;
+  bnfBaseUrl: string;
+  enableE2eHarness: boolean;
+};
+
+export function readCatalogEnvironment(source: NodeJS.ProcessEnv = process.env) {
+  return {
+    googleBooksBaseUrl: source.CATALOG_GOOGLE_BOOKS_BASE_URL,
+    googleBooksApiKey: source.GOOGLE_BOOKS_API_KEY,
+    openLibraryBaseUrl: source.CATALOG_OPEN_LIBRARY_BASE_URL,
+    bnfBaseUrl: source.CATALOG_BNF_BASE_URL,
+    enableE2eHarness: source.ENABLE_E2E_HARNESS === "1",
+  };
+}
+
+function requireCatalogBaseUrl(name: string, value: string, officialOrigin: string, harness: boolean) {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`${name} invalide`);
+  }
+  const isOriginOnly = url.pathname === "/" && !url.search && !url.hash && !url.username && !url.password;
+  const isOfficial = url.protocol === "https:" && url.origin === officialOrigin;
+  const isLoopback = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(url.hostname);
+  if (!isOriginOnly || (!isOfficial && !(harness && isLoopback && ["http:", "https:"].includes(url.protocol)))) {
+    throw new Error(`${name} doit cibler l'origine officielle ou une loopback E2E autorisée`);
+  }
+  return url.origin;
+}
+
+export function requireCatalogEnvironment(source: NodeJS.ProcessEnv = process.env): CatalogEnvironment {
+  const read = readCatalogEnvironment(source);
+  return validateCatalogEnvironment({
+    googleBooksBaseUrl: read.googleBooksBaseUrl ?? CATALOG_DEFAULTS.googleBooksBaseUrl,
+    googleBooksApiKey: read.googleBooksApiKey,
+    openLibraryBaseUrl: read.openLibraryBaseUrl ?? CATALOG_DEFAULTS.openLibraryBaseUrl,
+    bnfBaseUrl: read.bnfBaseUrl ?? CATALOG_DEFAULTS.bnfBaseUrl,
+    enableE2eHarness: read.enableE2eHarness,
+  });
+}
+
+export function validateCatalogEnvironment(input: CatalogEnvironment): CatalogEnvironment {
+  const googleBooksApiKey = input.googleBooksApiKey?.trim();
+  if (googleBooksApiKey && (googleBooksApiKey.length > 256 || /[\u0000-\u001f\u007f]/.test(googleBooksApiKey))) {
+    throw new Error("GOOGLE_BOOKS_API_KEY invalide");
+  }
+  return {
+    googleBooksBaseUrl: requireCatalogBaseUrl(
+      "CATALOG_GOOGLE_BOOKS_BASE_URL",
+      input.googleBooksBaseUrl,
+      CATALOG_DEFAULTS.googleBooksBaseUrl,
+      input.enableE2eHarness,
+    ),
+    googleBooksApiKey: googleBooksApiKey || undefined,
+    openLibraryBaseUrl: requireCatalogBaseUrl(
+      "CATALOG_OPEN_LIBRARY_BASE_URL",
+      input.openLibraryBaseUrl,
+      CATALOG_DEFAULTS.openLibraryBaseUrl,
+      input.enableE2eHarness,
+    ),
+    bnfBaseUrl: requireCatalogBaseUrl(
+      "CATALOG_BNF_BASE_URL",
+      input.bnfBaseUrl,
+      CATALOG_DEFAULTS.bnfBaseUrl,
+      input.enableE2eHarness,
+    ),
+    enableE2eHarness: input.enableE2eHarness,
+  };
+}
 
 export function requireRuntimeEnvironment(source: NodeJS.ProcessEnv = process.env) {
   const environment = source.APP_ENV as AppEnvironment | undefined;

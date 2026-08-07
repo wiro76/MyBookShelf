@@ -12,7 +12,7 @@
  * POURQUOI UNE LISTE BLANCHE LITTÉRALE, ET RIEN D'AUTRE
  * ────────────────────────────────────────────────────────────────────────────────
  * Aucune analyse d'URL, aucune normalisation, aucune expression régulière, aucun décodage :
- * la valeur reçue est comparée telle quelle aux deux chaînes autorisées. Tout le reste est
+ * la valeur reçue est comparée telle quelle aux chaînes autorisées. Tout le reste est
  * refusé, sans exception et sans cas particulier.
  *
  * C'est délibérément la stratégie la plus bête possible, et c'est ce qui en fait la garantie :
@@ -40,10 +40,10 @@
  */
 
 /**
- * Les deux seules destinations acceptées. Littérales, en dur, jamais construites.
+ * Les seules destinations acceptées. Littérales, en dur, jamais construites.
  * Ajouter une route privée ici est une décision de sécurité, pas une formalité.
  */
-export const REDIRECT_ALLOWLIST = ["/", "/bibliotheque"] as const;
+export const REDIRECT_ALLOWLIST = ["/", "/bibliotheque", "/catalogue"] as const;
 
 export type AllowedRedirect = (typeof REDIRECT_ALLOWLIST)[number];
 
@@ -52,6 +52,9 @@ export const DEFAULT_REDIRECT: AllowedRedirect = "/";
 
 /** Route privée témoin de la story. Exportée pour que personne ne la retape à la main. */
 export const PRIVATE_LIBRARY_REDIRECT: AllowedRedirect = "/bibliotheque";
+
+/** Route privée de recherche Catalogue — story 2.1. */
+export const CATALOG_REDIRECT: AllowedRedirect = "/catalogue";
 
 /**
  * Plafond de longueur appliqué AVANT toute comparaison.

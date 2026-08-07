@@ -133,6 +133,7 @@ if (socle) {
     pseudonymizeActor,
     runWithCorrelation,
     sanitizeSentryEvent,
+    sanitizeSentrySpan,
     toStableError,
   } = socle;
 
@@ -425,5 +426,21 @@ if (socle) {
     aucuneFuite("sentry", sortie, TOUS_LES_HOSTILES);
     assert.equal(event.tags.actorId, pseudonyme);
     assert.equal(event.exception.values[0].value, REDACTION_PLACEHOLDER);
+  });
+
+  test("un span Sentry ne conserve ni URL complète, query catalogue ni secret", () => {
+    const span = sanitizeSentrySpan({
+      trace_id: "trace",
+      span_id: "span",
+      op: "http.client",
+      name: `GET ${URL_SIGNEE}`,
+      description: `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(TITRE_MANGA)}&key=${SECRET_WORKER}`,
+      data: { "url.full": URL_SIGNEE, "url.query": `q=${TITRE_MANGA}&key=${SECRET_WORKER}`, response: CONTENU_IMPORTE },
+      tags: { title: TITRE_MANGA },
+    }, { requestId: "0198c3f2-5b7a-7e31-9d2c-4f6a8b1e0c37" });
+    const sortie = JSON.stringify(span);
+    aucuneFuite("span sentry", sortie, TOUS_LES_HOSTILES);
+    assert.deepEqual(span.data, { requestId: "0198c3f2-5b7a-7e31-9d2c-4f6a8b1e0c37" });
+    assert.equal(span.name, REDACTION_PLACEHOLDER);
   });
 }

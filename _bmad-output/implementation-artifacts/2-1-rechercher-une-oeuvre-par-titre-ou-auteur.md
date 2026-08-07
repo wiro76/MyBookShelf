@@ -4,11 +4,12 @@ story_key: "2-1-rechercher-une-oeuvre-par-titre-ou-auteur"
 epic: 2
 status: ready-for-dev
 created: "2026-08-07"
+baseline_commit: "19cd77a0e208d22976880a1db3880b641847ce23"
 ---
 
 # Story 2.1 : Rechercher une œuvre par titre ou auteur
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -28,51 +29,51 @@ afin de trouver l’œuvre que je possède sans modifier ma bibliothèque avant 
 
 ## Tasks / Subtasks
 
-- [ ] T1 — Définir le domaine candidat et ses invariants (AC: 2, 3, 7)
-  - [ ] Créer `src/modules/catalog/domain/normalized-candidate.ts` avec `CatalogProviderId`, `SourceClaim`, `EditionCandidate`, `NormalizedCandidate`, normalisation ISBN, empreinte SHA-256, référence opaque et fusion exacte.
-  - [ ] Représenter chaque métadonnée fusionnable par `Provenanced<T> { value, claimRefs }`; refuser une valeur sans claim existante et fusionner les références sans perdre l’origine de chaque valeur.
-  - [ ] Borner toutes les chaînes/listes et refuser les candidats sans titre ou source stable ; ne jamais inventer une valeur absente.
-  - [ ] Ancrer `candidateRef` sur la `primaryClaim` déterministe selon la priorité Google > Open Library > BnF ; l’ajout ou la panne d’une provenance complémentaire ne recalcule pas la référence.
-  - [ ] Écrire d’abord les tests unitaires : déterminisme, ISBN-10/13, fusion exacte, non-fusion par similarité, granularité œuvre/éditions, stabilité Google seul/+OL/+BnF, ordre et limites.
+- [x] T1 — Définir le domaine candidat et ses invariants (AC: 2, 3, 7)
+  - [x] Créer `src/modules/catalog/domain/normalized-candidate.ts` avec `CatalogProviderId`, `SourceClaim`, `EditionCandidate`, `NormalizedCandidate`, normalisation ISBN, empreinte SHA-256, référence opaque et fusion exacte.
+  - [x] Représenter chaque métadonnée fusionnable par `Provenanced<T> { value, claimRefs }`; refuser une valeur sans claim existante et fusionner les références sans perdre l’origine de chaque valeur.
+  - [x] Borner toutes les chaînes/listes et refuser les candidats sans titre ou source stable ; ne jamais inventer une valeur absente.
+  - [x] Ancrer `candidateRef` sur la `primaryClaim` déterministe selon la priorité Google > Open Library > BnF ; l’ajout ou la panne d’une provenance complémentaire ne recalcule pas la référence.
+  - [x] Écrire d’abord les tests unitaires : déterminisme, ISBN-10/13, fusion exacte, non-fusion par similarité, granularité œuvre/éditions, stabilité Google seul/+OL/+BnF, ordre et limites.
 
-- [ ] T2 — Implémenter les ports et l’orchestrateur de recherche (AC: 1, 3, 5, 6, 7)
-  - [ ] Créer `CatalogProvider`, `CatalogSearchRequest` (`mode: title | author`) et l’union `CatalogSearchOutcome` (`invalid | complete | partial | empty | unavailable`) selon la table de vérité normative des AC 5/6.
-  - [ ] Normaliser NFKC, trim et espaces de la requête ; refuser vide ou > 200 caractères avant tout fournisseur.
-  - [ ] Appeler les trois fournisseurs en parallèle avec 3 s maximum par source et 5 s maximum global, annulation via `AbortSignal`, sans retry caché.
-  - [ ] Stabiliser les erreurs et journaux : uniquement fournisseur, durée, outcome, compteur et correlation ID ; aucune donnée bibliographique ou réponse brute.
+- [x] T2 — Implémenter les ports et l’orchestrateur de recherche (AC: 1, 3, 5, 6, 7)
+  - [x] Créer `CatalogProvider`, `CatalogSearchRequest` (`mode: title | author`) et l’union `CatalogSearchOutcome` (`invalid | complete | partial | empty | unavailable`) selon la table de vérité normative des AC 5/6.
+  - [x] Normaliser NFKC, trim et espaces de la requête ; refuser vide ou > 200 caractères avant tout fournisseur.
+  - [x] Appeler les trois fournisseurs en parallèle avec 3 s maximum par source et 5 s maximum global, annulation via `AbortSignal`, sans retry caché.
+  - [x] Stabiliser les erreurs et journaux : uniquement fournisseur, durée, outcome, compteur et correlation ID ; aucune donnée bibliographique ou réponse brute.
 
-- [ ] T3 — Livrer les trois adaptateurs externes bornés (AC: 1, 2, 6, 7)
-  - [ ] Google Books : `GET /books/v1/volumes`, `intitle:`/`inauthor:`, `printType=books`, `projection=full`, `maxResults=10` et paramètre `fields` fermé aux métadonnées utilisées ; clé serveur optionnelle au build et validée au point d’usage.
-  - [ ] Open Library : `GET /search.json` avec `title` ou `author`, `lang=fr`, `limit=10` et liste explicite `key,title,author_name,first_publish_year,editions` plus champs `editions.*` nécessaires ; ne jamais demander `fields=*`.
-  - [ ] BnF : SRU 1.2 `searchRetrieve`, critère `bib.title` ou `bib.author`, `recordSchema=dublincore`, `maximumRecords=10`; parser le XML avec `fast-xml-parser@5.10.1`, jamais par regex.
-  - [ ] Construire les langages de requête avec des encodeurs dédiés : neutraliser contrôles, antislashs, guillemets et opérateurs dans le terme Google/BnF avant de l’insérer dans un unique critère, puis laisser `URLSearchParams` encoder le transport. Tester guillemets, `and/or/not`, préfixes de champ et antislashs hostiles.
-  - [ ] Utiliser `redirect: manual`, refuser tout 3xx et tout statut autre que 200 ; exiger JSON pour Google/Open Library et XML pour BnF. Lire le flux décompressé par chunks avec plafond 1 Mio avant parsing.
-  - [ ] Accepter uniquement HTTPS et les origines officielles ; une origine loopback n’est autorisée que sous `ENABLE_E2E_HARNESS=1`. Revalider l’URL finale avant traitement.
-  - [ ] Pour BnF, refuser `DOCTYPE`/entités, désactiver `processEntities`, puis borner après parsing profondeur à 32 et nœuds à 10 000 ; tester namespaces, répétitions, profondeur hostile et redirection externe.
-  - [ ] Ajouter une configuration catalogue `read*` tolérante au build et `require*` stricte à l’exécution, sans exposer clé ou URL au client.
+- [x] T3 — Livrer les trois adaptateurs externes bornés (AC: 1, 2, 6, 7)
+  - [x] Google Books : `GET /books/v1/volumes`, `intitle:`/`inauthor:`, `printType=books`, `projection=full`, `maxResults=10` et paramètre `fields` fermé aux métadonnées utilisées ; clé serveur optionnelle au build et validée au point d’usage.
+  - [x] Open Library : `GET /search.json` avec `title` ou `author`, `lang=fr`, `limit=10` et liste explicite `key,title,author_name,first_publish_year,editions` plus champs `editions.*` nécessaires ; ne jamais demander `fields=*`.
+  - [x] BnF : SRU 1.2 `searchRetrieve`, critère `bib.title` ou `bib.author`, `recordSchema=dublincore`, `maximumRecords=10`; parser le XML avec `fast-xml-parser@5.10.1`, jamais par regex.
+  - [x] Construire les langages de requête avec des encodeurs dédiés : neutraliser contrôles, antislashs, guillemets et opérateurs dans le terme Google/BnF avant de l’insérer dans un unique critère, puis laisser `URLSearchParams` encoder le transport. Tester guillemets, `and/or/not`, préfixes de champ et antislashs hostiles.
+  - [x] Utiliser `redirect: manual`, refuser tout 3xx et tout statut autre que 200 ; exiger JSON pour Google/Open Library et XML pour BnF. Lire le flux décompressé par chunks avec plafond 1 Mio avant parsing.
+  - [x] Accepter uniquement HTTPS et les origines officielles ; une origine loopback n’est autorisée que sous `ENABLE_E2E_HARNESS=1`. Revalider l’URL finale avant traitement.
+  - [x] Pour BnF, refuser `DOCTYPE`/entités, désactiver `processEntities`, puis borner après parsing profondeur à 32 et nœuds à 10 000 ; tester namespaces, répétitions, profondeur hostile et redirection externe.
+  - [x] Ajouter une configuration catalogue `read*` tolérante au build et `require*` stricte à l’exécution, sans exposer clé ou URL au client.
 
-- [ ] T4 — Construire la surface Catalogue privée et accessible (AC: 4, 5, 6, 7)
-  - [ ] Ajouter `/catalogue`, dynamique et `no-store`, avec garde `getVerifiedSession()` avant tout rendu privé ; conserver la destination à travers `/connexion` via l’allowlist existante.
-  - [ ] Ajouter une Server Action mince et un composant client utilisant une union d’état sérialisable ; aucun appel fournisseur ni règle de normalisation dans le composant.
-  - [ ] Fournir contrôle titre/auteur, champ libellé, validation reliée, région live, résultats activables, fiche avec focus géré, Réessayer et lien vers `/catalogue/ajout-manuel?mode=...&q=...`.
-  - [ ] Livrer cette route comme surface de transfert non mutante : garde session, validation identique, champs préremplis et message indiquant que la création sera disponible avec Story 2.6 ; aucune soumission de création ni faux succès.
-  - [ ] Ajouter `CATALOG_REDIRECT = "/catalogue"` à l’allowlist littérale existante et ses tests hostiles ; préserver les fallbacks actuels.
-  - [ ] Ajouter depuis `/bibliotheque` une action visible « Rechercher dans le Catalogue », distincte de la future recherche personnelle.
-  - [ ] Étendre les styles existants sans carte imbriquée, sans couleur seule, avec cibles 44 px/48 px tactile, focus deux tons et dimensions stables.
+- [x] T4 — Construire la surface Catalogue privée et accessible (AC: 4, 5, 6, 7)
+  - [x] Ajouter `/catalogue`, dynamique et `no-store`, avec garde `getVerifiedSession()` avant tout rendu privé ; conserver la destination à travers `/connexion` via l’allowlist existante.
+  - [x] Ajouter une Server Action mince et un composant client utilisant une union d’état sérialisable ; aucun appel fournisseur ni règle de normalisation dans le composant.
+  - [x] Fournir contrôle titre/auteur, champ libellé, validation reliée, région live, résultats activables, fiche avec focus géré, Réessayer et lien vers `/catalogue/ajout-manuel?mode=...&q=...`.
+  - [x] Livrer cette route comme surface de transfert non mutante : garde session, validation identique, champs préremplis et message indiquant que la création sera disponible avec Story 2.6 ; aucune soumission de création ni faux succès.
+  - [x] Ajouter `CATALOG_REDIRECT = "/catalogue"` à l’allowlist littérale existante et ses tests hostiles ; préserver les fallbacks actuels.
+  - [x] Ajouter depuis `/bibliotheque` une action visible « Rechercher dans le Catalogue », distincte de la future recherche personnelle.
+  - [x] Étendre les styles existants sans carte imbriquée, sans couleur seule, avec cibles 44 px/48 px tactile, focus deux tons et dimensions stables.
 
-- [ ] T5 — Prouver les contrats fournisseur et l’absence de mutation (AC: 1 à 7)
-  - [ ] Unitaires : validation hostile JSON/XML, champs absents, empreinte/référence, limites, états fermés, timeout/abort, stabilisation d’erreur et fuite.
-  - [ ] Unitaires de provenance : chaque valeur et chaque édition conserve ses `claimRefs` après fusion multi-source ; aucune claim orpheline ou inconnue n’est sérialisée.
-  - [ ] Intégration : faux serveur Catalogue déterministe couvrant succès, vide, JSON/XML invalide, réponse > 1 Mio, 429, 500, lenteur et connexion interrompue ; prouver priorité Google et isolation des pannes.
-  - [ ] Test négatif architectural : aucune migration, aucun import PostgreSQL/repository canonique ni écriture depuis `src/modules/catalog`; `/catalogue` peut dépendre uniquement de `identity/application/session` pour la garde Supabase. Session absente/indisponible = zéro appel fournisseur.
-  - [ ] Leak tests : requête, titre, auteurs et identifiants fournisseur absents des logs/traces/Sentry/erreurs ; corps brut, message/URL non autorisée et secret absents de l’état client. Seuls les champs normalisés bornés nécessaires à l’affichage peuvent atteindre le navigateur.
-  - [ ] E2E sur les quatre projets : titre, auteur, même candidat au pointeur/tactile/clavier, fiche sans ajout rapide, empty conservé, partial/unavailable, Réessayer, transfert manuel prérempli, focus/reflow/zoom.
-  - [ ] Prouver qu’aucune requête réseau, configuration, fixture ou chaîne d’adaptateur ne cible Amazon.
+- [x] T5 — Prouver les contrats fournisseur et l’absence de mutation (AC: 1 à 7)
+  - [x] Unitaires : validation hostile JSON/XML, champs absents, empreinte/référence, limites, états fermés, timeout/abort, stabilisation d’erreur et fuite.
+  - [x] Unitaires de provenance : chaque valeur et chaque édition conserve ses `claimRefs` après fusion multi-source ; aucune claim orpheline ou inconnue n’est sérialisée.
+  - [x] Intégration : faux serveur Catalogue déterministe couvrant succès, vide, JSON/XML invalide, réponse > 1 Mio, 429, 500, lenteur et connexion interrompue ; prouver priorité Google et isolation des pannes.
+  - [x] Test négatif architectural : aucune migration, aucun import PostgreSQL/repository canonique ni écriture depuis `src/modules/catalog`; `/catalogue` peut dépendre uniquement de `identity/application/session` pour la garde Supabase. Session absente/indisponible = zéro appel fournisseur.
+  - [x] Leak tests : requête, titre, auteurs et identifiants fournisseur absents des logs/traces/Sentry/erreurs ; corps brut, message/URL non autorisée et secret absents de l’état client. Seuls les champs normalisés bornés nécessaires à l’affichage peuvent atteindre le navigateur.
+  - [x] E2E sur les quatre projets : titre, auteur, même candidat au pointeur/tactile/clavier, fiche sans ajout rapide, empty conservé, partial/unavailable, Réessayer, transfert manuel prérempli, focus/reflow/zoom.
+  - [x] Prouver qu’aucune requête réseau, configuration, fixture ou chaîne d’adaptateur ne cible Amazon.
 
-- [ ] T6 — Clôturer la Definition of Done BMAD (AC: 1 à 7)
-  - [ ] Mettre à jour la matrice ci-dessous avec les fichiers/tests réellement livrés et conserver un scénario négatif par AC.
-  - [ ] Exécuter les portes ciblées puis `npm run ci:all`; ne marquer une tâche `[x]` qu’après résultat vert réel.
-  - [ ] Compléter Dev Agent Record, File List et Change Log ; passer la story et `sprint-status.yaml` à `review` seulement si toutes les tâches sont closes.
+- [x] T6 — Clôturer la Definition of Done BMAD (AC: 1 à 7)
+  - [x] Mettre à jour la matrice ci-dessous avec les fichiers/tests réellement livrés et conserver un scénario négatif par AC.
+  - [x] Exécuter les portes ciblées puis `npm run ci:all`; ne marquer une tâche `[x]` qu’après résultat vert réel.
+  - [x] Compléter Dev Agent Record, File List et Change Log ; passer la story et `sprint-status.yaml` à `review` seulement si toutes les tâches sont closes.
 
 ## AC → preuve → scénario négatif → porte CI
 
@@ -190,20 +191,76 @@ Réutiliser `src/modules/identity/application/session.ts`, les unions d’état 
 
 ### Agent Model Used
 
-À renseigner par l’agent de développement.
+GPT-5 Codex avec sous-agents BMAD spécialisés domaine, adaptateurs, preuves négatives et revue adversariale.
 
 ### Implementation Plan
 
-À renseigner avant T1 puis maintenir selon red-green-refactor.
+1. Écrire les tests du domaine candidat, de provenance et des outcomes avant les implémentations T1/T2.
+2. Livrer les adaptateurs HTTP derrière un lecteur borné et des encodeurs dédiés, puis leurs tests d’intégration hostiles.
+3. Construire la surface privée Catalogue et le transfert manuel, puis les preuves E2E/accessibilité.
+4. Exécuter les portes ciblées, compléter les preuves BMAD et finir par `npm run ci:all`.
 
 ### Debug Log References
 
+- `node --test tests/unit/catalog-domain.test.mjs tests/unit/catalog-search.test.mjs tests/integration/catalog-adapters.test.mjs tests/integration/catalog-session-boundary.test.mjs tests/leak/catalog-leak.test.mjs tests/leak/observability-leak.test.mjs` — 45/45 vert après correctifs de revue.
+- `npx playwright test tests/e2e/catalogue.spec.ts --workers=1` — 24/24 vert sur les quatre projets.
+- `npm run ci:database` avec cible locale explicite — vert ; le canari de cookie attendu classe l'indisponibilité sans échec de gate.
+- `npm run ci:e2e` avec cible locale explicite — 156/156 vert sur les quatre projets.
+- `npm run ci:all` avec cible locale explicite — vert en 689 s après nettoyage des processus résiduels du harnais.
+- Revue adversariale indépendante : findings corrigés sur enveloppes, provenance, bornes, DTO, sessions, observabilité et éditions.
+
 ### Completion Notes List
 
+- Domaine bibliographique non autoritatif livré avec provenance versionnée, `candidateRef` stable, fusion exacte transitive, limites et ordre Google > Open Library > BnF.
+- Trois adaptateurs serveur bornés livrés avec validation stricte JSON/SRU, origine/MIME/redirection contrôlés, XML durci et aucun retry caché.
+- Surface privée `/catalogue` et transfert `/catalogue/ajout-manuel` livrés sans mutation ; l’état client est réduit à un DTO d’affichage sans claims, empreintes, identifiants fournisseur ni URLs de droits.
+- Preuves AC1–AC3 : `catalog-domain.test.mjs`, `catalog-search.test.mjs`, `catalog-adapters.test.mjs`, `catalog-boundaries.test.mjs` et `catalog-leak.test.mjs`.
+- Preuves AC4–AC7 : `catalog-session-boundary.test.mjs`, `redirect-allowlist.test.mjs` et `catalogue.spec.ts`, incluant pointeur, tactile réel, clavier, axe, zoom 200 %, reflow 320 px et espacement WCAG 1.4.12.
+- `ci:all` couvre lint, types, tests unitaires, intégration, fuite, environnement, base, recovery, E2E, budgets, build et mutations ; résultat final vert.
+
 ### File List
+
+- `.env.example`
+- `_bmad-output/implementation-artifacts/2-1-rechercher-une-oeuvre-par-titre-ou-auteur.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `package-lock.json`
+- `package.json`
+- `playwright.config.ts`
+- `src/app/bibliotheque/page.tsx`
+- `src/app/catalogue/actions.ts`
+- `src/app/catalogue/ajout-manuel/page.tsx`
+- `src/app/catalogue/catalogue-search.tsx`
+- `src/app/catalogue/page.tsx`
+- `src/app/catalogue/state.ts`
+- `src/app/globals.css`
+- `src/modules/catalog/adapters/adapter-types.ts`
+- `src/modules/catalog/adapters/bnf-sru.ts`
+- `src/modules/catalog/adapters/catalog-http.ts`
+- `src/modules/catalog/adapters/google-books.ts`
+- `src/modules/catalog/adapters/open-library.ts`
+- `src/modules/catalog/adapters/query-encoding.ts`
+- `src/modules/catalog/application/catalog-provider.ts`
+- `src/modules/catalog/application/search-catalog.ts`
+- `src/modules/catalog/domain/normalized-candidate.ts`
+- `src/modules/identity/application/redirect-allowlist.ts`
+- `src/shared/config/environment.ts`
+- `src/shared/observability/index.ts`
+- `src/shared/observability/logger.ts`
+- `src/shared/observability/sentry.ts`
+- `sentry.server.config.ts`
+- `tests/e2e/catalogue.spec.ts`
+- `tests/e2e/faux-service-catalogue.mjs`
+- `tests/integration/catalog-adapters.test.mjs`
+- `tests/integration/catalog-boundaries.test.mjs`
+- `tests/integration/catalog-session-boundary.test.mjs`
+- `tests/leak/catalog-leak.test.mjs`
+- `tests/unit/catalog-domain.test.mjs`
+- `tests/unit/catalog-search.test.mjs`
+- `tests/unit/redirect-allowlist.test.mjs`
 
 ## Change Log
 
 | Date | Changement |
 |---|---|
 | 2026-08-07 | Story créée après correct-course approuvé ; contrat non mutant, fournisseurs, UX, sécurité et preuves CI détaillés. |
+| 2026-08-07 | Story 2.1 implémentée, revue adversarialement et corrigée ; validations ciblées et E2E complet verts ; statut passé à `review`. |

@@ -69,3 +69,12 @@ export function sanitizeSentryEvent<T extends object>(event: T, correlation: Cor
 
   return sanitized as T;
 }
+
+export function sanitizeSentrySpan<T extends object>(span: T, correlation: CorrelationContext = {}): T {
+  const sanitized: MutableRecord = { ...(span as MutableRecord) };
+  if ("description" in sanitized) sanitized.description = REDACTION_PLACEHOLDER;
+  if ("name" in sanitized) sanitized.name = REDACTION_PLACEHOLDER;
+  delete sanitized.tags;
+  sanitized.data = sanitizeCorrelationContext(correlation);
+  return sanitized as T;
+}

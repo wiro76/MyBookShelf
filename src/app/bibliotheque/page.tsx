@@ -65,7 +65,7 @@ export default async function BibliothequePage() {
 
   const [summary, resume] = await Promise.all([
     loadPrivateLibrarySummary(session.user.id),
-    // Les tables canoniques de rangement arrivent avec les stories 3.x. Jusqu'alors la
+    // Les tables canoniques de rangement arrivent avec la story 2.3. Jusqu'alors la
     // projection courante est légitimement vide : aucun faux livre n'est créé pour donner
     // l'illusion d'une reprise. Le port restera identique lorsque cette projection existera.
     resumeLibraryContext(session.user.id, [], createPostgresLibraryViewStateRepository()),
@@ -126,6 +126,11 @@ export default async function BibliothequePage() {
                 summary.noteCount > 1 ? "s" : ""
               } t’attendent ici. Tes étagères arriveront dans un prochain incrément.`}
         </p>
+        <nav className="library-actions" aria-label="Actions de la bibliothèque">
+          <a className="primary-action" href="/catalogue">
+            Rechercher dans le Catalogue
+          </a>
+        </nav>
         <LibraryResumeFocus
           targetId={resume.status === "empty" ? "titre-bibliotheque" : "library-resume-target"}
           announcement={"announcement" in resume ? resume.announcement : null}

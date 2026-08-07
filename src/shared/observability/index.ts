@@ -33,4 +33,4 @@ export {
 } from "./logger";
 export type { LogLevel } from "./logger";
 export { REDACTION_PLACEHOLDER, TRUNCATION_SUFFIX, redactSensitiveText } from "./redaction";
-export { sanitizeSentryEvent } from "./sentry";
+export { sanitizeSentryEvent, sanitizeSentrySpan } from "./sentry";

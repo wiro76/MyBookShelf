@@ -89,6 +89,7 @@ try {
 if (moduleSousTest) {
   const {
     DEFAULT_REDIRECT,
+    CATALOG_REDIRECT,
     PRIVATE_LIBRARY_REDIRECT,
     REDIRECT_ALLOWLIST,
     isAllowedRedirect,
@@ -97,10 +98,11 @@ if (moduleSousTest) {
 
   // --- La liste blanche elle-même ------------------------------------------
 
-  test("la liste blanche est littérale et ne contient que les deux destinations prévues", () => {
-    assert.deepEqual([...REDIRECT_ALLOWLIST], ["/", "/bibliotheque"]);
+  test("la liste blanche est littérale et ne contient que les destinations prévues", () => {
+    assert.deepEqual([...REDIRECT_ALLOWLIST], ["/", "/bibliotheque", "/catalogue"]);
     assert.equal(DEFAULT_REDIRECT, "/");
     assert.equal(PRIVATE_LIBRARY_REDIRECT, "/bibliotheque");
+    assert.equal(CATALOG_REDIRECT, "/catalogue");
   });
 
   test("les destinations autorisées sont acceptées telles quelles", () => {
@@ -140,6 +142,9 @@ if (moduleSousTest) {
     "/bibliotheque/",
     "/bibliotheque?x=1",
     "/bibliotheque#ancre",
+    "/catalogue/",
+    "/catalogue?x=1",
+    "/catalogue/../admin",
     "/Bibliotheque",
     "/BIBLIOTHEQUE",
     " /bibliotheque",
@@ -168,7 +173,7 @@ if (moduleSousTest) {
   });
 
   test("le refus ne réaffiche jamais la valeur refusée", () => {
-    // La seule sortie possible est l'une des deux destinations autorisées : il n'existe
+    // La seule sortie possible est l'une des destinations autorisées : il n'existe
     // aucun chemin par lequel un fragment de l'entrée pourrait ressortir.
     for (const hostile of CAS_HOSTILES) {
       const resultat = resolveRedirectDestination(hostile);

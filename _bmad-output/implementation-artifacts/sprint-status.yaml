@@ -60,7 +60,7 @@ development_status:
   epic-1-retrospective: done
 
   epic-2: in-progress
-  2-1-rechercher-une-oeuvre-par-titre-ou-auteur: ready-for-dev
+  2-1-rechercher-une-oeuvre-par-titre-ou-auteur: review
   2-2-comparer-et-choisir-une-edition: backlog
   2-3-initialiser-le-rangement-reel-de-la-bibliotheque: backlog
   2-4-ajouter-ledition-choisie-comme-envie-de-lire: backlog

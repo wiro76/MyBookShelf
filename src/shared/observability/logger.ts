@@ -58,7 +58,8 @@ export const LOG_LINE_MAX_BYTES = 256 * 1024;
  * - **Identifiants de messagerie** (`msgId`, `messageId`) : entier pgmq et UUID
  *   d'enveloppe. Ni l'un ni l'autre n'est dérivé d'un contenu.
  * - **Topologie** (`queue`, `deadLetterQueue`, `worker`, `operation`, `producer`,
- *   `eventType`) : noms de files, de modules, de fonctions et de types d'événements. Ce
+ *   `eventType`, `provider`) : noms de files, de modules, de fonctions, de fournisseurs
+ *   techniques et de types d'événements. Ce
  *   sont des constantes du code source, pas des données d'exécution. `eventType` nomme un
  *   schéma (`library.book.added`), jamais son contenu.
  * - **Mesures** (`durationMs`, `count`, `attempt`, `readCt`, `batchSize`) : des nombres.
@@ -87,6 +88,7 @@ const ALLOWED_FIELDS: Record<string, ReadonlyArray<"string" | "number" | "boolea
   operation: ["string"],
   producer: ["string"],
   eventType: ["string"],
+  provider: ["string"],
   durationMs: ["number"],
   count: ["number"],
   attempt: ["number"],

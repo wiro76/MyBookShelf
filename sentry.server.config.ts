@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
-import { correlationAttributes, sanitizeSentryEvent } from "@/shared/observability";
+import { correlationAttributes, sanitizeSentryEvent, sanitizeSentrySpan } from "@/shared/observability";
 
 /**
  * Configuration Sentry — runtime Node — story 1.4 (T4, AC 2 ; AD-12, NFR-7).
@@ -81,7 +81,7 @@ if (dsn) {
     },
 
     beforeSendSpan(span) {
-      return { ...span, data: { ...span.data, ...correlationAttributes() } };
+      return sanitizeSentrySpan(span, correlationAttributes());
     },
   });
 }
