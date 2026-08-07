@@ -50,11 +50,14 @@ afin que le premier ajout et tous les suivants utilisent immédiatement la struc
 - Ajout de l’initialisation idempotente des trois statuts avec cinq étagères par module, puis de l’append transactionnel avec capacité, ownership et rejeu par `commandId`.
 - Projection de la fondation réelle vide dans `/bibliotheque`, avec états distincts par statut et actions vers Catalogue et ajout manuel.
 - Ajout des preuves SQL/RLS, du canari d’intégration et des tests unitaires domaine.
+- Revue adversariale traitée : verrou advisory contre la concurrence, validation de capacité, trigger de cohérence, reçu de rejeu protégé par fonction `security definer`, et état vide conditionnel à l’occupation.
 
 ### Validation
 
 - `npm run ci:all` : vert, 747,5 s.
 - Gates incluses : lint, typecheck, tests unitaires, intégration, fuite, environnement, migrations/RLS, reprise, E2E, budgets, statique et mutations.
+- Revalidation ciblée post-revue : lint, typecheck, 194 tests unitaires et `npm run ci:database` verts, incluant les append concurrents.
+- Une relance post-revue de `npm run ci:all` a dépassé le timeout outil de 15 minutes sans code d’échec exploitable ; les gates ciblées restent la preuve de validation disponible pour ce correctif.
 
 ### File List
 
@@ -68,7 +71,9 @@ afin que le premier ajout et tous les suivants utilisent immédiatement la struc
 - `scripts/run-database-gates.mjs`
 - `tests/unit/library-foundation.test.mjs`
 - `tests/integration/database-library-foundation-canary.mjs`
+- `tests/unit/library-view-state.test.mjs`
 
 ### Change Log
 
 - 2026-08-07 : implémentation 2.3 terminée et prête pour revue.
+- 2026-08-07 : corrections issues de la revue adversariale et preuve de concurrence ajoutées.

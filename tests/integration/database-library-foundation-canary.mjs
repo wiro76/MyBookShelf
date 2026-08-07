@@ -43,8 +43,8 @@ if (modules) {
   const { Client } = pg;
   const OWNER = "a3111111-1111-4111-8111-111111111111";
   const OTHER = "a3222222-2222-4222-8222-222222222222";
-  const COPY_IDS = Array.from({ length: 6 }, (_, index) => `c33${String(index + 1).padStart(2, "0")}111-1111-4111-8111-111111111111`);
-  const COMMAND_IDS = Array.from({ length: 6 }, (_, index) => `d33${String(index + 1).padStart(2, "0")}111-1111-7111-8111-111111111111`);
+  const COPY_IDS = Array.from({ length: 13 }, (_, index) => `c33${String(index + 1).padStart(2, "0")}111-1111-4111-8111-111111111111`);
+  const COMMAND_IDS = Array.from({ length: 13 }, (_, index) => `d33${String(index + 1).padStart(2, "0")}111-1111-7111-8111-111111111111`);
   const admin = new Client({ connectionString: databaseUrl });
   await admin.connect();
   const repository = modules.adapter.createPostgresLibraryFoundationRepository();
@@ -62,10 +62,17 @@ if (modules) {
     const replay = await repository.appendPlacement(OWNER, COMMAND_IDS[0], { status: "want-to-read", copyId: COPY_IDS[0], widthUnits: 20 });
     assert.equal(first.status, "confirmed");
     assert.deepEqual(replay, { ...first, status: "replayed" });
-    for (let index = 1; index < COPY_IDS.length; index += 1) await repository.appendPlacement(OWNER, COMMAND_IDS[index], { status: "want-to-read", copyId: COPY_IDS[index], widthUnits: 20 });
+    for (let index = 1; index < 6; index += 1) await repository.appendPlacement(OWNER, COMMAND_IDS[index], { status: "want-to-read", copyId: COPY_IDS[index], widthUnits: 20 });
     const expanded = await repository.load(OWNER);
     assert.equal(expanded.statuses.find(({ status }) => status === "want-to-read").modules.length, 2, "un seul module suivant est créé");
-    assert.equal((await admin.query("select count(*)::int as count from library.placements where user_id = $1", [OWNER])).rows[0].count, 6);
+    for (let index = 6; index < 11; index += 1) await repository.appendPlacement(OWNER, COMMAND_IDS[index], { status: "reading", copyId: COPY_IDS[index], widthUnits: 20 });
+    await Promise.all([
+      repository.appendPlacement(OWNER, COMMAND_IDS[11], { status: "reading", copyId: COPY_IDS[11], widthUnits: 20 }),
+      repository.appendPlacement(OWNER, COMMAND_IDS[12], { status: "reading", copyId: COPY_IDS[12], widthUnits: 20 }),
+    ]);
+    const concurrent = await repository.load(OWNER);
+    assert.equal(concurrent.statuses.find(({ status }) => status === "reading").modules.length, 2, "les append concurrents créent un seul module suivant");
+    assert.equal((await admin.query("select count(*)::int as count from library.placements where user_id = $1", [OWNER])).rows[0].count, 13);
     const other = await repository.load(OTHER);
     assert.deepEqual(other.statuses.map(({ modules: values }) => values.length), [0, 0, 0], "RLS isole le second utilisateur");
     process.stdout.write("Canari fondation: initialisation idempotente, projection réelle, append atomique, rejeu et RLS.\n");

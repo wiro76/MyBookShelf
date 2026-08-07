@@ -4,6 +4,7 @@ import {
   DEFAULT_SHELF_CAPACITY_UNITS,
   DEFAULT_SHELF_COUNT,
   LibraryFoundationError,
+  validateAppendPlacementInput,
   type LibraryProjection,
 } from "../domain/library-foundation";
 import type { LibraryStatus } from "../domain/library-view-state";
@@ -85,8 +86,10 @@ export function createPostgresLibraryFoundationRepository(transaction: Transacti
 
     appendPlacement(userId, commandId, input) {
       if (!UUID.test(userId) || !UUID.test(commandId) || !UUID.test(input.copyId)) return Promise.reject(new LibraryFoundationError());
-      const digest = placementRequestDigest(commandId, userId, input);
+      const validatedInput = validateAppendPlacementInput(input);
+      const digest = placementRequestDigest(commandId, userId, validatedInput);
       return transaction(userId, async (client) => {
+        await client.query("select pg_advisory_xact_lock(hashtextextended($1 || ':' || $2, 0))", [userId, validatedInput.status]);
         const replay = await client.query<{ request_sha256: string; placement_id: string; created_at: Date | string }>(`
           select request_sha256, placement_id, created_at from library.placement_receipts where user_id = $1 and command_id = $2
         `, [userId, commandId]);
@@ -94,11 +97,11 @@ export function createPostgresLibraryFoundationRepository(transaction: Transacti
           if (replay.rows[0].request_sha256 !== digest) throw new LibraryFoundationError("LIBRARY_FOUNDATION_COMMAND_REUSED");
           return { commandId, commandType: "library.placement.append", status: "replayed", placementId: replay.rows[0].placement_id!, confirmedAt: safeDate(replay.rows[0].created_at) };
         }
-        const copy = await client.query<{ id: string }>("select id from library.copies where id = $1 and user_id = $2 for update", [input.copyId, userId]);
+        const copy = await client.query<{ id: string }>("select id from library.copies where id = $1 and user_id = $2 for update", [validatedInput.copyId, userId]);
         if (!copy.rows[0]) throw new LibraryFoundationError("LIBRARY_FOUNDATION_COPY_MISSING");
-        const existing = await client.query("select 1 from library.placements where copy_id = $1", [input.copyId]);
+        const existing = await client.query("select 1 from library.placements where copy_id = $1", [validatedInput.copyId]);
         if (existing.rows[0]) throw new LibraryFoundationError("LIBRARY_FOUNDATION_COPY_ALREADY_PLACED");
-        await ensureStatus(client, userId, input.status);
+        await ensureStatus(client, userId, validatedInput.status);
         const target = await client.query<{ module_id: string; shelf_id: string; module_position: number; shelf_position: number; item_position: number }>(`
           with shelves as (
             select modules.id as module_id, shelves.id as shelf_id, modules.module_position, shelves.shelf_position,
@@ -112,7 +115,7 @@ export function createPostgresLibraryFoundationRepository(transaction: Transacti
           from shelves where occupied_units + $3 <= capacity_units
           order by module_position desc, shelf_position desc limit 1
           for update
-        `, [userId, input.status, input.widthUnits]);
+        `, [userId, validatedInput.status, validatedInput.widthUnits]);
         let destination = target.rows[0];
         if (!destination) {
           const nextModule = await client.query<{ id: string; module_position: number }>(`
@@ -120,7 +123,7 @@ export function createPostgresLibraryFoundationRepository(transaction: Transacti
             select $1, $2, coalesce(max(module_position), -1) + 1, $3, $4
             from library.modules where user_id = $1 and status = $2
             returning id, module_position
-          `, [userId, input.status, DEFAULT_SHELF_COUNT, DEFAULT_SHELF_CAPACITY_UNITS]);
+        `, [userId, validatedInput.status, DEFAULT_SHELF_COUNT, DEFAULT_SHELF_CAPACITY_UNITS]);
           const nextModuleRow = nextModule.rows[0];
           await client.query(`insert into library.shelves (user_id, module_id, shelf_position, capacity_units) select $1, $2, generate_series(0, $3 - 1), $4`, [userId, nextModuleRow.id, DEFAULT_SHELF_COUNT, DEFAULT_SHELF_CAPACITY_UNITS]);
           const shelf = await client.query<{ id: string }>("select id from library.shelves where user_id = $1 and module_id = $2 and shelf_position = 0", [userId, nextModuleRow.id]);
@@ -129,9 +132,9 @@ export function createPostgresLibraryFoundationRepository(transaction: Transacti
         const placement = await client.query<{ id: string; version: string | number; created_at: Date | string }>(`
           insert into library.placements (user_id, status, shelf_id, module_id, copy_id, item_position, width_units)
           values ($1, $2, $3, $4, $5, $6, $7) returning id, version, created_at
-        `, [userId, input.status, destination.shelf_id, destination.module_id, input.copyId, destination.item_position, input.widthUnits]);
+        `, [userId, validatedInput.status, destination.shelf_id, destination.module_id, validatedInput.copyId, destination.item_position, validatedInput.widthUnits]);
         const row = placement.rows[0];
-        await client.query(`insert into library.placement_receipts (user_id, command_id, request_sha256, placement_id, result_revision, created_at) values ($1, $2, $3, $4, $5, $6)`, [userId, commandId, digest, row.id, Number(row.version), row.created_at]);
+        await client.query("select library.record_placement_receipt($1, $2, $3, $4, $5, $6)", [userId, commandId, digest, row.id, Number(row.version), row.created_at]);
         return { commandId, commandType: "library.placement.append", status: "confirmed", placementId: row.id, confirmedAt: safeDate(row.created_at) };
       });
     },

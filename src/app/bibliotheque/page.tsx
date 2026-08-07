@@ -161,7 +161,7 @@ export default async function BibliothequePage() {
         </p>
         <section className="library-foundation" aria-labelledby="library-foundation-title">
           <h2 id="library-foundation-title">Ton rangement réel</h2>
-          <p className="project-status">Chaque statut possède maintenant son module et ses étagères persistants. Aucun livre n’a été créé.</p>
+          <p className="project-status">Chaque statut possède maintenant son module et ses étagères persistants. La projection ci-dessous reflète uniquement les exemplaires réellement placés.</p>
           <div className="library-status-grid">
             {projection.statuses.map((entry) => {
               const label = entry.status === "want-to-read" ? "Envie de lire" : entry.status === "reading" ? "En cours" : "Terminés";
@@ -176,7 +176,7 @@ export default async function BibliothequePage() {
                       </ul>
                     </div>
                   ))}
-                  <p className="library-empty-state">Aucun exemplaire placé dans ce statut.</p>
+                  <p className="library-empty-state">{entry.modules.some((module) => module.shelves.some((shelf) => shelf.occupiedUnits > 0)) ? "Les exemplaires placés sont comptabilisés sur leurs étagères." : "Aucun exemplaire placé dans ce statut."}</p>
                   <div className="library-actions">
                     <a className="primary-action" href="/catalogue">Rechercher dans le Catalogue</a>
                     <a className="catalog-secondary-action" href="/catalogue/ajout-manuel">Ajouter manuellement</a>

@@ -23,6 +23,7 @@ test("valide les entrées d'append sans accepter une largeur nulle", () => {
   assert.deepEqual(validateAppendPlacementInput({ status: "want-to-read", copyId: "copy-1", widthUnits: 2 }), { status: "want-to-read", copyId: "copy-1", widthUnits: 2 });
   assert.throws(() => validateAppendPlacementInput({ status: "unknown", copyId: "copy-1", widthUnits: 1 }), { code: "LIBRARY_FOUNDATION_INVALID" });
   assert.throws(() => validateAppendPlacementInput({ status: "reading", copyId: "copy-1", widthUnits: 0 }), { code: "LIBRARY_FOUNDATION_INVALID" });
+  assert.throws(() => validateAppendPlacementInput({ status: "reading", copyId: "copy-1", widthUnits: 21 }), { code: "LIBRARY_FOUNDATION_INVALID" });
 });
 
 test("append choisit la prochaine position disponible sans créer de module prématurément", () => {

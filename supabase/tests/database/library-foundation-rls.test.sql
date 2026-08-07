@@ -48,8 +48,8 @@ select throws_ok($$ insert into library.copies (user_id, edition_id) values ('a1
 select set_config('request.jwt.claim.sub', 'a1111111-1111-4111-8111-111111111111', true);
 insert into library.copies (user_id, edition_id) values ('a1111111-1111-4111-8111-111111111111', gen_random_uuid());
 select ok(has_table_privilege('authenticated', 'library.placements', 'insert'), 'authenticated peut placer');
-select ok(has_table_privilege('authenticated', 'library.placement_receipts', 'insert'), 'authenticated peut enregistrer un reçu');
-select throws_ok($$ insert into library.placements (user_id, status, shelf_id, module_id, copy_id, item_position) values ('a1111111-1111-4111-8111-111111111111', 'want-to-read', gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 0) $$, '23503', null, 'un placement sans cibles réelles est rejeté');
+select ok(not has_table_privilege('authenticated', 'library.placement_receipts', 'insert'), 'authenticated ne peut pas forger un reçu directement');
+select throws_ok($$ insert into library.placements (user_id, status, shelf_id, module_id, copy_id, item_position) values ('a1111111-1111-4111-8111-111111111111', 'want-to-read', gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 0) $$, '23514', null, 'un placement sans cibles réelles est rejeté');
 select ok(not has_table_privilege('authenticated', 'library.modules', 'delete'), 'la suppression directe des modules est interdite');
 select ok(not has_table_privilege('authenticated', 'library.placements', 'delete'), 'la suppression directe des placements est interdite');
 select ok(not has_table_privilege('anon', 'library.modules', 'select'), 'anon ne lit pas les modules');

@@ -58,7 +58,7 @@ const isPositive = (value: unknown): value is number => typeof value === "number
 export function validateAppendPlacementInput(value: unknown): AppendPlacementInput {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new LibraryFoundationError();
   const input = value as Record<string, unknown>;
-  if (!LIBRARY_STATUSES.includes(input.status as LibraryStatus) || typeof input.copyId !== "string" || !input.copyId || !isPositive(input.widthUnits)) {
+  if (!LIBRARY_STATUSES.includes(input.status as LibraryStatus) || typeof input.copyId !== "string" || !input.copyId || !isPositive(input.widthUnits) || input.widthUnits > DEFAULT_SHELF_CAPACITY_UNITS) {
     throw new LibraryFoundationError();
   }
   return { status: input.status as LibraryStatus, copyId: input.copyId, widthUnits: input.widthUnits };
