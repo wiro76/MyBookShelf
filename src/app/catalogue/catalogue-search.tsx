@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { rechercherCatalogue } from "./actions";
+import { ajouterEditionCommeEnvie, rechercherCatalogue } from "./actions";
 import { CATALOGUE_INITIAL_STATE, type CatalogueCandidate } from "./state";
 
 const PROVIDERS = {
@@ -17,6 +17,8 @@ function manualHref(mode: "title" | "author", query: string) {
 
 function EditionComparison({ candidate }: { candidate: CatalogueCandidate }) {
   const [selectedEditionRef, setSelectedEditionRef] = useState<string>();
+  const [commandId] = useState(() => crypto.randomUUID());
+  const [addState, addAction, addPending] = useActionState(ajouterEditionCommeEnvie, { status: "idle" as const });
   const selectedEdition = candidate.editions.find((edition) => edition.selectionRef === selectedEditionRef);
 
   return (
@@ -52,8 +54,18 @@ function EditionComparison({ candidate }: { candidate: CatalogueCandidate }) {
           })}
         </div>
       </fieldset>
+      {selectedEdition ? <form className="edition-add-form" action={addAction}>
+        <input type="hidden" name="commandId" value={commandId} />
+        <input type="hidden" name="candidateKey" value={candidate.candidateRef} />
+        <input type="hidden" name="editionKey" value={selectedEdition.selectionRef} />
+        <input type="hidden" name="workTitle" value={candidate.title} />
+        <input type="hidden" name="editionTitle" value={selectedEdition.title} />
+        <input type="hidden" name="identifiers" value={JSON.stringify(selectedEdition.identifiers)} />
+        <input type="hidden" name="provenance" value={JSON.stringify(selectedEdition.provenance)} />
+        <button className="primary-action" type="submit" disabled={addPending || addState.status === "confirmed"}>{addPending ? "Ajout…" : addState.status === "confirmed" ? "Ajouté comme envie de lire" : "Ajouter comme envie de lire"}</button>
+      </form> : null}
       <p className="catalog-selection-status" role="status" aria-live="polite" data-selected-edition-ref={selectedEdition?.selectionRef}>
-        {selectedEdition ? `Édition sélectionnée : ${selectedEdition.title}. La confirmation d’ajout sera proposée dans une prochaine étape.` : "Aucune édition sélectionnée."}
+        {addState.status === "unavailable" ? "Ta session n’est plus disponible. Reconnecte-toi pour ajouter cette édition." : addState.status === "invalid" ? "L’ajout n’a pas pu être confirmé. Vérifie la sélection puis réessaie." : addState.status === "confirmed" || addState.status === "replayed" ? "L’édition est maintenant visible dans Envie de lire." : selectedEdition ? `Édition sélectionnée : ${selectedEdition.title}.` : "Aucune édition sélectionnée."}
       </p>
     </section>
   );

@@ -25,11 +25,12 @@ registerHooks({
 
 let modules = null;
 try {
-  const [kernel, adapter] = await Promise.all([
-    import(pathToFileURL(resolvePath(ROOT, "src/shared/kernel/index.ts")).href),
-    import(pathToFileURL(resolvePath(ROOT, "src/modules/library/adapters/postgres-library-foundation.ts")).href),
+    const [kernel, adapter, wantToReadAdapter] = await Promise.all([
+      import(pathToFileURL(resolvePath(ROOT, "src/shared/kernel/index.ts")).href),
+      import(pathToFileURL(resolvePath(ROOT, "src/modules/library/adapters/postgres-library-foundation.ts")).href),
+      import(pathToFileURL(resolvePath(ROOT, "src/modules/library/adapters/postgres-library-want-to-read.ts")).href),
   ]);
-  modules = { kernel, adapter };
+    modules = { kernel, adapter, wantToReadAdapter };
 } catch (error) {
   if (process.env[RELAUNCH] || !/Unknown file extension|ERR_UNKNOWN_FILE_EXTENSION/.test(String(error?.message ?? ""))) throw error;
   const child = spawnSync(process.execPath, ["--experimental-strip-types", fileURLToPath(import.meta.url)], { stdio: "inherit", env: { ...process.env, [RELAUNCH]: "1" } });
@@ -73,6 +74,17 @@ if (modules) {
     const concurrent = await repository.load(OWNER);
     assert.equal(concurrent.statuses.find(({ status }) => status === "reading").modules.length, 2, "les append concurrents créent un seul module suivant");
     assert.equal((await admin.query("select count(*)::int as count from library.placements where user_id = $1", [OWNER])).rows[0].count, 13);
+    const addCommandId = "e3311111-1111-4111-8111-111111111111";
+    const addInput = { candidateKey: `candidate_${"a".repeat(64)}`, editionKey: `edition-${"b".repeat(32)}`, workTitle: "Dune", editionTitle: "Dune — édition test", identifiers: ["ISBN-13 9780000000000"], provenance: ["google-books"] };
+    const added = await modules.wantToReadAdapter.createPostgresLibraryWantToReadRepository().addEditionAsWantToRead(OWNER, addCommandId, addInput);
+    const addedReplay = await modules.wantToReadAdapter.createPostgresLibraryWantToReadRepository().addEditionAsWantToRead(OWNER, addCommandId, addInput);
+    assert.equal(added.status, "confirmed");
+    assert.deepEqual(addedReplay, { ...added, status: "replayed" });
+    assert.equal((await admin.query("select count(*)::int as count from library.user_works where user_id = $1", [OWNER])).rows[0].count, 1, "une intention want-to-read est créée");
+    assert.equal((await admin.query("select count(*)::int as count from library.library_add_receipts where user_id = $1", [OWNER])).rows[0].count, 1, "le reçu d ajout est idempotent");
+    assert.equal((await admin.query("select count(*)::int as count from library.library_add_receipts where user_id = $1 and copy_id = $2", [OWNER, added.copyId])).rows[0].count, 1);
+    assert.equal((await admin.query("select count(*)::int as count from library.library_add_receipts where user_id = $1 and placement_id = $2", [OWNER, added.placementId])).rows[0].count, 1);
+    assert.equal((await admin.query("select count(*)::int as count from library.user_works where user_id = $1 and intention = 'reading'", [OWNER])).rows[0].count, 0, "aucune Reading n est créée");
     const other = await repository.load(OTHER);
     assert.deepEqual(other.statuses.map(({ modules: values }) => values.length), [0, 0, 0], "RLS isole le second utilisateur");
     process.stdout.write("Canari fondation: initialisation idempotente, projection réelle, append atomique, rejeu et RLS.\n");

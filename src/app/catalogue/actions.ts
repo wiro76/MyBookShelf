@@ -7,6 +7,8 @@ import { createGoogleBooksAdapter } from "@/modules/catalog/adapters/google-book
 import { createOpenLibraryAdapter } from "@/modules/catalog/adapters/open-library";
 import { searchCatalog } from "@/modules/catalog/application/search-catalog";
 import { createEditionSelectionRef } from "@/modules/catalog/application/edition-selection";
+import { createPostgresLibraryWantToReadRepository } from "@/modules/library/adapters/postgres-library-want-to-read";
+import { validateAddEditionAsWantToRead } from "@/modules/library/application/library-want-to-read";
 import type { NormalizedCandidate } from "@/modules/catalog/domain/normalized-candidate";
 import type { CatalogueSearchState } from "./state";
 
@@ -65,4 +67,29 @@ export async function rechercherCatalogue(
       ? { status: "invalid" }
       : { status: outcome.status, query: outcome.query, mode: outcome.mode, candidates: outcome.candidates.map(toPresentationCandidate) },
   };
+}
+
+export type AddEditionState = Readonly<{ status: "idle" | "confirmed" | "replayed" | "invalid" | "unavailable"; copyId?: string }>;
+
+export async function ajouterEditionCommeEnvie(previousState: AddEditionState, formData: FormData): Promise<AddEditionState> {
+  const session = await getVerifiedSession();
+  if (session.status !== "authenticated") return { status: "unavailable" };
+  try {
+    const identifiers = JSON.parse(String(formData.get("identifiers") ?? "[]"));
+    const provenance = JSON.parse(String(formData.get("provenance") ?? "[]"));
+    const input = validateAddEditionAsWantToRead({
+      candidateKey: formData.get("candidateKey"),
+      editionKey: formData.get("editionKey"),
+      workTitle: formData.get("workTitle"),
+      editionTitle: formData.get("editionTitle"),
+      identifiers,
+      provenance,
+    });
+    const commandId = formData.get("commandId");
+    if (typeof commandId !== "string") return { status: "invalid" };
+    const receipt = await createPostgresLibraryWantToReadRepository().addEditionAsWantToRead(session.user.id, commandId, input);
+    return { status: receipt.status, copyId: receipt.copyId };
+  } catch {
+    return previousState.status === "confirmed" ? previousState : { status: "invalid" };
+  }
 }

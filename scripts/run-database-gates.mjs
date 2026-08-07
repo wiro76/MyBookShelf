@@ -143,6 +143,7 @@ try {
     readFileSync("supabase/tests/database/identity-rls.test.sql", "utf8"),
     readFileSync("supabase/tests/database/library-view-state-rls.test.sql", "utf8"),
     readFileSync("supabase/tests/database/library-foundation-rls.test.sql", "utf8"),
+    readFileSync("supabase/tests/database/library-want-to-read-rls.test.sql", "utf8"),
     readFileSync("supabase/tests/database/migration-compatibility.test.sql", "utf8"),
     readFileSync("supabase/tests/database/deferred-effects.test.sql", "utf8"),
   ].join("\n");
