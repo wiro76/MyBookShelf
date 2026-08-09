@@ -7,6 +7,7 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f
 
 const connect = async (page: Page) => {
   await page.goto("/connexion?destination=%2Fbibliotheque");
+  await expect(page.locator("#champ-email")).toBeVisible();
   await page.locator("#champ-email").fill(COMPTES.valide.email);
   await page.locator("#champ-mot-de-passe").fill(COMPTES.valide.password);
   await page.getByRole("button", { name: /connecter/i }).click();
