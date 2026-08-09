@@ -10,7 +10,7 @@ type LibraryProjectionProps = Readonly<{
 
 const statusLabel = (status: string) => status === "want-to-read" ? "Envie de lire" : status === "reading" ? "En cours" : "Terminés";
 
-function navigateProjection(event: KeyboardEvent<HTMLDivElement>) {
+function navigateProjection(event: KeyboardEvent<HTMLElement>) {
   const key = event.key;
   if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(key)) return;
   const root = event.currentTarget.closest<HTMLElement>("#library-projection") ?? event.currentTarget;
@@ -52,7 +52,7 @@ export function LibraryProjection({ projection, resumeCopyId = null }: LibraryPr
         <section className="library-status-section" key={entry.status} aria-labelledby={`library-status-${entry.status}`}>
           <h3 id={`library-status-${entry.status}`}>{statusLabel(entry.status)}</h3>
           {entry.modules.map((module) => (
-            <div className="library-module" key={module.id}>
+            <div className="library-module" key={module.id} aria-label={`Module ${module.modulePosition + 1}`}>
               <strong>Module {module.modulePosition + 1}</strong>
               <ul aria-label={`Étagères du module ${module.modulePosition + 1}`}>
                 {module.shelves.map((shelf) => (
