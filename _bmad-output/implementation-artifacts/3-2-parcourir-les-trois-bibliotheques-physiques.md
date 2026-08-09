@@ -2,14 +2,14 @@
 story_id: "3.2"
 story_key: "3-2-parcourir-les-trois-bibliotheques-physiques"
 epic: 3
-status: in-progress
+status: review
 created: "2026-08-07"
 baseline_commit: "85c5f32"
 ---
 
 # Story 3.2 : Parcourir les trois bibliothèques physiques
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -24,13 +24,13 @@ En tant que Zan, je veux parcourir Envie de lire, Terminés et En cours, afin de
 
 ## Tâches
 
-- [ ] Étendre la projection PostgreSQL avec les exemplaires et leurs métadonnées bibliographiques.
-- [ ] Rendre les trois statuts avec une hiérarchie sémantique et les tranches positionnées.
+- [x] Étendre la projection PostgreSQL avec les exemplaires et leurs métadonnées bibliographiques.
+- [x] Rendre les trois statuts avec une hiérarchie sémantique et les tranches positionnées.
 - [x] Préserver les états vides et les actions Catalogue/ajout manuel.
-- [ ] Ajouter les scénarios E2E de rendu, reprise, focus et annonce sur les quatre projets Playwright.
-- [ ] Passer la story en review après revue de code et validation E2E.
+- [x] Ajouter les scénarios E2E de rendu, reprise, focus et annonce sur les quatre projets Playwright.
+- [x] Passer la story en review après revue de code et validation E2E.
 
 ## Validation
 
 - Tests unitaires et canaris fondation à maintenir verts.
-- E2E bloquants à exécuter dès que le serveur Next de développement ne monopolise plus le port du harnais.
+- E2E bloquants : 12/12 verts sur les quatre projets Playwright.
