@@ -146,6 +146,8 @@ export default async function BibliothequePage() {
     );
   }
 
+  const resumeCopyId = "target" in resume && resume.target ? resume.target.copyId : null;
+
   return (
     <main className="welcome-shell">
       <section className="welcome-card auth-card" aria-labelledby="titre-bibliotheque">
@@ -186,7 +188,7 @@ export default async function BibliothequePage() {
                             {shelf.items.length > 0 ? (
                               <ol className="library-items" aria-label={`Exemplaires de l’étagère ${shelf.shelfPosition + 1}`}>
                                 {shelf.items.map((item) => (
-                                  <li key={item.id} id={`library-item-${item.copyId}`} tabIndex={-1} className="library-item" aria-label={`${item.title}${item.author ? `, ${item.author}` : ""}, position ${item.itemPosition + 1}`}>
+                                  <li key={item.id} id={item.copyId === resumeCopyId ? "library-resume-target" : undefined} tabIndex={-1} className="library-item" aria-label={`${item.title}${item.author ? `, ${item.author}` : ""}, position ${item.itemPosition + 1}`}>
                                     <span className="library-spine" aria-hidden="true" style={{ width: `${Math.max(2.5, item.widthUnits * 0.3)}rem` }} />
                                     <span className="library-item-copy">
                                       <strong>{item.title}</strong>
