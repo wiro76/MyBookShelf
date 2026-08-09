@@ -19,7 +19,7 @@ const fixture: LibraryProjection = {
         status,
         shelfPosition,
         capacityUnits: 20,
-        occupiedUnits: status === "reading" && shelfPosition === 0 ? 2 : 0,
+        occupiedUnits: status === "reading" && shelfPosition === 0 ? 4 : 0,
         items: status === "reading" && shelfPosition === 0 ? [{
           id: "fixture-placement-1",
           copyId: "fixture-copy-1",
@@ -27,6 +27,14 @@ const fixture: LibraryProjection = {
           author: "Alexandre Dumas",
           editionTitle: "Édition de démonstration",
           itemPosition: 0,
+          widthUnits: 2,
+        }, {
+          id: "fixture-placement-2",
+          copyId: "fixture-copy-2",
+          title: "Notre-Dame de Paris",
+          author: "Victor Hugo",
+          editionTitle: "Édition de démonstration",
+          itemPosition: 2,
           widthUnits: 2,
         }] : [],
       })),

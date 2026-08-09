@@ -11,7 +11,7 @@ test.describe("Story 3.2 — projection des trois bibliothèques", () => {
     await expect(page.locator(".library-status-section")).toHaveCount(3);
     await expect(page.locator(".library-module")).toHaveCount(3);
     await expect(page.locator(".library-shelf")).toHaveCount(15);
-    await expect(page.locator(".library-item")).toHaveCount(1);
+    await expect(page.locator(".library-item")).toHaveCount(2);
     await expect(page.getByText("Aucun exemplaire placé dans ce statut.")).toHaveCount(2);
     await expect(page.getByRole("link", { name: "Rechercher dans le Catalogue" })).toHaveCount(3);
     await expect(page.getByRole("link", { name: "Ajouter manuellement" })).toHaveCount(3);
@@ -27,6 +27,20 @@ test.describe("Story 3.2 — projection des trois bibliothèques", () => {
       return root.innerHTML;
     });
     expect(dom).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i);
+  });
+
+  test("parcourt les tranches avec les flèches et les extrémités", async ({ page }) => {
+    const items = page.locator(".library-item");
+    await items.first().focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(items.nth(1)).toBeFocused();
+    await page.keyboard.press("Home");
+    await expect(items.first()).toBeFocused();
+    await page.keyboard.press("End");
+    await expect(items.nth(1)).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    const readingShelves = page.getByRole("heading", { name: "En cours" }).locator("..") .locator(".library-shelf");
+    await expect(readingShelves.nth(1)).toBeFocused();
   });
 
   test("reste accessible sur la branche courante", async ({ page }) => {

@@ -1,3 +1,6 @@
+"use client";
+
+import type { KeyboardEvent } from "react";
 import type { LibraryProjection } from "../domain/library-foundation";
 
 type LibraryProjectionProps = Readonly<{
@@ -7,9 +10,44 @@ type LibraryProjectionProps = Readonly<{
 
 const statusLabel = (status: string) => status === "want-to-read" ? "Envie de lire" : status === "reading" ? "En cours" : "Terminés";
 
+function navigateProjection(event: KeyboardEvent<HTMLDivElement>) {
+  const key = event.key;
+  if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(key)) return;
+  const root = event.currentTarget.closest<HTMLElement>("#library-projection") ?? event.currentTarget;
+  const current = (event.target as HTMLElement).closest<HTMLElement>(".library-item, .library-items");
+  if (!current) return;
+  const currentShelf = current.closest<HTMLElement>(".library-shelf");
+  if (!currentShelf) return;
+  const items = () => Array.from(currentShelf.querySelectorAll<HTMLElement>(".library-item"));
+  const focus = (element: HTMLElement | null | undefined) => {
+    if (!element) return;
+    event.preventDefault();
+    element.focus();
+  };
+  const currentItems = items();
+  const currentIndex = currentItems.indexOf(current);
+  if (key === "ArrowLeft") return focus(currentItems[currentIndex - 1]);
+  if (key === "ArrowRight") return focus(currentItems[currentIndex + 1]);
+  if (key === "Home") return focus(currentItems[0]);
+  if (key === "End") return focus(currentItems.at(-1));
+
+  const shelves = Array.from(root.querySelectorAll<HTMLElement>(".library-shelf"));
+  const shelfIndex = shelves.indexOf(currentShelf);
+  if (key === "ArrowUp" || key === "ArrowDown") {
+    const nextShelf = shelves[shelfIndex + (key === "ArrowUp" ? -1 : 1)];
+    return focus(nextShelf?.querySelector<HTMLElement>(".library-item") ?? nextShelf?.querySelector<HTMLElement>(".library-items") ?? nextShelf);
+  }
+
+  const modules = Array.from(root.querySelectorAll<HTMLElement>(".library-module"));
+  const currentModule = currentShelf.closest<HTMLElement>(".library-module");
+  const moduleIndex = currentModule ? modules.indexOf(currentModule) : -1;
+  const nextModule = modules[moduleIndex + (key === "PageUp" ? -1 : 1)];
+  return focus(nextModule?.querySelector<HTMLElement>(".library-item") ?? nextModule?.querySelector<HTMLElement>(".library-items"));
+}
+
 export function LibraryProjection({ projection, resumeCopyId = null }: LibraryProjectionProps) {
   return (
-    <div className="library-status-grid">
+    <div id="library-projection" className="library-status-grid" onKeyDownCapture={navigateProjection} aria-label="Projection des bibliothèques">
       {projection.statuses.map((entry) => (
         <section className="library-status-section" key={entry.status} aria-labelledby={`library-status-${entry.status}`}>
           <h3 id={`library-status-${entry.status}`}>{statusLabel(entry.status)}</h3>
@@ -18,7 +56,7 @@ export function LibraryProjection({ projection, resumeCopyId = null }: LibraryPr
               <strong>Module {module.modulePosition + 1}</strong>
               <ul aria-label={`Étagères du module ${module.modulePosition + 1}`}>
                 {module.shelves.map((shelf) => (
-                  <li key={shelf.id} className="library-shelf">
+                  <li key={shelf.id} tabIndex={shelf.items.length === 0 ? 0 : undefined} className="library-shelf">
                     <div className="library-shelf-heading">
                       <span>Étagère {shelf.shelfPosition + 1}</span>
                       <span>{shelf.occupiedUnits} / {shelf.capacityUnits} unités</span>
@@ -26,7 +64,7 @@ export function LibraryProjection({ projection, resumeCopyId = null }: LibraryPr
                     {shelf.items.length > 0 ? (
                       <ol tabIndex={0} className="library-items" aria-label={`Exemplaires de l’étagère ${shelf.shelfPosition + 1}`}>
                         {shelf.items.map((item) => (
-                          <li key={item.id} id={item.copyId === resumeCopyId ? "library-resume-target" : undefined} tabIndex={-1} className="library-item" aria-label={`${item.title}${item.author ? `, ${item.author}` : ""}, position ${item.itemPosition + 1}`}>
+                          <li key={item.id} id={item.copyId === resumeCopyId ? "library-resume-target" : undefined} tabIndex={-1} className="library-item" onKeyDown={navigateProjection} aria-label={`${item.title}${item.author ? `, ${item.author}` : ""}, position ${item.itemPosition + 1}`}>
                             <span className="library-spine" aria-hidden="true" style={{ width: `${Math.max(2.5, item.widthUnits * 0.3)}rem` }} />
                             <span className="library-item-copy">
                               <strong>{item.title}</strong>
