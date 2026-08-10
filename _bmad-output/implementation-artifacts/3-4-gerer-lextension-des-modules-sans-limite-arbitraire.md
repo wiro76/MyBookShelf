@@ -2,14 +2,14 @@
 story_id: "3.4"
 story_key: "3-4-gerer-lextension-des-modules-sans-limite-arbitraire"
 epic: 3
-status: in-progress
+status: review
 created: "2026-08-10"
 baseline_commit: "2443ef4"
 ---
 
 # Story 3.4 : Gérer l’extension des modules sans limite arbitraire
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -27,5 +27,10 @@ En tant que Zan, je veux que ma bibliothèque s’agrandisse, afin d’organiser
 - [x] Réutiliser l’append atomique et le verrou de fondation de Story 2.3.
 - [x] Rendre tous les modules projetés avec une hiérarchie et un nom accessibles.
 - [x] Maintenir la preuve de concurrence et de création d’un seul module suivant.
-- [ ] Ajouter le scénario de charge à 100 exemplaires et sa mesure de budget.
-- [ ] Passer la story en review après la preuve de charge.
+- [x] Ajouter le scénario de charge à 100 exemplaires et sa mesure de budget.
+- [x] Passer la story en review après la preuve de charge.
+
+## Validation
+
+- Typecheck et lint : verts.
+- E2E : 8/8 verts sur quatre profils, 100 exemplaires et cinq modules.

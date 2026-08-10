@@ -11,10 +11,10 @@ export type ProjectEpic = Readonly<{
 export const projectStatus = {
   updatedAt: "7 août 2026",
   totalStories: 37,
-  advancedStories: 19,
+  advancedStories: 20,
   sprint: "Sprint Epic 3",
-  currentFocus: "Story 3.3 · Revue BMAD de la navigation clavier",
-  nextFocus: "Story 3.4 · Preuve de charge à 100 exemplaires",
+  currentFocus: "Story 3.4 · Revue BMAD de l’extension des modules",
+  nextFocus: "Story 3.5 · Couvertures et tranches indépendantes",
   epics: [
     {
       id: "1",
@@ -52,7 +52,7 @@ export const projectStatus = {
       { id: "3.1", title: "Choisir l’apparence initiale du meuble", status: "review" },
       { id: "3.2", title: "Parcourir les trois bibliothèques physiques", status: "review" },
       { id: "3.3", title: "Naviguer au clavier et avec aides techniques", status: "review" },
-      { id: "3.4", title: "Gérer l’extension des modules", status: "in-progress" },
+      { id: "3.4", title: "Gérer l’extension des modules", status: "review" },
       { id: "3.5", title: "Afficher les visuels indépendants", status: "backlog" },
     ] },
     { id: "4", title: "Organisation et repérage libres", value: "Ranger, regrouper et retrouver sans corruption.", status: "backlog", stories: [] },
