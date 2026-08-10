@@ -19,3 +19,7 @@ $$;
 
 revoke all on function library.record_placement_selection_move_receipt(uuid, uuid, text, uuid[], timestamptz, jsonb) from public, anon;
 grant execute on function library.record_placement_selection_move_receipt(uuid, uuid, text, uuid[], timestamptz, jsonb) to authenticated;
+
+-- L'annulation met à jour uniquement le reçu appartenant à l'appelant ; la policy RLS
+-- conserve l'isolation par user_id.
+grant update on library.placement_selection_move_receipts to authenticated;

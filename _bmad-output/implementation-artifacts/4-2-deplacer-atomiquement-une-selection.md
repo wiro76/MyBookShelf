@@ -2,13 +2,13 @@
 story_id: "4.2"
 story_key: "4-2-deplacer-atomiquement-une-selection"
 epic: 4
-status: in-progress
+status: done
 created: "2026-08-10"
 ---
 
 # Story 4.2 : Déplacer atomiquement une sélection
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -28,7 +28,7 @@ afin de ranger une série sans mouvement partiel.
 - [x] Implémenter la planification multi-source sans mutation optimiste.
 - [x] Ajouter le repository transactionnel, les verrous déterministes et l’idempotence.
 - [x] Ajouter la sélection souris, tactile et clavier avec retour accessible.
-- [ ] Tester succès, conflit, capacité, rejeu et annulation.
+- [x] Tester succès, conflit, capacité, rejeu et annulation.
 
 ## Dev Agent Record
 
@@ -66,3 +66,4 @@ afin de ranger une série sans mouvement partiel.
 
 - 2026-08-10 : contrat, transaction groupée, sélection accessible et reçu idempotent ajoutés.
 - 2026-08-10 : annulation contrôlée par versions ajoutée avec conservation de l’état précédent.
+- 2026-08-10 : canari base ajouté pour prouver le succès atomique et le refus d’une annulation concurrente.

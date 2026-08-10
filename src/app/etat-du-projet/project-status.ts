@@ -11,10 +11,10 @@ export type ProjectEpic = Readonly<{
 export const projectStatus = {
   updatedAt: "10 août 2026",
   totalStories: 37,
-  advancedStories: 26,
+  advancedStories: 27,
   sprint: "Sprint Epic 4",
-  currentFocus: "Story 4.2 · Déplacer atomiquement une sélection",
-  nextFocus: "Annulation contrôlée par versions et validation des conflits de sélection",
+  currentFocus: "Story 4.3 · Créer des groupes, thèmes et repères personnels",
+  nextFocus: "Persistance many-to-many sans impact sur les placements",
   epics: [
     {
       id: "1",
@@ -57,7 +57,8 @@ export const projectStatus = {
     ] },
     { id: "4", title: "Organisation et repérage libres", value: "Ranger, regrouper et retrouver sans corruption.", status: "in-progress", stories: [
       { id: "4.1", title: "Déplacer un exemplaire par geste ou commande visible", status: "done" },
-      { id: "4.2", title: "Déplacer atomiquement une sélection", status: "backlog" },
+      { id: "4.2", title: "Déplacer atomiquement une sélection", status: "done" },
+      { id: "4.3", title: "Créer des groupes, thèmes et repères personnels", status: "in-progress" },
     ] },
     { id: "5", title: "Lectures et récompenses discrètes", value: "Suivre les lectures et les relectures.", status: "backlog", stories: [] },
     { id: "6", title: "Boutique et décoration", value: "Ajouter des objets cosmétiques sans toucher au rangement.", status: "backlog", stories: [] },

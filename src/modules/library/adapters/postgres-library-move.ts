@@ -43,7 +43,7 @@ export function createPostgresLibraryMoveRepository(transaction: Transaction = a
         const destinationItems = placements.rows.filter((row) => row.shelf_id === destinationRow.id);
         const sourceShelf = toShelf({ id: sourceRow.shelf_id, module_id: sourceRow.module_id, status: sourceRow.status, capacity_units: sourceRow.shelf_id === destinationRow.id ? destinationRow.capacity_units : (await client.query<{ capacity_units: number }>("select capacity_units from library.shelves where id = $1", [sourceRow.shelf_id])).rows[0].capacity_units }, sourceItems);
         const plan = planPlacementMove(sourceShelf, toShelf(destinationRow, destinationItems), input);
-        await client.query("set constraints placements_shelf_item_position_unique deferred");
+        await client.query("set constraints library.placements_shelf_item_position_unique deferred");
         for (const assignment of plan.assignments) {
           await client.query("update library.placements set shelf_id = $1, module_id = $2, status = $3, item_position = $4, version = version + 1 where id = $5 and user_id = $6", [assignment.shelfId, assignment.moduleId, assignment.status, assignment.itemPosition, assignment.placementId, userId]);
         }
@@ -81,7 +81,7 @@ export function createPostgresLibraryMoveRepository(transaction: Transaction = a
         if (!destinationShelf) throw new LibraryMoveError("LIBRARY_MOVE_DESTINATION_MISSING");
         const plan = planPlacementSelectionMove(shelves, destinationShelf, input);
         const previousAssignments = placements.rows.map((row) => ({ placementId: row.id, shelfId: row.shelf_id, moduleId: row.module_id, status: row.status, itemPosition: row.item_position, version: Number(row.version) }));
-        await client.query("set constraints placements_shelf_item_position_unique deferred");
+        await client.query("set constraints library.placements_shelf_item_position_unique deferred");
         for (const assignment of plan.assignments) await client.query("update library.placements set shelf_id = $1, module_id = $2, status = $3, item_position = $4, version = version + 1 where id = $5 and user_id = $6", [assignment.shelfId, assignment.moduleId, assignment.status, assignment.itemPosition, assignment.placementId, userId]);
         const now = await client.query<{ at: Date | string }>("select now() as at");
         await client.query("select library.record_placement_selection_move_receipt($1, $2, $3, $4::uuid[], $5, $6::jsonb)", [userId, commandId, digest, placementIds, now.rows[0].at, JSON.stringify(previousAssignments)]);
@@ -101,7 +101,7 @@ export function createPostgresLibraryMoveRepository(transaction: Transaction = a
         const ids = assignments.map((assignment) => assignment.placementId).sort();
         const current = await client.query<{ id: string; version: string | number }>("select id, version from library.placements where user_id = $1 and id = any($2::uuid[]) for update", [userId, ids]);
         if (current.rows.length !== ids.length || current.rows.some((placement) => Number(placement.version) !== assignments.find((assignment) => assignment.placementId === placement.id)!.version + 1)) throw new LibraryMoveError("LIBRARY_MOVE_VERSION_CONFLICT");
-        await client.query("set constraints placements_shelf_item_position_unique deferred");
+        await client.query("set constraints library.placements_shelf_item_position_unique deferred");
         for (const assignment of assignments) await client.query("update library.placements set shelf_id = $1, module_id = $2, status = $3, item_position = $4, version = version + 1 where id = $5 and user_id = $6", [assignment.shelfId, assignment.moduleId, assignment.status, assignment.itemPosition, assignment.placementId, userId]);
         const now = await client.query<{ at: Date | string }>("select now() as at");
         await client.query("update library.placement_selection_move_receipts set undone_at = $1, undo_command_id = $2 where user_id = $3 and command_id = $4", [now.rows[0].at, undoCommandId, userId, originalCommandId]);
