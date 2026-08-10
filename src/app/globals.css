@@ -321,6 +321,37 @@ h1 {
   text-align: left;
 }
 
+.library-cover-upload {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 42rem;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--border-default);
+  background: var(--surface-raised);
+}
+
+.library-cover-upload form {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.library-cover-upload select,
+.library-cover-upload input[type="file"] {
+  max-width: 100%;
+}
+
+.library-cover-rights {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.library-upload-status {
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
 .library-item-copy strong,
 .library-item-copy small {
   overflow: hidden;

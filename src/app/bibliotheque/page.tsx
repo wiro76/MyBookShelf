@@ -10,6 +10,7 @@ import { getVerifiedSession } from "@/modules/identity/application/session";
 import { createPostgresLibraryAppearanceRepository } from "@/modules/library/adapters/postgres-library-appearance";
 import { AppearanceOnboarding } from "./appearance-onboarding";
 import { LibraryProjection } from "@/modules/library/ui/library-projection";
+import { CoverUpload } from "./cover-upload";
 import { createPostgresCoverVariantRepository } from "@/modules/media/adapters/postgres-cover-variant";
 import { createSupabasePrivateMediaStorage } from "@/modules/media/adapters/supabase-private-media-storage";
 import { resolveCoverUrl } from "@/modules/media/application/resolve-cover-url";
@@ -162,6 +163,12 @@ export default async function BibliothequePage() {
   }
 
   const resumeCopyId = "target" in resume && resume.target ? resume.target.copyId : null;
+  const coverTargets = projection.statuses.flatMap((entry) => entry.modules.flatMap((module) => module.shelves.flatMap((shelf) => (
+    shelf.items.map((item) => ({
+      copyId: item.copyId,
+      label: `${item.title}${item.author ? ` — ${item.author}` : ""}`,
+    }))
+  ))));
 
   return (
     <main className="welcome-shell">
@@ -185,6 +192,7 @@ export default async function BibliothequePage() {
           <h2 id="library-foundation-title">Ton rangement réel</h2>
           <p className="project-status">Chaque statut possède maintenant son module et ses étagères persistants. La projection ci-dessous reflète uniquement les exemplaires réellement placés.</p>
           <LibraryProjection projection={projection} resumeCopyId={resumeCopyId} />
+          <CoverUpload targets={coverTargets} />
         </section>
         <nav className="library-actions" aria-label="Actions de la bibliothèque">
           <a className="primary-action" href="/catalogue">

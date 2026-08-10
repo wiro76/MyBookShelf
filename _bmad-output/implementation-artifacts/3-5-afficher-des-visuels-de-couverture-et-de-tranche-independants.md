@@ -41,3 +41,5 @@ Le bucket privé `media-private`, l’adaptateur serveur et la résolution de l�
 Une image réelle apparaîtra dès qu’un actif préparé sera associé à un exemplaire ; sans association, le placeholder reste affiché.
 Le flux de persistance dépose l’original et la variante WebP sous des clés privées déterministes,
 enregistre l’actif et son reçu idempotent, puis effectue la promotion contrôlée vers `private`.
+L’interface privée de la bibliothèque permet maintenant de choisir un exemplaire, importer le fichier,
+confirmer les droits et déclencher cette chaîne sans exposer l’original.
