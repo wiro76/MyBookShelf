@@ -5,6 +5,7 @@ import {
   DEFAULT_SHELF_COUNT,
   LibraryFoundationError,
   validateAppendPlacementInput,
+  type LibraryItem,
   type LibraryProjection,
 } from "../domain/library-foundation";
 import type { LibraryStatus } from "../domain/library-view-state";
@@ -78,7 +79,7 @@ export function createPostgresLibraryFoundationRepository(transaction: Transacti
           where modules.user_id = $1
           order by modules.status, modules.module_position, shelves.shelf_position, placements.item_position nulls last
         `, [userId]);
-        const byStatus = new Map<LibraryStatus, { status: LibraryStatus; modules: Array<{ id: string; status: LibraryStatus; modulePosition: number; capacityUnits: number; shelves: Array<{ id: string; moduleId: string; status: LibraryStatus; shelfPosition: number; capacityUnits: number; occupiedUnits: number; items: Array<{ id: string; copyId: string; title: string; author: string | null; editionTitle: string; itemPosition: number; widthUnits: number }> }> }> }>();
+        const byStatus = new Map<LibraryStatus, { status: LibraryStatus; modules: Array<{ id: string; status: LibraryStatus; modulePosition: number; capacityUnits: number; shelves: Array<{ id: string; moduleId: string; status: LibraryStatus; shelfPosition: number; capacityUnits: number; occupiedUnits: number; items: LibraryItem[] }> }> }>();
         for (const status of FOUNDATION_STATUSES) byStatus.set(status, { status, modules: [] });
         for (const row of result.rows) {
           const entry = byStatus.get(row.status);
@@ -102,6 +103,7 @@ export function createPostgresLibraryFoundationRepository(transaction: Transacti
               editionTitle: row.edition_title ?? "Édition indisponible",
               itemPosition: row.item_position,
               widthUnits: row.width_units,
+              coverStatus: "not-provided",
             });
           }
         }

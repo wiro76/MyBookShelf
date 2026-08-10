@@ -11,6 +11,7 @@ export type LibraryItem = Readonly<{
   editionTitle: string;
   itemPosition: number;
   widthUnits: number;
+  coverStatus: "available" | "not-provided";
 }>;
 
 export type LibraryShelf = Readonly<{

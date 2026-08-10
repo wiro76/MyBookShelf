@@ -65,6 +65,9 @@ export function LibraryProjection({ projection, resumeCopyId = null }: LibraryPr
                       <ol tabIndex={0} className="library-items" aria-label={`Exemplaires de l’étagère ${shelf.shelfPosition + 1}`}>
                         {shelf.items.map((item) => (
                           <li key={item.id} id={item.copyId === resumeCopyId ? "library-resume-target" : undefined} tabIndex={-1} className="library-item" onKeyDown={navigateProjection} aria-label={`${item.title}${item.author ? `, ${item.author}` : ""}, position ${item.itemPosition + 1}`}>
+                            <span className="library-cover" aria-label={item.coverStatus === "available" ? "Couverture disponible" : "Couverture non fournie"}>
+                              {item.coverStatus === "available" ? "" : "—"}
+                            </span>
                             <span className="library-spine" aria-hidden="true" style={{ width: `${Math.max(2.5, item.widthUnits * 0.3)}rem` }} />
                             <span className="library-item-copy">
                               <strong>{item.title}</strong>

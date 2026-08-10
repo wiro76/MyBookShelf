@@ -13,8 +13,8 @@ export const projectStatus = {
   totalStories: 37,
   advancedStories: 20,
   sprint: "Sprint Epic 3",
-  currentFocus: "Story 3.4 · Revue BMAD de l’extension des modules",
-  nextFocus: "Story 3.5 · Couvertures et tranches indépendantes",
+  currentFocus: "Story 3.5 · Couvertures et tranches indépendantes",
+  nextFocus: "Story 3.5 · Résolveur média signé et visuels réels",
   epics: [
     {
       id: "1",
@@ -53,7 +53,7 @@ export const projectStatus = {
       { id: "3.2", title: "Parcourir les trois bibliothèques physiques", status: "review" },
       { id: "3.3", title: "Naviguer au clavier et avec aides techniques", status: "review" },
       { id: "3.4", title: "Gérer l’extension des modules", status: "review" },
-      { id: "3.5", title: "Afficher les visuels indépendants", status: "backlog" },
+      { id: "3.5", title: "Afficher les visuels indépendants", status: "in-progress" },
     ] },
     { id: "4", title: "Organisation et repérage libres", value: "Ranger, regrouper et retrouver sans corruption.", status: "backlog", stories: [] },
     { id: "5", title: "Lectures et récompenses discrètes", value: "Suivre les lectures et les relectures.", status: "backlog", stories: [] },

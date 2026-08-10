@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import type { LibraryProjection } from "@/modules/library/domain/library-foundation";
+import type { LibraryItem, LibraryProjection } from "@/modules/library/domain/library-foundation";
 import { LibraryProjection as LibraryProjectionView } from "@/modules/library/ui/library-projection";
 import { LibraryResumeFocus } from "@/modules/library/ui/library-resume-focus";
 
@@ -14,7 +14,7 @@ const createFixture = (growth: boolean): LibraryProjection => ({
       modulePosition,
       capacityUnits: 20,
       shelves: Array.from({ length: 5 }, (_, shelfPosition) => {
-        const load = growth && status === "reading" ? Array.from({ length: 4 }, (_, itemIndex) => ({
+        const load: LibraryItem[] = growth && status === "reading" ? Array.from({ length: 4 }, (_, itemIndex) => ({
           id: `fixture-placement-${modulePosition}-${shelfPosition}-${itemIndex}`,
           copyId: `fixture-copy-${modulePosition}-${shelfPosition}-${itemIndex}`,
           title: `Livre ${modulePosition * 20 + shelfPosition * 4 + itemIndex + 1}`,
@@ -22,10 +22,11 @@ const createFixture = (growth: boolean): LibraryProjection => ({
           editionTitle: "Édition de charge",
           itemPosition: itemIndex * 5,
           widthUnits: 5,
+          coverStatus: "not-provided" as const,
         })) : status === "reading" && shelfPosition === 0 ? [{
-          id: "fixture-placement-1", copyId: "fixture-copy-1", title: "Le Comte de Monte-Cristo", author: "Alexandre Dumas", editionTitle: "Édition de démonstration", itemPosition: 0, widthUnits: 2,
+          id: "fixture-placement-1", copyId: "fixture-copy-1", title: "Le Comte de Monte-Cristo", author: "Alexandre Dumas", editionTitle: "Édition de démonstration", itemPosition: 0, widthUnits: 2, coverStatus: "not-provided",
         }, {
-          id: "fixture-placement-2", copyId: "fixture-copy-2", title: "Notre-Dame de Paris", author: "Victor Hugo", editionTitle: "Édition de démonstration", itemPosition: 2, widthUnits: 2,
+          id: "fixture-placement-2", copyId: "fixture-copy-2", title: "Notre-Dame de Paris", author: "Victor Hugo", editionTitle: "Édition de démonstration", itemPosition: 2, widthUnits: 2, coverStatus: "not-provided",
         }] : [];
         return {
           id: `fixture-shelf-${status}-${modulePosition}-${shelfPosition}`,
