@@ -14,11 +14,13 @@ type Props = Readonly<{
   themes: readonly LibraryTheme[];
   themeAction: (state: ThemeActionState, formData: FormData) => Promise<ThemeActionState>;
   themeAssignmentAction: (state: ThemeActionState, formData: FormData) => Promise<ThemeActionState>;
+  removeGroupMemberAction: (formData: FormData) => Promise<void>;
+  removeThemeMemberAction: (formData: FormData) => Promise<void>;
 }>;
 
 const initialState: GroupActionState = { status: "idle" };
 
-export function LibraryGroupsForm({ projection, action, groups, themes, themeAction, themeAssignmentAction }: Props) {
+export function LibraryGroupsForm({ projection, action, groups, themes, themeAction, themeAssignmentAction, removeGroupMemberAction, removeThemeMemberAction }: Props) {
   const items: readonly LibraryItem[] = projection.statuses.flatMap((entry) => entry.modules.flatMap((module) => module.shelves.flatMap((shelf) => shelf.items)));
   const [state, formAction] = useActionState(action, initialState);
   const [themeState, themeFormAction] = useActionState(themeAction, initialState);
@@ -62,7 +64,7 @@ export function LibraryGroupsForm({ projection, action, groups, themes, themeAct
       {(state.status === "confirmed" || state.status === "replayed") ? <button type="button" className="catalog-secondary-action" onClick={() => { setSelected(new Set()); setCommandId(crypto.randomUUID()); }}>Préparer un autre groupe</button> : null}
       <div className="library-groups-list" aria-live="polite">
         <h3>Groupes enregistrés</h3>
-        {groups.length === 0 ? <p className="library-empty-state">Aucun groupe enregistré.</p> : <ul>{groups.map((group) => <li key={group.id}><strong>{group.name}</strong><span>{group.copyIds.length} exemplaire{group.copyIds.length > 1 ? "s" : ""} · {group.statusCounts["want-to-read"] + group.statusCounts["in-progress"] + group.statusCounts.completed} placé{group.statusCounts["want-to-read"] + group.statusCounts["in-progress"] + group.statusCounts.completed > 1 ? "s" : ""}</span></li>)}</ul>}
+        {groups.length === 0 ? <p className="library-empty-state">Aucun groupe enregistré.</p> : <ul>{groups.map((group) => <li key={group.id}><strong>{group.name}</strong><span>{group.copyIds.length} exemplaire{group.copyIds.length > 1 ? "s" : ""} · {group.statusCounts["want-to-read"] + group.statusCounts["in-progress"] + group.statusCounts.completed} placé{group.statusCounts["want-to-read"] + group.statusCounts["in-progress"] + group.statusCounts.completed > 1 ? "s" : ""}</span><div className="library-membership-list">{group.copyIds.map((copyId) => <form key={copyId} action={removeGroupMemberAction}><input type="hidden" name="commandId" value={crypto.randomUUID()} /><input type="hidden" name="groupId" value={group.id} /><input type="hidden" name="copyId" value={copyId} /><span>{items.find((item) => item.copyId === copyId)?.title ?? "Exemplaire"}</span><button type="submit" className="catalog-secondary-action">Retirer</button></form>)}</div></li>)}</ul>}
       </div>
       <div className="library-theme-panel">
         <h3>Créer un repère</h3>
@@ -76,7 +78,7 @@ export function LibraryGroupsForm({ projection, action, groups, themes, themeAct
           <button className="primary-action" type="submit">Créer le repère</button>
           {themeState.status === "confirmed" || themeState.status === "replayed" ? <p role="status" className="catalog-selection-status">Repère enregistré. Le libellé reste disponible sans la couleur.</p> : themeState.status === "invalid" ? <p role="status" className="catalog-selection-status">Le repère n’a pas pu être enregistré.</p> : null}
         </form>
-        {themes.length > 0 ? <ul className="library-theme-list">{themes.map((theme) => <li key={theme.id}><span className="library-theme-swatch" style={theme.color ? { backgroundColor: theme.color } : undefined} aria-hidden="true" /> <strong>{theme.label}</strong><small>{[theme.icon, theme.pattern].filter(Boolean).join(" · ") || "Repère textuel"}</small></li>)}</ul> : null}
+        {themes.length > 0 ? <ul className="library-theme-list">{themes.map((theme) => <li key={theme.id}><span className="library-theme-swatch" style={theme.color ? { backgroundColor: theme.color } : undefined} aria-hidden="true" /> <strong>{theme.label}</strong><small>{[theme.icon, theme.pattern].filter(Boolean).join(" · ") || "Repère textuel"}</small><div className="library-membership-list">{theme.copyIds.map((copyId) => <form key={copyId} action={removeThemeMemberAction}><input type="hidden" name="commandId" value={crypto.randomUUID()} /><input type="hidden" name="themeId" value={theme.id} /><input type="hidden" name="copyId" value={copyId} /><span>{items.find((item) => item.copyId === copyId)?.title ?? "Exemplaire"}</span><button type="submit" className="catalog-secondary-action">Retirer</button></form>)}</div></li>)}</ul> : null}
         {themes.length > 0 ? <form action={assignmentFormAction} className="library-theme-assignment-form">
           <h4>Associer le repère aux exemplaires sélectionnés</h4>
           <input type="hidden" name="commandId" value={assignmentCommandId} />
