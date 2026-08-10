@@ -70,16 +70,16 @@ development_status:
   2-8-collecter-les-medias-revoques-sans-compromettre-les-sauvegardes: done
   epic-2-retrospective: done
 
-  epic-3: in-progress
-  3-1-choisir-lapparence-initiale-du-meuble: review
-  3-2-parcourir-les-trois-bibliotheques-physiques: review
-  3-3-naviguer-entierement-au-clavier-et-avec-aides-techniques: review
-  3-4-gerer-lextension-des-modules-sans-limite-arbitraire: review
+  epic-3: done
+  3-1-choisir-lapparence-initiale-du-meuble: done
+  3-2-parcourir-les-trois-bibliotheques-physiques: done
+  3-3-naviguer-entierement-au-clavier-et-avec-aides-techniques: done
+  3-4-gerer-lextension-des-modules-sans-limite-arbitraire: done
   3-5-afficher-des-visuels-de-couverture-et-de-tranche-independants: done
   epic-3-retrospective: optional
 
-  epic-4: backlog
-  4-1-deplacer-un-exemplaire-par-geste-ou-commande-visible: backlog
+  epic-4: in-progress
+  4-1-deplacer-un-exemplaire-par-geste-ou-commande-visible: ready-for-dev
   4-2-deplacer-atomiquement-une-selection: backlog
   4-3-creer-des-groupes-themes-et-reperes-personnels: backlog
   4-4-deplacer-les-membres-pertinents-dun-groupe-transversal: backlog
