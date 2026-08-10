@@ -28,7 +28,7 @@ En tant que Zan, je veux voir la couverture et la tranche d’un exemplaire sép
 - [x] Rendre explicitement l’état « couverture non fournie ».
 - [x] Définir le contrat serveur du résolveur signé et son adaptateur PostgreSQL avec contrôle d’ownership et d’état.
 - [x] Relier une couverture préférée à un exemplaire par clé étrangère composite et fonction transactionnelle.
-- [ ] Brancher le bucket Storage privé et rendre l’URL signée dans la projection.
+- [x] Brancher le bucket Storage privé et rendre uniquement l’URL signée dans la projection.
 - [ ] Ajouter les E2E visuels et le contrôle de reflow.
 - [ ] Passer la story en review après validation média.
 
@@ -37,4 +37,5 @@ En tant que Zan, je veux voir la couverture et la tranche d’un exemplaire sép
 Le contrat `resolveCoverUrl` refuse les identifiants invalides, les actifs en quarantaine ou révoqués,
 les variantes qui ne sont pas `private-webp` et toute variante qui n’appartient pas à l’utilisateur vérifié.
 La clé d’objet reste côté serveur ; seule une URL signée à durée courte pourra franchir cette frontière.
-Le bucket réel et la résolution de l’URL signée dans la projection restent à fournir avant l’affichage d’images réelles.
+Le bucket privé `media-private`, l’adaptateur serveur et la résolution de l’URL signée sont maintenant en place.
+Une image réelle apparaîtra dès qu’un actif préparé sera associé à un exemplaire ; sans association, le placeholder reste affiché.

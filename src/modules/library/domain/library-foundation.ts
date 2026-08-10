@@ -12,6 +12,7 @@ export type LibraryItem = Readonly<{
   itemPosition: number;
   widthUnits: number;
   coverAssetId?: string;
+  coverUrl?: string;
   coverStatus: "available" | "not-provided";
 }>;
 

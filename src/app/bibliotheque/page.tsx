@@ -10,6 +10,9 @@ import { getVerifiedSession } from "@/modules/identity/application/session";
 import { createPostgresLibraryAppearanceRepository } from "@/modules/library/adapters/postgres-library-appearance";
 import { AppearanceOnboarding } from "./appearance-onboarding";
 import { LibraryProjection } from "@/modules/library/ui/library-projection";
+import { createPostgresCoverVariantRepository } from "@/modules/media/adapters/postgres-cover-variant";
+import { createSupabasePrivateMediaStorage } from "@/modules/media/adapters/supabase-private-media-storage";
+import { resolveCoverUrl } from "@/modules/media/application/resolve-cover-url";
 
 /**
  * Route privée témoin — story 1.6 (AC 1, AC 2, AC 4 ; CAP-1, AD-10).
@@ -67,7 +70,18 @@ export default async function BibliothequePage() {
     );
   }
 
-  const foundation = createPostgresLibraryFoundationRepository();
+  let coverUrlResolver: ((userId: string, assetId: string) => Promise<string | null>) | undefined;
+  try {
+    const coverVariantRepository = createPostgresCoverVariantRepository();
+    const privateMediaStorage = createSupabasePrivateMediaStorage();
+    coverUrlResolver = (userId, assetId) => resolveCoverUrl(userId, assetId, {
+      repository: coverVariantRepository,
+      storage: privateMediaStorage,
+    });
+  } catch {
+    // Une configuration Storage absente conserve le placeholder sans exposer de donnée privée.
+  }
+  const foundation = createPostgresLibraryFoundationRepository(undefined, coverUrlResolver);
   const [summary, ensured] = await Promise.all([
     loadPrivateLibrarySummary(session.user.id),
     foundation.ensure(session.user.id).then(() => true).catch(() => false),

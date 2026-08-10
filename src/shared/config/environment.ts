@@ -196,6 +196,11 @@ export type IdentityEnvironment = {
   serviceRoleKey: string;
 };
 
+export type MediaStorageEnvironment = {
+  bucket: string;
+  serviceRoleKey: string;
+};
+
 /**
  * Lecture tolérante des variables d'identité — story 1.6.
  *
@@ -226,6 +231,14 @@ export function requireIdentityEnvironment(source: NodeJS.ProcessEnv = process.e
   }
 
   return { serviceRoleKey };
+}
+
+export function requireMediaStorageEnvironment(source: NodeJS.ProcessEnv = process.env): MediaStorageEnvironment {
+  const bucket = (source.MEDIA_PRIVATE_BUCKET ?? "media-private").trim();
+  if (!bucket || bucket.length > 100 || /[^a-z0-9._-]/i.test(bucket)) {
+    throw new Error("MEDIA_PRIVATE_BUCKET invalide");
+  }
+  return { bucket, serviceRoleKey: requireIdentityEnvironment(source).serviceRoleKey };
 }
 
 export type ObservabilityEnvironment = {

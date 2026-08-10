@@ -311,6 +311,7 @@ h1 {
   background: var(--surface-raised);
   color: var(--ink-secondary);
   font-size: 0.8rem;
+  object-fit: cover;
 }
 
 .library-item-copy {

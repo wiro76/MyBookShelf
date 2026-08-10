@@ -12,6 +12,7 @@ import type { LibraryStatus } from "../domain/library-view-state";
 import { FOUNDATION_STATUSES, placementRequestDigest, type LibraryFoundationRepository } from "../application/library-foundation";
 
 type Transaction = <T>(userId: string, work: (client: PoolClient) => Promise<T>) => Promise<T>;
+type CoverUrlResolver = (userId: string, assetId: string) => Promise<string | null>;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const ensureStatus = async (client: PoolClient, userId: string, status: LibraryStatus) => {
@@ -36,7 +37,10 @@ const safeDate = (value: Date | string) => {
   return date.toISOString();
 };
 
-export function createPostgresLibraryFoundationRepository(transaction: Transaction = authenticatedTransaction): LibraryFoundationRepository {
+export function createPostgresLibraryFoundationRepository(
+  transaction: Transaction = authenticatedTransaction,
+  coverUrlResolver?: CoverUrlResolver,
+): LibraryFoundationRepository {
   return {
     ensure(userId) {
       if (!UUID.test(userId)) return Promise.reject(new LibraryFoundationError());
@@ -110,7 +114,24 @@ export function createPostgresLibraryFoundationRepository(transaction: Transacti
             });
           }
         }
-        return { statuses: FOUNDATION_STATUSES.map((status) => byStatus.get(status)!) } satisfies LibraryProjection;
+        const projection = { statuses: FOUNDATION_STATUSES.map((status) => byStatus.get(status)!) } satisfies LibraryProjection;
+        if (!coverUrlResolver) return projection;
+        return {
+          statuses: await Promise.all(projection.statuses.map(async (entry) => ({
+            ...entry,
+            modules: await Promise.all(entry.modules.map(async (module) => ({
+              ...module,
+              shelves: await Promise.all(module.shelves.map(async (shelf) => ({
+                ...shelf,
+                items: await Promise.all(shelf.items.map(async (item) => {
+                  if (!item.coverAssetId) return item;
+                  const coverUrl = await coverUrlResolver(userId, item.coverAssetId);
+                  return coverUrl ? { ...item, coverUrl, coverStatus: "available" as const } : { ...item, coverStatus: "not-provided" as const };
+                })),
+              }))),
+            }))),
+          }))),
+        } satisfies LibraryProjection;
       });
     },
 

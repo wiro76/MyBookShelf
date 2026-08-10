@@ -1,5 +1,9 @@
 -- Story 3.5 — relier une couverture personnelle à un exemplaire sans croiser les utilisateurs.
 
+insert into storage.buckets (id, name, public)
+values ('media-private', 'media-private', false)
+on conflict (id) do update set public = false;
+
 alter table library.copies
   add column if not exists preferred_cover_asset_id uuid;
 
