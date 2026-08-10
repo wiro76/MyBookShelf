@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { resumeLibraryContext } from "@/modules/library/application/library-view-state";
+import { resumeLibraryContext, resumeTargetIdentifier } from "@/modules/library/application/library-view-state";
 import { createPostgresLibraryViewStateRepository } from "@/modules/library/adapters/postgres-library-view-state";
 import { LibraryResumeFocus } from "@/modules/library/ui/library-resume-focus";
 import { loadPrivateLibrarySummary } from "@/modules/identity/application/private-library";
@@ -165,14 +165,7 @@ export default async function BibliothequePage() {
     );
   }
 
-  const resumeCopyId = "target" in resume && resume.target ? resume.target.copyId : null;
-  const coverTargets = projection.statuses.flatMap((entry) => entry.modules.flatMap((module) => module.shelves.flatMap((shelf) => (
-    shelf.items.map((item) => ({
-      copyId: item.copyId,
-      label: `${item.title}${item.author ? ` — ${item.author}` : ""}`,
-    }))
-  ))));
-  const libraryItems = projection.statuses.flatMap((entry) => entry.modules.flatMap((module) => module.shelves.flatMap((shelf) => shelf.items)));
+  const resumeTargetId = resumeTargetIdentifier(resume);
 
   return (
     <main className="welcome-shell">
@@ -195,9 +188,9 @@ export default async function BibliothequePage() {
         <section className="library-foundation" aria-labelledby="library-foundation-title">
           <h2 id="library-foundation-title">Ton rangement réel</h2>
           <p className="project-status">Chaque statut possède maintenant son module et ses étagères persistants. La projection ci-dessous reflète uniquement les exemplaires réellement placés.</p>
-          <LibraryProjection projection={projection} resumeCopyId={resumeCopyId} moveAction={deplacerExemplaire} selectionMoveAction={deplacerSelection} selectionUndoAction={annulerDeplacementSelection} />
-          <LibraryGroupsForm items={libraryItems} action={creerGroupe} />
-          <CoverUpload targets={coverTargets} />
+          <LibraryProjection projection={projection} resumeTargetId={resumeTargetId} moveAction={deplacerExemplaire} selectionMoveAction={deplacerSelection} selectionUndoAction={annulerDeplacementSelection} />
+          <LibraryGroupsForm projection={projection} action={creerGroupe} />
+          <CoverUpload projection={projection} />
         </section>
         <nav className="library-actions" aria-label="Actions de la bibliothèque">
           <a className="primary-action" href="/catalogue">

@@ -66,7 +66,7 @@ export default function BibliothequeE2EPage({ growth = false }: { growth?: boole
         <p className="eyebrow">Harnais E2E</p>
         <h1 id="library-e2e-title" tabIndex={-1}>Bibliothèque physique</h1>
         <p className="intro">Projection de test des trois statuts, sans donnée personnelle.</p>
-        <LibraryProjectionView projection={fixture} resumeCopyId={growth ? null : "fixture-copy-1"} moveAction={growth ? undefined : e2eMoveAction} selectionMoveAction={growth ? undefined : e2eSelectionMoveAction} selectionUndoAction={growth ? undefined : e2eSelectionUndoAction} />
+        <LibraryProjectionView projection={fixture} resumeTargetId={growth ? null : "fixture-copy-1"} moveAction={growth ? undefined : e2eMoveAction} selectionMoveAction={growth ? undefined : e2eSelectionMoveAction} selectionUndoAction={growth ? undefined : e2eSelectionUndoAction} />
         {growth ? null : <LibraryResumeFocus targetId="library-resume-target" announcement="La dernière place est ouverte dans la bibliothèque En cours." />}
       </section>
     </main>

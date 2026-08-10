@@ -2,10 +2,12 @@
 
 import { useActionState } from "react";
 import { importerCouverture, type CoverUploadState } from "./cover-actions";
+import type { LibraryProjection } from "@/modules/library/domain/library-foundation";
 
 type CoverTarget = Readonly<{ copyId: string; label: string }>;
 
-export function CoverUpload({ targets }: Readonly<{ targets: readonly CoverTarget[] }>) {
+export function CoverUpload({ projection }: Readonly<{ projection: LibraryProjection }>) {
+  const targets: readonly CoverTarget[] = projection.statuses.flatMap((entry) => entry.modules.flatMap((module) => module.shelves.flatMap((shelf) => shelf.items.map((item) => ({ copyId: item.copyId, label: `${item.title}${item.author ? ` — ${item.author}` : ""}` })))));
   const [state, action, pending] = useActionState<CoverUploadState, FormData>(importerCouverture, { status: "idle" });
   return (
     <section className="library-cover-upload" aria-labelledby="library-cover-upload-title">

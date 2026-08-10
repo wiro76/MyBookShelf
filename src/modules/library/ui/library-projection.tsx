@@ -9,7 +9,7 @@ import type { MoveActionState } from "@/app/bibliotheque/move-actions";
 
 type LibraryProjectionProps = Readonly<{
   projection: LibraryProjection;
-  resumeCopyId?: string | null;
+  resumeTargetId?: string | null;
   moveAction?: (state: MoveActionState, formData: FormData) => Promise<MoveActionState>;
   selectionMoveAction?: (state: MoveSelectionActionState, formData: FormData) => Promise<MoveSelectionActionState>;
   selectionUndoAction?: (state: MoveSelectionActionState, formData: FormData) => Promise<MoveSelectionActionState>;
@@ -52,7 +52,7 @@ function navigateProjection(event: KeyboardEvent<HTMLElement>) {
   return focus(nextModule?.querySelector<HTMLElement>(".library-item") ?? nextModule?.querySelector<HTMLElement>(".library-items"));
 }
 
-export function LibraryProjection({ projection, resumeCopyId = null, moveAction, selectionMoveAction, selectionUndoAction }: LibraryProjectionProps) {
+export function LibraryProjection({ projection, resumeTargetId = null, moveAction, selectionMoveAction, selectionUndoAction }: LibraryProjectionProps) {
   const shelves = projection.statuses.flatMap((entry) => entry.modules.flatMap((module) => module.shelves));
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dropRequest, setDropRequest] = useState<MoveDropRequest | null>(null);
@@ -87,7 +87,7 @@ export function LibraryProjection({ projection, resumeCopyId = null, moveAction,
                     {shelf.items.length > 0 ? (
                       <ol tabIndex={0} className="library-items" aria-label={`Exemplaires de l’étagère ${shelf.shelfPosition + 1}`}>
                         {shelf.items.map((item) => (
-                          <li key={item.id} id={item.copyId === resumeCopyId ? "library-resume-target" : undefined} tabIndex={-1} draggable={Boolean(moveAction)} onDragStart={(event) => { event.dataTransfer.setData("text/plain", item.id); event.dataTransfer.effectAllowed = "move"; setDraggedItemId(item.id); }} onDragEnd={() => setDraggedItemId(null)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.stopPropagation(); const rect = event.currentTarget.getBoundingClientRect(); const before = event.clientX < rect.left + rect.width / 2; requestDrop(event, shelf.id, before ? item.itemPosition : item.itemPosition + item.widthUnits); }} className={`library-item${selectionMoveAction ? " has-selection-control" : ""}${draggedItemId === item.id ? " is-dragging" : ""}`} aria-label={`${item.title}${item.author ? `, ${item.author}` : ""}, position ${item.itemPosition + 1}`}>
+                          <li key={item.id} id={item.copyId === resumeTargetId ? "library-resume-target" : undefined} tabIndex={-1} draggable={Boolean(moveAction)} onDragStart={(event) => { event.dataTransfer.setData("text/plain", item.id); event.dataTransfer.effectAllowed = "move"; setDraggedItemId(item.id); }} onDragEnd={() => setDraggedItemId(null)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.stopPropagation(); const rect = event.currentTarget.getBoundingClientRect(); const before = event.clientX < rect.left + rect.width / 2; requestDrop(event, shelf.id, before ? item.itemPosition : item.itemPosition + item.widthUnits); }} className={`library-item${selectionMoveAction ? " has-selection-control" : ""}${draggedItemId === item.id ? " is-dragging" : ""}`} aria-label={`${item.title}${item.author ? `, ${item.author}` : ""}, position ${item.itemPosition + 1}`}>
                             {item.coverStatus === "available" && item.coverUrl ? (
                               <img className="library-cover" src={item.coverUrl} alt={`Couverture de ${item.title}`} />
                             ) : (

@@ -90,6 +90,9 @@ const throwStableRepositoryError = (error: unknown): never => {
   throw new LibraryViewStateError("LIBRARY_VIEW_STATE_UNAVAILABLE");
 };
 
+export const resumeTargetIdentifier = (resume: ReturnType<typeof resolveLibraryViewState>): string | null =>
+  "target" in resume && resume.target ? resume.target.copyId : null;
+
 export async function resumeLibraryContext(
   userId: string,
   targets: readonly LibraryResumeTarget[],

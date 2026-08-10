@@ -2,17 +2,18 @@
 
 import { useActionState } from "react";
 import { useState } from "react";
-import type { LibraryItem } from "../domain/library-foundation";
+import type { LibraryItem, LibraryProjection } from "../domain/library-foundation";
 import type { GroupActionState } from "@/app/bibliotheque/groups-actions";
 
 type Props = Readonly<{
-  items: readonly LibraryItem[];
+  projection: LibraryProjection;
   action: (state: GroupActionState, formData: FormData) => Promise<GroupActionState>;
 }>;
 
 const initialState: GroupActionState = { status: "idle" };
 
-export function LibraryGroupsForm({ items, action }: Props) {
+export function LibraryGroupsForm({ projection, action }: Props) {
+  const items: readonly LibraryItem[] = projection.statuses.flatMap((entry) => entry.modules.flatMap((module) => module.shelves.flatMap((shelf) => shelf.items)));
   const [state, formAction] = useActionState(action, initialState);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [commandId, setCommandId] = useState(crypto.randomUUID());
