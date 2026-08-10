@@ -194,6 +194,11 @@ try {
     env: { ...process.env, TEST_DATABASE_URL: databaseUrl, DATABASE_URL: databaseUrl },
   });
   if (libraryMove.status !== 0) throw new Error("Le canari du déplacement atomique a échoué.");
+  const libraryGroups = spawnSync(process.execPath, ["tests/integration/database-library-groups-canary.mjs"], {
+    stdio: "inherit",
+    env: { ...process.env, TEST_DATABASE_URL: databaseUrl, DATABASE_URL: databaseUrl },
+  });
+  if (libraryGroups.status !== 0) throw new Error("Le canari des groupes et thèmes a échoué.");
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;

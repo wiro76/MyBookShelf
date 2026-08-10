@@ -14,7 +14,7 @@ export const projectStatus = {
   advancedStories: 27,
   sprint: "Sprint Epic 4",
   currentFocus: "Story 4.3 · Créer des groupes, thèmes et repères personnels",
-  nextFocus: "Persistance many-to-many sans impact sur les placements",
+  nextFocus: "Intégration visuelle des groupes, thèmes et repères accessibles",
   epics: [
     {
       id: "1",

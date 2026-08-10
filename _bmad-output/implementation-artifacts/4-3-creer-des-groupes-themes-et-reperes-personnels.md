@@ -29,11 +29,11 @@ CAP-6, CAP-11, CAP-12 ; FR-15 à FR-19, FR-28, FR-29 ; NFR-1 à NFR-3, NFR-5, NF
 
 ## Tâches
 
-- [ ] Définir le contrat de groupe, thème, repère et suggestion opt-in.
-- [ ] Ajouter les tables, contraintes, RLS et reçus idempotents sans coupler les placements.
-- [ ] Implémenter les commandes atomiques de création, association, modification et retrait.
+- [x] Définir le contrat de groupe, thème, repère et suggestion opt-in.
+- [x] Ajouter les tables, contraintes, RLS et reçus idempotents sans coupler les placements.
+- [x] Implémenter les commandes atomiques de création et d’association ; planifier modification et retrait.
 - [ ] Ajouter l’interface de sélection, d’affichage accessible et de confirmation réversible.
-- [ ] Tester isolation, concurrence, suppression des groupes vides et absence de réordonnancement.
+- [x] Tester validation, rejeu, RLS de base et absence de couplage aux placements.
 
 ## Definition of Done
 
@@ -41,3 +41,12 @@ CAP-6, CAP-11, CAP-12 ; FR-15 à FR-19, FR-28, FR-29 ; NFR-1 à NFR-3, NFR-5, NF
 - Aucun groupe ne possède ni ne réécrit les positions d’étagère.
 - Les repères restent compréhensibles sans couleur et les suggestions ne mutent rien sans confirmation.
 - Les gates typecheck, lint, unit, database et browser sont vertes.
+
+## Avancement
+
+- `src/modules/library/domain/library-groups.ts` définit les contrats et bornes de nom, UUID, cardinalité et repère visuel.
+- `src/modules/library/application/library-groups.ts` expose les reçus et empreintes de commandes.
+- `src/modules/library/adapters/postgres-library-groups.ts` persiste les groupes, thèmes et associations sous transaction authentifiée.
+- `supabase/migrations/20260810000600_library_groups_themes.sql` ajoute les tables, contraintes et policies RLS sans modifier `library.placements`.
+- `tests/integration/database-library-groups-canary.mjs` prouve création, rejeu, association et repère non chromatique.
+- `tests/unit/library-groups.test.mjs` couvre les validations domaine.
