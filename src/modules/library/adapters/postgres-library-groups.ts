@@ -29,6 +29,20 @@ const assertCopies = async (client: PoolClient, userId: string, copyIds: readonl
 
 export function createPostgresLibraryGroupsRepository(transaction: Transaction = authenticatedTransaction): LibraryGroupsRepository {
   return {
+    listGroups(userId) {
+      if (!UUID.test(userId)) return Promise.reject(new LibraryGroupsError());
+      return transaction(userId, async (client) => {
+        const rows = await client.query<{ id: string }>("select id from library.library_groups where user_id = $1 order by group_order, id", [userId]);
+        return Promise.all(rows.rows.map((row) => loadGroup(client, userId, row.id)));
+      });
+    },
+    listThemes(userId) {
+      if (!UUID.test(userId)) return Promise.reject(new LibraryGroupsError());
+      return transaction(userId, async (client) => {
+        const rows = await client.query<{ id: string }>("select id from library.library_themes where user_id = $1 order by name, id", [userId]);
+        return Promise.all(rows.rows.map((row) => loadTheme(client, userId, row.id)));
+      });
+    },
     createGroup(userId, commandId, rawInput) {
       if (!UUID.test(userId) || !UUID.test(commandId)) return Promise.reject(new LibraryGroupsError());
       const input = validateCreateGroupInput(rawInput);

@@ -5,6 +5,8 @@ export type LibraryGroupReceipt = Readonly<{ commandId: string; commandType: "li
 export type LibraryThemeReceipt = Readonly<{ commandId: string; commandType: "library.theme.create" | "library.theme.assign"; status: "confirmed" | "replayed"; theme: LibraryTheme; confirmedAt: string }>;
 
 export interface LibraryGroupsRepository {
+  listGroups(userId: string): Promise<readonly LibraryGroup[]>;
+  listThemes(userId: string): Promise<readonly LibraryTheme[]>;
   createGroup(userId: string, commandId: string, input: CreateGroupInput): Promise<LibraryGroupReceipt>;
   createTheme(userId: string, commandId: string, input: CreateThemeInput): Promise<LibraryThemeReceipt>;
   assignTheme(userId: string, commandId: string, input: AssignThemeInput): Promise<LibraryThemeReceipt>;

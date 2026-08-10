@@ -842,6 +842,68 @@ h1 {
   color: var(--ink-secondary);
 }
 
+.library-groups-list,
+.library-theme-panel {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 42rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-default);
+}
+
+.library-groups-list h3,
+.library-theme-panel h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.library-groups-list ul,
+.library-theme-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.library-groups-list li,
+.library-theme-list li {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-default);
+  background: var(--surface-subtle);
+}
+
+.library-groups-list li span,
+.library-theme-list li small {
+  color: var(--ink-secondary);
+}
+
+.library-theme-list li {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 0.65rem;
+}
+
+.library-theme-list li small {
+  grid-column: 2;
+  overflow-wrap: anywhere;
+}
+
+.library-theme-swatch {
+  grid-row: span 2;
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-raised);
+}
+
+.library-empty-state {
+  margin: 0;
+  color: var(--ink-secondary);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

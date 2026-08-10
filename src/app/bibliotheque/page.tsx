@@ -17,6 +17,9 @@ import { resolveCoverUrl } from "@/modules/media/application/resolve-cover-url";
 import { annulerDeplacementSelection, deplacerExemplaire, deplacerSelection } from "./move-actions";
 import { creerGroupe } from "./groups-actions";
 import { LibraryGroupsForm } from "@/modules/library/ui/library-groups-form";
+import { createPostgresLibraryGroupsRepository } from "@/modules/library/adapters/postgres-library-groups";
+import { creerTheme } from "./groups-actions";
+import type { LibraryGroup, LibraryTheme } from "@/modules/library/domain/library-groups";
 
 /**
  * Route privée témoin — story 1.6 (AC 1, AC 2, AC 4 ; CAP-1, AD-10).
@@ -109,11 +112,15 @@ export default async function BibliothequePage() {
   let projection;
   let resume;
   let appearance = null;
+  let groups: readonly LibraryGroup[] = [];
+  let themes: readonly LibraryTheme[] = [];
   try {
-    [projection, resume, appearance] = await Promise.all([
+    [projection, resume, appearance, groups, themes] = await Promise.all([
       foundation.load(session.user.id),
       resumeLibraryContext(session.user.id, [], createPostgresLibraryViewStateRepository()),
       createPostgresLibraryAppearanceRepository().load(session.user.id),
+      createPostgresLibraryGroupsRepository().listGroups(session.user.id),
+      createPostgresLibraryGroupsRepository().listThemes(session.user.id),
     ]);
   } catch {
     return (
@@ -189,7 +196,7 @@ export default async function BibliothequePage() {
           <h2 id="library-foundation-title">Ton rangement réel</h2>
           <p className="project-status">Chaque statut possède maintenant son module et ses étagères persistants. La projection ci-dessous reflète uniquement les exemplaires réellement placés.</p>
           <LibraryProjection projection={projection} resumeTargetId={resumeTargetId} moveAction={deplacerExemplaire} selectionMoveAction={deplacerSelection} selectionUndoAction={annulerDeplacementSelection} />
-          <LibraryGroupsForm projection={projection} action={creerGroupe} />
+          <LibraryGroupsForm projection={projection} groups={groups} themes={themes} action={creerGroupe} themeAction={creerTheme} />
           <CoverUpload projection={projection} />
         </section>
         <nav className="library-actions" aria-label="Actions de la bibliothèque">
