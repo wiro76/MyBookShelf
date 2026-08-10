@@ -8,11 +8,12 @@ test.describe("Story 3.2 — projection des trois bibliothèques", () => {
   });
 
   test("rend statut > module > étagère > exemplaire sans faux livre dans les états vides", async ({ page }) => {
-    await expect(page.locator(".library-status-section")).toHaveCount(3);
-    await expect(page.locator(".library-module")).toHaveCount(3);
-    await expect(page.locator(".library-shelf")).toHaveCount(15);
+    await expect(page.locator(".library-status-tab")).toHaveCount(3);
+    await expect(page.locator(".library-status-section")).toHaveCount(1);
+    await expect(page.locator(".library-module")).toHaveCount(1);
+    await expect(page.locator(".library-shelf")).toHaveCount(5);
     await expect(page.locator(".library-item")).toHaveCount(2);
-    await expect(page.getByText("Aucun exemplaire placé dans ce statut.")).toHaveCount(2);
+    await expect(page.getByText("Aucun exemplaire placé dans ce statut.")).toHaveCount(0);
   });
 
   test("focalise l’exemplaire repris et annonce l’ajustement sans UUID privé", async ({ page }) => {
@@ -41,7 +42,7 @@ test.describe("Story 3.2 — projection des trois bibliothèques", () => {
     await expect(readingShelves.nth(1)).toBeFocused();
   });
 
-  test("affiche couverture et tranche côte à côte sans scroll d’étagère", async ({ page }) => {
+  test("affiche couverture et tranche dans chaque livre sans scroll inutile", async ({ page }) => {
     const items = page.locator(".library-item");
     await expect(items.locator(".library-cover")).toHaveCount(2);
     await expect(items.locator(".library-spine")).toHaveCount(2);
@@ -49,9 +50,9 @@ test.describe("Story 3.2 — projection des trois bibliothèques", () => {
     const bounds = await items.first().evaluate((element) => {
       const cover = element.querySelector<HTMLElement>(".library-cover")?.getBoundingClientRect();
       const spine = element.querySelector<HTMLElement>(".library-spine")?.getBoundingClientRect();
-      return { coverRight: cover?.right ?? 0, spineLeft: spine?.left ?? 0 };
+      return { coverBottom: cover?.bottom ?? 0, spineTop: spine?.top ?? 0 };
     });
-    expect(bounds.coverRight).toBeLessThanOrEqual(bounds.spineLeft + 1);
+    expect(bounds.coverBottom).toBeLessThanOrEqual(bounds.spineTop + 1);
   });
 
   test("reste accessible sur la branche courante", async ({ page }) => {
@@ -66,8 +67,8 @@ test.describe("Story 3.2 — projection des trois bibliothèques", () => {
     await items.first().locator("summary").click();
     await expect(items.first().getByRole("button", { name: "Avant" })).toBeDisabled();
     await expect(items.first().getByRole("button", { name: "Après" })).toBeEnabled();
-    await items.first().locator(".library-item-copy").dragTo(items.nth(1).locator(".library-item-copy"));
-    await expect(items.first().locator(".library-move").getByRole("status")).toHaveText("Exemplaire déplacé.");
+    await items.first().dragTo(items.nth(1));
+    await expect(page.getByRole("status").filter({ hasText: "Exemplaire déplacé." })).toBeVisible();
   });
 
   test("Story 4.2 — sélectionne plusieurs exemplaires et expose une commande unique", async ({ page }) => {

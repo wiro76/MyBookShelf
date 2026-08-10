@@ -2,6 +2,7 @@
 
 import { useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import type { LibraryProjection } from "../domain/library-foundation";
+import type { LibraryStatus } from "../domain/library-view-state";
 import { LibraryMoveForm, type MoveDropRequest } from "./library-move-form";
 import { LibrarySelectionMoveForm } from "./library-selection-move-form";
 import type { MoveSelectionActionState } from "@/app/bibliotheque/move-actions";
@@ -53,7 +54,11 @@ function navigateProjection(event: KeyboardEvent<HTMLElement>) {
 }
 
 export function LibraryProjection({ projection, resumeTargetId = null, moveAction, selectionMoveAction, selectionUndoAction }: LibraryProjectionProps) {
-  const shelves = projection.statuses.flatMap((entry) => entry.modules.flatMap((module) => module.shelves));
+  const resumeStatus = projection.statuses.find((entry) => entry.modules.some((module) => module.shelves.some((shelf) => shelf.items.some((item) => item.copyId === resumeTargetId))))?.status;
+  const firstPopulatedStatus = projection.statuses.find((entry) => entry.modules.some((module) => module.shelves.some((shelf) => shelf.items.length > 0)))?.status;
+  const [activeStatus, setActiveStatus] = useState<LibraryStatus>(resumeStatus ?? firstPopulatedStatus ?? "want-to-read");
+  const activeEntry = projection.statuses.find((entry) => entry.status === activeStatus) ?? projection.statuses[0];
+  const shelves = activeEntry.modules.flatMap((module) => module.shelves);
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dropRequest, setDropRequest] = useState<MoveDropRequest | null>(null);
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
@@ -70,11 +75,16 @@ export function LibraryProjection({ projection, resumeTargetId = null, moveActio
   return (
     <div id="library-projection" onKeyDownCapture={navigateProjection} aria-label="Projection des bibliothèques">
       {selectionMoveAction && selectedItems.length > 0 ? <LibrarySelectionMoveForm items={selectedItems} shelves={shelves} action={selectionMoveAction} undoAction={selectionUndoAction} onClear={() => setSelectedIds(new Set())} /> : null}
+      <nav className="library-status-switcher" aria-label="Choisir une bibliothèque" role="tablist">
+        {projection.statuses.map((entry) => {
+          const count = entry.modules.reduce((total, module) => total + module.shelves.reduce((shelfTotal, shelf) => shelfTotal + shelf.items.length, 0), 0);
+          return <button key={entry.status} type="button" role="tab" aria-selected={activeStatus === entry.status} aria-controls={`library-status-panel-${entry.status}`} className={`library-status-tab${activeStatus === entry.status ? " is-active" : ""}`} onClick={() => setActiveStatus(entry.status)}><span>{statusLabel(entry.status)}</span><small>{count} livre{count > 1 ? "s" : ""}</small></button>;
+        })}
+      </nav>
       <div className="library-status-grid">
-      {projection.statuses.map((entry) => (
-        <section className="library-status-section" key={entry.status} aria-labelledby={`library-status-${entry.status}`}>
-          <h3 id={`library-status-${entry.status}`}>{statusLabel(entry.status)}</h3>
-          {entry.modules.map((module) => (
+        <section className="library-status-section" key={activeEntry.status} id={`library-status-panel-${activeEntry.status}`} role="tabpanel" aria-labelledby={`library-status-${activeEntry.status}`}>
+          <h3 id={`library-status-${activeEntry.status}`}>{statusLabel(activeEntry.status)}</h3>
+          {activeEntry.modules.map((module) => (
             <div className="library-module" key={module.id} aria-label={`Module ${module.modulePosition + 1}`}>
               <strong>Module {module.modulePosition + 1}</strong>
               <ul aria-label={`Étagères du module ${module.modulePosition + 1}`}>
@@ -95,7 +105,7 @@ export function LibraryProjection({ projection, resumeTargetId = null, moveActio
                             )}
                             <span className="library-spine" aria-hidden="true" style={{ width: `${Math.max(2.5, item.widthUnits * 0.3)}rem` }} />
                             {selectionMoveAction ? <input className="library-item-select" type="checkbox" checked={selectedIds.has(item.id)} onChange={(event) => setSelectedIds((current) => { const next = new Set(current); if (event.target.checked) next.add(item.id); else next.delete(item.id); return next; })} aria-label={`Sélectionner ${item.title}`} /> : null}
-                            <span className="library-item-copy">
+                            <span className="library-item-copy" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.stopPropagation(); const rect = event.currentTarget.getBoundingClientRect(); const before = event.clientX < rect.left + rect.width / 2; requestDrop(event, shelf.id, before ? item.itemPosition : item.itemPosition + item.widthUnits); }}>
                               <strong>{item.title}</strong>
                               <small>{item.author ?? item.editionTitle}</small>
                             </span>
@@ -109,9 +119,8 @@ export function LibraryProjection({ projection, resumeTargetId = null, moveActio
               </ul>
             </div>
           ))}
-          <p className="library-empty-state">{entry.modules.some((module) => module.shelves.some((shelf) => shelf.occupiedUnits > 0)) ? "Les exemplaires placés sont comptabilisés sur leurs étagères." : "Aucun exemplaire placé dans ce statut."}</p>
+          <p className="library-empty-state">{activeEntry.modules.some((module) => module.shelves.some((shelf) => shelf.occupiedUnits > 0)) ? "Les exemplaires placés sont comptabilisés sur leurs étagères." : "Aucun exemplaire placé dans ce statut."}</p>
         </section>
-      ))}
       </div>
     </div>
   );
