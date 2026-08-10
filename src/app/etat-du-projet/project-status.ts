@@ -11,10 +11,10 @@ export type ProjectEpic = Readonly<{
 export const projectStatus = {
   updatedAt: "7 août 2026",
   totalStories: 37,
-  advancedStories: 20,
+  advancedStories: 21,
   sprint: "Sprint Epic 3",
-  currentFocus: "Revue Story 3.5 · Couvertures et tranches indépendantes",
-  nextFocus: "Revue de l’Epic 3 puis préparation de l’Epic 4",
+  currentFocus: "Clôture de l’Epic 3 · revue et rétrospective",
+  nextFocus: "Préparer l’Epic 4 · organisation et repérage libres",
   epics: [
     {
       id: "1",
@@ -53,7 +53,7 @@ export const projectStatus = {
       { id: "3.2", title: "Parcourir les trois bibliothèques physiques", status: "review" },
       { id: "3.3", title: "Naviguer au clavier et avec aides techniques", status: "review" },
       { id: "3.4", title: "Gérer l’extension des modules", status: "review" },
-      { id: "3.5", title: "Afficher les visuels indépendants", status: "review" },
+      { id: "3.5", title: "Afficher les visuels indépendants", status: "done" },
     ] },
     { id: "4", title: "Organisation et repérage libres", value: "Ranger, regrouper et retrouver sans corruption.", status: "backlog", stories: [] },
     { id: "5", title: "Lectures et récompenses discrètes", value: "Suivre les lectures et les relectures.", status: "backlog", stories: [] },

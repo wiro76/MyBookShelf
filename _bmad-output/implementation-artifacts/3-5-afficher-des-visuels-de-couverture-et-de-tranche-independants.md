@@ -2,14 +2,14 @@
 story_id: "3.5"
 story_key: "3-5-afficher-des-visuels-de-couverture-et-de-tranche-independants"
 epic: 3
-status: review
+status: done
 created: "2026-08-10"
 baseline_commit: "00f247e"
 ---
 
 # Story 3.5 : Afficher des visuels de couverture et de tranche indépendants
 
-Status: review
+Status: done
 
 ## Story
 
@@ -48,3 +48,5 @@ confirmer les droits et déclencher cette chaîne sans exposer l’original.
 
 Les E2E de projection et de croissance passent sur les quatre profils desktop/tablette,
 avec contrôle Axe, navigation clavier, 100 exemplaires et vérification couverture/tranche côte à côte.
+
+La revue BMAD a également corrigé l’identité des actifs pour la rendre propre à chaque utilisateur.
