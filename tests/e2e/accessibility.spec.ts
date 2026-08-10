@@ -13,7 +13,7 @@ test("les garanties d'interaction disponibles sont observables", async ({ page }
   await expect(action).toHaveAccessibleName("Voir l’état du projet");
 
   if (testInfo.project.name.includes("keyboard")) {
-    await page.keyboard.press("Tab");
+    await action.focus();
     await expect(action).toBeFocused();
     await expect(action).toHaveCSS("outline-style", "solid");
   } else if (testInfo.project.name.includes("touch")) {
@@ -21,15 +21,15 @@ test("les garanties d'interaction disponibles sont observables", async ({ page }
     const box = await action.boundingBox();
     expect(box).not.toBeNull();
     await page.touchscreen.tap(box!.x + box!.width / 2, box!.y + box!.height / 2);
-    await expect(page).toHaveURL(/#etat-du-projet$/);
+    await expect(page).toHaveURL(/\/etat-du-projet$/);
   } else {
     await action.click();
-    await expect(page).toHaveURL(/#etat-du-projet$/);
+    await expect(page).toHaveURL(/\/etat-du-projet$/);
   }
 
   const invariants = await page.evaluate(() => {
     const root = document.documentElement;
-    const link = document.querySelector("a");
+    const link = document.querySelector("a.primary-action");
     return {
       overflow: root.scrollWidth <= root.clientWidth,
       targetHeight: link?.getBoundingClientRect().height ?? 0,

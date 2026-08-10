@@ -33,9 +33,9 @@ const createStack = (name, offset, withMigrations) => {
   const configPath = join(workdir, "supabase", "config.toml");
   const config = readFileSync(configPath, "utf8")
     .replace(/project_id = ".*"/, `project_id = "${projectId}"`)
-    .replace(/port = 54321/, `port = ${ports[offset]}`)
-    .replace(/port = 54322/, `port = ${ports[offset + 1]}`)
-    .replace(/shadow_port = 54320/, `shadow_port = ${ports[offset + 2]}`);
+    .replace(/(^\s*port = )(?:54321|55321)(\s*$)/m, `$1${ports[offset]}$2`)
+    .replace(/(^\s*port = )(?:54322|55322)(\s*$)/m, `$1${ports[offset + 1]}$2`)
+    .replace(/(^\s*shadow_port = )(?:54320|55320)(\s*$)/m, `$1${ports[offset + 2]}$2`);
   writeFileSync(configPath, config);
   return {
     name,
@@ -55,7 +55,13 @@ const invoke = (stack, args, { capture = false } = {}) => {
     maxBuffer: 16 * 1024 * 1024,
     shell: useShell,
   });
-  if (result.status !== 0) throw new Error(`RECOVERY_SUPABASE_FAILED:${stack.name}:${args[0]}`);
+  if (result.status !== 0) {
+    if (capture) {
+      if (result.stdout) process.stderr.write(result.stdout);
+      if (result.stderr) process.stderr.write(result.stderr);
+    }
+    throw new Error(`RECOVERY_SUPABASE_FAILED:${stack.name}:${args[0]}`);
+  }
   return result.stdout ?? "";
 };
 const credentials = (stack) => {

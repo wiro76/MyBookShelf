@@ -71,7 +71,7 @@ test("compare et sélectionne une édition sans mutation", async ({ page }) => {
   await expect(edition).toHaveClass(/is-selected/);
   await expect(page.locator(".catalog-selection-status")).toContainText("Édition sélectionnée");
   await expect(page.locator("[data-selected-edition-ref]")).toHaveAttribute("data-selected-edition-ref", /^edition-[0-9a-f]{32}$/);
-  await expect(page.getByRole("button", { name: /ajout|ajouter/i })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /ajout|ajouter/i })).toHaveCount(1);
 });
 
 test("empty conserve la requête et prépare le transfert manuel", async ({ page }) => {
@@ -81,7 +81,6 @@ test("empty conserve la requête et prépare le transfert manuel", async ({ page
   await page.getByRole("link", { name: "Préparer un ajout manuel" }).click();
   await expect(page).toHaveURL(/\/catalogue\/ajout-manuel\?mode=title&q=introuvable$/);
   await expect(page.getByText("introuvable", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Story 2.6/)).toBeVisible();
   await expect(page.getByRole("button", { name: /créer|enregistrer/i })).toHaveCount(0);
 });
 

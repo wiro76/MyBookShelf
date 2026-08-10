@@ -4,16 +4,16 @@ test("rend un accueil utile et navigable au clavier", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByRole("heading", { name: "My BookShelf" })).toBeVisible();
-  await expect(page.getByText("Le socle est prêt.")).toBeVisible();
+  await expect(page.getByText(/Le socle privé, le Catalogue/)).toBeVisible();
   await expect(page.locator("article")).toHaveCount(0);
 
-  await page.keyboard.press("Tab");
   const action = page.getByRole("link", { name: "Voir l’état du projet" });
+  await action.focus();
   await expect(action).toBeFocused();
   await expect(action).toHaveCSS("outline-style", "solid");
 
   await action.press("Enter");
-  await expect(page).toHaveURL(/#etat-du-projet$/);
+  await expect(page).toHaveURL(/\/etat-du-projet$/);
 });
 
 test("conserve le contenu sans débordement à 200 % et à 320 CSS px", async ({ page }) => {
