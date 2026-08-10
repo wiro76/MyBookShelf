@@ -14,7 +14,7 @@ import { CoverUpload } from "./cover-upload";
 import { createPostgresCoverVariantRepository } from "@/modules/media/adapters/postgres-cover-variant";
 import { createSupabasePrivateMediaStorage } from "@/modules/media/adapters/supabase-private-media-storage";
 import { resolveCoverUrl } from "@/modules/media/application/resolve-cover-url";
-import { deplacerExemplaire } from "./move-actions";
+import { deplacerExemplaire, deplacerSelection } from "./move-actions";
 
 /**
  * Route privée témoin — story 1.6 (AC 1, AC 2, AC 4 ; CAP-1, AD-10).
@@ -192,7 +192,7 @@ export default async function BibliothequePage() {
         <section className="library-foundation" aria-labelledby="library-foundation-title">
           <h2 id="library-foundation-title">Ton rangement réel</h2>
           <p className="project-status">Chaque statut possède maintenant son module et ses étagères persistants. La projection ci-dessous reflète uniquement les exemplaires réellement placés.</p>
-          <LibraryProjection projection={projection} resumeCopyId={resumeCopyId} moveAction={deplacerExemplaire} />
+          <LibraryProjection projection={projection} resumeCopyId={resumeCopyId} moveAction={deplacerExemplaire} selectionMoveAction={deplacerSelection} />
           <CoverUpload targets={coverTargets} />
         </section>
         <nav className="library-actions" aria-label="Actions de la bibliothèque">

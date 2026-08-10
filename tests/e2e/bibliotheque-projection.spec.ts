@@ -66,7 +66,18 @@ test.describe("Story 3.2 — projection des trois bibliothèques", () => {
     await items.first().locator("summary").click();
     await expect(items.first().getByRole("button", { name: "Avant" })).toBeDisabled();
     await expect(items.first().getByRole("button", { name: "Après" })).toBeEnabled();
-    await items.first().dragTo(items.nth(1));
+    await items.first().locator(".library-item-copy").dragTo(items.nth(1).locator(".library-item-copy"));
     await expect(items.first().locator(".library-move").getByRole("status")).toHaveText("Exemplaire déplacé.");
+  });
+
+  test("Story 4.2 — sélectionne plusieurs exemplaires et expose une commande unique", async ({ page }) => {
+    const selection = page.locator(".library-selection");
+    const checkboxes = page.locator(".library-item-select");
+    await expect(checkboxes).toHaveCount(2);
+    await checkboxes.nth(0).check({ force: true });
+    await checkboxes.nth(1).press("Space", { force: true });
+    await expect(selection.getByText("2 exemplaires sélectionnés")).toBeVisible();
+    await selection.getByRole("button", { name: "Déplacer la sélection" }).click();
+    await expect(selection.getByRole("status")).toHaveText("Sélection déplacée intégralement.");
   });
 });

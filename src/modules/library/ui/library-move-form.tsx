@@ -25,7 +25,7 @@ export function LibraryMoveForm({ item, sourceShelfId, sourceShelf, shelves, act
     if (!(shelfField instanceof HTMLSelectElement) || !(positionField instanceof HTMLInputElement)) return;
     shelfField.value = dropRequest.shelfId;
     positionField.value = String(dropRequest.position);
-    requestAnimationFrame(() => formRef.current?.requestSubmit());
+    window.setTimeout(() => formRef.current?.requestSubmit(), 0);
   }, [dropRequest, item.id]);
 
   const intentPosition = (position: number) => {

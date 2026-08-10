@@ -288,18 +288,24 @@ h1 {
   padding: 0 0 0.25rem !important;
   border-bottom: 0.25rem solid var(--border-strong);
   overflow: visible;
+  align-content: start;
 }
 
 .library-item {
-  display: flex !important;
-  flex: 0 1 calc(50% - 0.25rem);
+  display: grid !important;
+  grid-template-columns: auto auto minmax(0, 1fr);
   align-items: stretch;
   min-width: 0;
   min-height: 3.5rem;
   max-width: 100%;
+  overflow: hidden;
   padding: 0;
   border: 1px solid var(--border-default);
   background: var(--surface-subtle);
+}
+
+.library-item.has-selection-control {
+  grid-template-columns: auto auto auto minmax(0, 1fr);
 }
 
 .library-item[draggable="true"] {
@@ -346,6 +352,11 @@ h1 {
   text-align: left;
 }
 
+.library-item > .library-move {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
 .library-cover-upload {
   display: grid;
   gap: 0.75rem;
@@ -386,6 +397,7 @@ h1 {
 
 .library-move {
   grid-column: 1 / -1;
+  min-width: 0;
   font-size: 0.75rem;
 }
 
@@ -396,6 +408,7 @@ h1 {
 
 .library-move form {
   display: grid;
+  min-width: 0;
   gap: 0.35rem;
   margin-top: 0.35rem;
 }
@@ -415,6 +428,7 @@ h1 {
 .library-move input,
 .library-move button {
   min-width: 0;
+  max-width: 100%;
   font: inherit;
 }
 
@@ -433,6 +447,54 @@ h1 {
   display: grid;
   align-items: stretch;
   margin-top: 1rem;
+}
+
+.library-selection {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 2px solid var(--accent);
+  background: var(--surface-raised);
+}
+
+.library-selection-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.library-selection form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.library-selection label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.library-selection select,
+.library-selection input[type="number"] {
+  min-height: 2.75rem;
+  min-width: 8rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border-strong);
+  color: var(--ink-primary);
+  background: var(--surface-subtle);
+  font: inherit;
+}
+
+.library-item-select {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.5rem;
+  accent-color: var(--accent);
 }
 
 /* Catalogue — story 2.1. Surface de travail dense, distincte de la bibliothèque. */

@@ -13,8 +13,8 @@ export const projectStatus = {
   totalStories: 37,
   advancedStories: 26,
   sprint: "Sprint Epic 4",
-  currentFocus: "Epic 4 · préparation de la Story 4.2",
-  nextFocus: "Sélection multiple, vérification de capacité et déplacement transactionnel unique",
+  currentFocus: "Story 4.2 · Déplacer atomiquement une sélection",
+  nextFocus: "Annulation contrôlée par versions et validation des conflits de sélection",
   epics: [
     {
       id: "1",

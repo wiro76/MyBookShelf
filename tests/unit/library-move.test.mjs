@@ -14,7 +14,7 @@ registerHooks({
   },
 });
 
-const { planPlacementMove, validateMovePlacementInput } = await import(pathToFileURL(resolve(ROOT, "src/modules/library/domain/library-move.ts")).href);
+const { planPlacementMove, planPlacementSelectionMove, validateMovePlacementInput, validateMoveSelectionInput } = await import(pathToFileURL(resolve(ROOT, "src/modules/library/domain/library-move.ts")).href);
 const item = (id, itemPosition, widthUnits = 2) => ({ id, copyId: `copy-${id}`, title: id, author: null, editionTitle: id, itemPosition, widthUnits, coverStatus: "not-provided" });
 const shelf = (id, items = [], capacityUnits = 20) => ({ id, moduleId: `module-${id}`, status: "want-to-read", shelfPosition: 0, capacityUnits, occupiedUnits: items.reduce((sum, current) => sum + current.widthUnits, 0), items });
 
@@ -38,4 +38,21 @@ test("refuse une position qui coupe un livre ou dépasse la capacité", () => {
   const source = shelf("s1", [item("p1", 0), item("p2", 2)]);
   assert.throws(() => planPlacementMove(source, shelf("s2", [item("p3", 0)]), { placementId: "p1", destinationShelfId: "s2", destinationPosition: 1, expectedVersion: 1 }), { code: "LIBRARY_MOVE_POSITION_INVALID" });
   assert.throws(() => planPlacementMove(source, shelf("s2", [item("p3", 0)], 2), { placementId: "p1", destinationShelfId: "s2", destinationPosition: 2, expectedVersion: 1 }), { code: "LIBRARY_MOVE_CAPACITY_EXCEEDED" });
+});
+
+test("déplace une sélection comme un bloc et conserve l'ordre canonique", () => {
+  const source = shelf("s1", [item("p1", 0), item("p2", 2), item("p3", 4)]);
+  const destination = shelf("s2", [item("p4", 0)]);
+  const plan = planPlacementSelectionMove([source], destination, { placementIds: ["p2", "p3"], destinationShelfId: "s2", destinationPosition: 2, expectedVersions: { p2: 1, p3: 1 } });
+  assert.deepEqual(plan.assignments, [
+    { placementId: "p1", shelfId: "s1", moduleId: "module-s1", status: "want-to-read", itemPosition: 0 },
+    { placementId: "p4", shelfId: "s2", moduleId: "module-s2", status: "want-to-read", itemPosition: 0 },
+    { placementId: "p2", shelfId: "s2", moduleId: "module-s2", status: "want-to-read", itemPosition: 2 },
+    { placementId: "p3", shelfId: "s2", moduleId: "module-s2", status: "want-to-read", itemPosition: 4 },
+  ]);
+});
+
+test("refuse une sélection dupliquée ou une version absente", () => {
+  assert.throws(() => validateMoveSelectionInput({ placementIds: ["p1", "p1"], destinationShelfId: "s2", destinationPosition: 0, expectedVersions: { p1: 1 } }), { code: "LIBRARY_MOVE_INVALID" });
+  assert.throws(() => validateMoveSelectionInput({ placementIds: ["p1"], destinationShelfId: "s2", destinationPosition: 0, expectedVersions: {} }), { code: "LIBRARY_MOVE_VERSION_CONFLICT" });
 });
