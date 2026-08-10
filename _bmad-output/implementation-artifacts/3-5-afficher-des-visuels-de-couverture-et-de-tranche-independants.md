@@ -39,3 +39,5 @@ les variantes qui ne sont pas `private-webp` et toute variante qui n’appartien
 La clé d’objet reste côté serveur ; seule une URL signée à durée courte pourra franchir cette frontière.
 Le bucket privé `media-private`, l’adaptateur serveur et la résolution de l’URL signée sont maintenant en place.
 Une image réelle apparaîtra dès qu’un actif préparé sera associé à un exemplaire ; sans association, le placeholder reste affiché.
+Le flux de persistance dépose l’original et la variante WebP sous des clés privées déterministes,
+enregistre l’actif et son reçu idempotent, puis effectue la promotion contrôlée vers `private`.
