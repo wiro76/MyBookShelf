@@ -32,7 +32,7 @@ CAP-6, CAP-11, CAP-12 ; FR-15 à FR-19, FR-28, FR-29 ; NFR-1 à NFR-3, NFR-5, NF
 - [x] Définir le contrat de groupe, thème, repère et suggestion opt-in.
 - [x] Ajouter les tables, contraintes, RLS et reçus idempotents sans coupler les placements.
 - [x] Implémenter les commandes atomiques de création et d’association ; planifier modification et retrait.
-- [ ] Ajouter l’interface de sélection, d’affichage accessible et de confirmation réversible.
+- [ ] Ajouter l’interface complète groupes + thèmes, l’affichage accessible et la confirmation réversible.
 - [x] Tester validation, rejeu, RLS de base et absence de couplage aux placements.
 
 ## Definition of Done
@@ -50,3 +50,9 @@ CAP-6, CAP-11, CAP-12 ; FR-15 à FR-19, FR-28, FR-29 ; NFR-1 à NFR-3, NFR-5, NF
 - `supabase/migrations/20260810000600_library_groups_themes.sql` ajoute les tables, contraintes et policies RLS sans modifier `library.placements`.
 - `tests/integration/database-library-groups-canary.mjs` prouve création, rejeu, association et repère non chromatique.
 - `tests/unit/library-groups.test.mjs` couvre les validations domaine.
+- `src/app/bibliotheque/groups-actions.ts` expose la création authentifiée d’un groupe.
+- `src/modules/library/ui/library-groups-form.tsx` permet une première création visible depuis la bibliothèque.
+
+### Incrément visuel livré
+
+La création de groupe est disponible dans `/bibliotheque` lorsqu’au moins un exemplaire est placé. La sélection est bornée aux copies réellement projetées, le bouton reste désactivé sans sélection et le résultat est annoncé dans une région `status`. La création de thèmes et l’affichage des groupes persistants restent à intégrer.

@@ -770,6 +770,78 @@ h1 {
   line-height: 1.5;
 }
 
+.library-groups-panel {
+  display: grid;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-default);
+}
+
+.library-groups-form {
+  display: grid;
+  gap: 1rem;
+  max-width: 42rem;
+}
+
+.library-groups-form label,
+.library-groups-form fieldset {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.library-groups-form input[type="text"],
+.library-groups-form input:not([type]) {
+  min-height: 2.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.35rem;
+  color: var(--ink-primary);
+  background: var(--surface-raised);
+  font: inherit;
+}
+
+.library-groups-form fieldset {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--border-default);
+}
+
+.library-group-copy-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 0.5rem;
+}
+
+.library-group-copy-option {
+  display: flex !important;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: start;
+  gap: 0.65rem !important;
+  padding: 0.65rem;
+  border: 1px solid var(--border-default);
+  background: var(--surface-subtle);
+}
+
+.library-group-copy-option input {
+  width: 1.2rem;
+  height: 1.2rem;
+  margin-top: 0.15rem;
+  accent-color: var(--accent);
+}
+
+.library-group-copy-option span {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.library-group-copy-option small {
+  overflow-wrap: anywhere;
+  color: var(--ink-secondary);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

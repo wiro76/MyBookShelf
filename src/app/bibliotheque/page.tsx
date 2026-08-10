@@ -15,6 +15,8 @@ import { createPostgresCoverVariantRepository } from "@/modules/media/adapters/p
 import { createSupabasePrivateMediaStorage } from "@/modules/media/adapters/supabase-private-media-storage";
 import { resolveCoverUrl } from "@/modules/media/application/resolve-cover-url";
 import { annulerDeplacementSelection, deplacerExemplaire, deplacerSelection } from "./move-actions";
+import { creerGroupe } from "./groups-actions";
+import { LibraryGroupsForm } from "@/modules/library/ui/library-groups-form";
 
 /**
  * Route privée témoin — story 1.6 (AC 1, AC 2, AC 4 ; CAP-1, AD-10).
@@ -170,6 +172,7 @@ export default async function BibliothequePage() {
       label: `${item.title}${item.author ? ` — ${item.author}` : ""}`,
     }))
   ))));
+  const libraryItems = projection.statuses.flatMap((entry) => entry.modules.flatMap((module) => module.shelves.flatMap((shelf) => shelf.items)));
 
   return (
     <main className="welcome-shell">
@@ -193,6 +196,7 @@ export default async function BibliothequePage() {
           <h2 id="library-foundation-title">Ton rangement réel</h2>
           <p className="project-status">Chaque statut possède maintenant son module et ses étagères persistants. La projection ci-dessous reflète uniquement les exemplaires réellement placés.</p>
           <LibraryProjection projection={projection} resumeCopyId={resumeCopyId} moveAction={deplacerExemplaire} selectionMoveAction={deplacerSelection} selectionUndoAction={annulerDeplacementSelection} />
+          <LibraryGroupsForm items={libraryItems} action={creerGroupe} />
           <CoverUpload targets={coverTargets} />
         </section>
         <nav className="library-actions" aria-label="Actions de la bibliothèque">
