@@ -47,7 +47,7 @@ export default function BibliothequeE2EPage({ growth = false }: { growth?: boole
   const fixture = createFixture(growth);
   return (
     <main className="welcome-shell">
-      <section className="welcome-card auth-card" aria-labelledby="library-e2e-title">
+      <section className="welcome-card auth-card library-card" aria-labelledby="library-e2e-title">
         <p className="eyebrow">Harnais E2E</p>
         <h1 id="library-e2e-title" tabIndex={-1}>Bibliothèque physique</h1>
         <p className="intro">Projection de test des trois statuts, sans donnée personnelle.</p>

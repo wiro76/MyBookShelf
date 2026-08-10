@@ -41,6 +41,19 @@ test.describe("Story 3.2 — projection des trois bibliothèques", () => {
     await expect(readingShelves.nth(1)).toBeFocused();
   });
 
+  test("affiche couverture et tranche côte à côte sans scroll d’étagère", async ({ page }) => {
+    const items = page.locator(".library-item");
+    await expect(items.locator(".library-cover")).toHaveCount(2);
+    await expect(items.locator(".library-spine")).toHaveCount(2);
+    expect(await page.locator(".library-items").first().evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    const bounds = await items.first().evaluate((element) => {
+      const cover = element.querySelector<HTMLElement>(".library-cover")?.getBoundingClientRect();
+      const spine = element.querySelector<HTMLElement>(".library-spine")?.getBoundingClientRect();
+      return { coverRight: cover?.right ?? 0, spineLeft: spine?.left ?? 0 };
+    });
+    expect(bounds.coverRight).toBeLessThanOrEqual(bounds.spineLeft + 1);
+  });
+
   test("reste accessible sur la branche courante", async ({ page }) => {
     const accessibility = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag22aa"]).analyze();
     expect(accessibility.violations).toEqual([]);

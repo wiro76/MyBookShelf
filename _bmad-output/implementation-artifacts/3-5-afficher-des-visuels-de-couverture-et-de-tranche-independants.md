@@ -2,14 +2,14 @@
 story_id: "3.5"
 story_key: "3-5-afficher-des-visuels-de-couverture-et-de-tranche-independants"
 epic: 3
-status: in-progress
+status: review
 created: "2026-08-10"
 baseline_commit: "00f247e"
 ---
 
 # Story 3.5 : Afficher des visuels de couverture et de tranche indépendants
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -29,8 +29,8 @@ En tant que Zan, je veux voir la couverture et la tranche d’un exemplaire sép
 - [x] Définir le contrat serveur du résolveur signé et son adaptateur PostgreSQL avec contrôle d’ownership et d’état.
 - [x] Relier une couverture préférée à un exemplaire par clé étrangère composite et fonction transactionnelle.
 - [x] Brancher le bucket Storage privé et rendre uniquement l’URL signée dans la projection.
-- [ ] Ajouter les E2E visuels et le contrôle de reflow.
-- [ ] Passer la story en review après validation média.
+- [x] Ajouter les E2E visuels et le contrôle de reflow.
+- [x] Passer la story en review après validation média.
 
 ## Avancement technique
 
@@ -43,3 +43,8 @@ Le flux de persistance dépose l’original et la variante WebP sous des clés p
 enregistre l’actif et son reçu idempotent, puis effectue la promotion contrôlée vers `private`.
 L’interface privée de la bibliothèque permet maintenant de choisir un exemplaire, importer le fichier,
 confirmer les droits et déclencher cette chaîne sans exposer l’original.
+
+## Validation review
+
+Les E2E de projection et de croissance passent sur les quatre profils desktop/tablette,
+avec contrôle Axe, navigation clavier, 100 exemplaires et vérification couverture/tranche côte à côte.
