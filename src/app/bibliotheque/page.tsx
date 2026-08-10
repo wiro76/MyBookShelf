@@ -172,7 +172,7 @@ export default async function BibliothequePage() {
 
   return (
     <main className="welcome-shell">
-      <section className="welcome-card auth-card" aria-labelledby="titre-bibliotheque">
+      <section className="welcome-card auth-card library-card" aria-labelledby="titre-bibliotheque">
         <p className="eyebrow">My BookShelf</p>
         <h1 id="titre-bibliotheque" tabIndex={-1}>Ta bibliothèque</h1>
         <p className="intro">
@@ -197,6 +197,9 @@ export default async function BibliothequePage() {
         <nav className="library-actions" aria-label="Actions de la bibliothèque">
           <a className="primary-action" href="/catalogue">
             Rechercher dans le Catalogue
+          </a>
+          <a className="catalog-secondary-action" href="/catalogue/ajout-manuel">
+            Ajouter manuellement
           </a>
         </nav>
         <LibraryResumeFocus

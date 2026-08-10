@@ -196,6 +196,10 @@ h1 {
   border-top: 1px solid var(--border-default);
 }
 
+.library-card {
+  width: min(100%, 110rem);
+}
+
 .library-foundation h2 {
   margin: 0;
   font-size: 1.35rem;
@@ -203,7 +207,7 @@ h1 {
 
 .library-status-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(18rem, 1fr));
   gap: 1rem;
   margin-top: 1.5rem;
 }
@@ -724,6 +728,10 @@ h1 {
 
   .library-status-grid {
     grid-template-columns: 1fr;
+  }
+
+  .library-card {
+    width: min(100%, 44rem);
   }
 }
 

@@ -85,10 +85,6 @@ export function LibraryProjection({ projection, resumeCopyId = null }: LibraryPr
             </div>
           ))}
           <p className="library-empty-state">{entry.modules.some((module) => module.shelves.some((shelf) => shelf.occupiedUnits > 0)) ? "Les exemplaires placés sont comptabilisés sur leurs étagères." : "Aucun exemplaire placé dans ce statut."}</p>
-          <div className="library-actions">
-            <a className="primary-action" href="/catalogue">Rechercher dans le Catalogue</a>
-            <a className="catalog-secondary-action" href="/catalogue/ajout-manuel">Ajouter manuellement</a>
-          </div>
         </section>
       ))}
     </div>
