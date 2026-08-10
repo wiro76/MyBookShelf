@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My BookShelf — Comparatif du degré de réalisme</title>
+  <style>
+    /*
+      Direction A — immersion physique : #251A16 #5B3B2A #B98A5B #E5D2B8 #FBF6EE #B84A3A
+      Direction B — illustration tactile : #2F3440 #8576A9 #E8C36A #F3E8D0 #FCFAF5 #C94F5C
+      Direction C — hybride sobre : #202326 #626A65 #A9794F #E7E3DA #F7F6F2 #B8473D
+      Couleurs et typographies provisoires : elles servent uniquement à rendre les personnalités comparables.
+    */
+    * { box-sizing: border-box; }
+    :root {
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #202326;
+      background: #e8e7e3;
+    }
+    body { margin: 0; min-width: 1180px; }
+    button { font: inherit; }
+    .page-head {
+      display: flex; align-items: end; justify-content: space-between; gap: 32px;
+      padding: 28px 32px 22px; background: #f8f7f4; border-bottom: 1px solid #cbc9c3;
+    }
+    .page-head h1 { margin: 0 0 6px; font-size: 25px; letter-spacing: -.02em; }
+    .page-head p { margin: 0; color: #62615d; font-size: 14px; max-width: 760px; line-height: 1.45; }
+    .provisional {
+      flex: none; padding: 8px 11px; border: 1px dashed #8a8881; border-radius: 8px;
+      font-size: 12px; color: #5b5a56; background: #fff;
+    }
+    .comparison {
+      display: grid; grid-template-columns: repeat(3, minmax(360px, 1fr));
+      gap: 18px; padding: 18px;
+    }
+    .direction {
+      min-width: 0; background: white; border: 1px solid #c9c7c1; border-radius: 14px;
+      overflow: hidden; box-shadow: 0 4px 16px rgba(30,30,25,.08);
+    }
+    .direction-copy { min-height: 150px; padding: 18px 20px; background: #fff; border-bottom: 1px solid #d7d5cf; }
+    .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    .direction h2 { margin: 7px 0 8px; font-size: 22px; letter-spacing: -.02em; }
+    .direction-copy p { margin: 0; font-size: 13px; line-height: 1.45; color: #5c5b57; }
+    .browser { margin: 13px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(0,0,0,.22); }
+    .chrome {
+      height: 27px; display: flex; align-items: center; gap: 5px; padding: 0 10px;
+      border-bottom: 1px solid rgba(0,0,0,.15); background: #eeece7;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #aaa7a0; }
+    .app { height: 610px; position: relative; overflow: hidden; }
+    .topbar { height: 58px; display: flex; align-items: center; justify-content: space-between; padding: 0 17px; }
+    .brand { font-weight: 800; letter-spacing: -.03em; }
+    .top-actions { display: flex; align-items: center; gap: 7px; }
+    .coin { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 800; padding: 7px 9px; }
+    .coin-mark { display:inline-grid; place-items:center; width:17px; height:17px; border-radius:50%; font-size:10px; }
+    .icon-button { border: 0; padding: 7px 9px; font-size: 11px; font-weight: 700; }
+    .context { padding: 10px 17px 12px; }
+    .swipe-map { display: grid; grid-template-columns: 1fr 1.6fr 1fr; align-items: center; gap: 5px; }
+    .side-space { font-size: 10px; opacity: .65; white-space: nowrap; }
+    .side-space:last-child { text-align: right; }
+    .active-space { text-align: center; }
+    .active-space strong { display: block; font-size: 18px; }
+    .active-space span { font-size: 10px; opacity: .66; }
+    .view-tabs { display: flex; justify-content: center; gap: 4px; margin-top: 10px; }
+    .view-tabs button { border: 0; padding: 6px 10px; font-size: 10px; font-weight: 750; }
+    .shelf-zone { position: relative; margin: 0 16px; }
+    .room-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; font-size: 10px; }
+    .pending { font-weight: 750; }
+    .shelf {
+      height: 142px; position: relative; display: flex; align-items: end; gap: 3px;
+      padding: 24px 12px 11px;
+    }
+    .shelf + .shelf { margin-top: 22px; }
+    .shelf::after { content:""; position:absolute; left:-5px; right:-5px; bottom:0; height:11px; }
+    .book {
+      width: 22px; position: relative; border: 1px solid rgba(0,0,0,.25); border-bottom: 0;
+      display:flex; align-items:center; justify-content:center; overflow:hidden; flex: none;
+    }
+    .book span { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 7px; font-weight: 750; white-space:nowrap; }
+    .b1 { height: 94px; } .b2 { height: 112px; width: 27px; } .b3 { height: 103px; width: 19px; }
+    .b4 { height: 119px; width: 24px; } .b5 { height: 88px; width: 29px; } .b6 { height: 107px; width: 20px; }
+    .b7 { height: 98px; width: 25px; } .b8 { height: 116px; width: 21px; }
+    .book-tools {
+      position: absolute; z-index: 4; bottom: 117px; left: 77px;
+      display: flex; gap: 2px; padding: 4px;
+    }
+    .book-tools::after { content:""; position:absolute; left:50%; bottom:-5px; width:8px; height:8px; transform:rotate(45deg); }
+    .book-tools button {
+      position:relative; z-index:1; width:24px; height:24px; padding:0; border:0; font-size:12px; font-weight:900;
+    }
+    .selected { outline: 3px solid; outline-offset: 2px; }
+    .object {
+      width: 55px; height: 75px; margin: 0 5px; position:relative; flex:none;
+      display:flex; align-items:end; justify-content:center; font-size:9px; padding-bottom:5px;
+    }
+    .plant-pot { width:31px; height:29px; position:absolute; bottom:8px; border-radius:2px 2px 8px 8px; }
+    .leaf { position:absolute; width:19px; height:34px; border-radius:70% 10% 70% 10%; bottom:31px; }
+    .leaf.l1 { left:12px; transform:rotate(-22deg); } .leaf.l2 { right:12px; transform:scaleX(-1) rotate(-22deg); }
+    .to-sort {
+      position:absolute; right:10px; top:31px; width:27px; height:89px; transform:rotate(3deg);
+      border:2px dashed; display:flex; align-items:center; justify-content:center;
+    }
+    .to-sort span { writing-mode:vertical-rl; transform:rotate(180deg); font-size:7px; font-weight:800; }
+    .pending-tag { position:absolute; right:4px; top:4px; font-size:7px; font-weight:900; padding:3px 5px; border-radius:8px; }
+    .footer-note {
+      position:absolute; left:16px; right:16px; bottom:13px; display:flex; align-items:center;
+      justify-content:space-between; font-size:9px;
+    }
+    .footer-note strong { font-size:10px; }
+    .arrow { font-size:18px; line-height:1; }
+
+    /* A — matière, profondeur, irrégularité visuelle */
+    .a .eyebrow { color:#8b5d3c; }
+    .a .app { color:#f8ecda; background: radial-gradient(circle at 50% 10%, #5c4030, #251a16 72%); }
+    .a .topbar { background:rgba(26,15,12,.62); border-bottom:1px solid rgba(255,240,215,.14); }
+    .a .coin { background:#432c21; border:1px solid #9f744d; border-radius:18px; }
+    .a .coin-mark { background:#e5bc69; color:#4b311d; box-shadow:inset 0 0 0 2px #b17a32; }
+    .a .icon-button { color:#f9eddc; background:#513726; border:1px solid #9a7250; border-radius:5px; box-shadow:0 2px 4px #190d08; }
+    .a .context { background:linear-gradient(#32221c,#251915); border-bottom:1px solid #6c4935; }
+    .a .active-space strong { font-family: Georgia, serif; letter-spacing:.02em; }
+    .a .view-tabs button { color:#e8d5bb; background:#3b281e; border:1px solid #725039; border-radius:3px; }
+    .a .view-tabs .active-tab { background:#b98a5b; color:#241711; }
+    .a .shelf-zone { padding-top:13px; border-left:9px solid #5b3b2a; border-right:9px solid #5b3b2a; box-shadow:inset 0 0 25px #130a07; }
+    .a .shelf { background:linear-gradient(90deg,rgba(20,9,5,.8),rgba(82,54,37,.56),rgba(20,9,5,.8)); }
+    .a .shelf::after { background:linear-gradient(#8d623f,#4a2e20 70%); box-shadow:0 7px 8px #100704, inset 0 1px #ba8c62; }
+    .a .book { border-radius:2px 2px 0 0; box-shadow:inset 3px 0 rgba(255,255,255,.12), 2px 1px 3px #160b07; }
+    .a .book:nth-of-type(3n+1) { background:#784a38; } .a .book:nth-of-type(3n+2) { background:#b98a5b; color:#251a16; }
+    .a .book:nth-of-type(3n) { background:#3f6260; }
+    .a .selected { outline-color:#e5d2b8; }
+    .a .book-tools { background:#f4e7d4; border:1px solid #9d7656; border-radius:4px; box-shadow:0 4px 12px #140907; }
+    .a .book-tools::after { background:#f4e7d4; }
+    .a .book-tools button { background:transparent; color:#3b261b; border-right:1px solid #ceb69d; }
+    .a .book-tools button:last-child { border-right:0; color:#a33329; }
+    .a .object { border-radius:5px; background:radial-gradient(circle at 50% 55%,rgba(231,199,138,.22),transparent 62%); }
+    .a .plant-pot { background:#b06b42; box-shadow:inset -5px -4px #77422b; }
+    .a .leaf { background:#61785a; box-shadow:inset -5px -3px #3e513b; }
+    .a .to-sort { background:#33251f; border-color:#e6c487; }
+    .a .pending-tag { background:#e6c487; color:#332117; }
+    .a .footer-note { color:#d2bfa8; }
+
+    /* B — formes dessinées, souples et expressives */
+    .b .eyebrow { color:#756392; }
+    .b .app { color:#30343d; background:#f3e8d0; }
+    .b .topbar { background:#fcfaf5; border-bottom:3px solid #2f3440; }
+    .b .brand { font-size:18px; transform:rotate(-1deg); }
+    .b .coin { background:#fff4c8; border:2px solid #2f3440; border-radius:14px 9px 13px 10px; box-shadow:2px 2px 0 #2f3440; }
+    .b .coin-mark { background:#e8c36a; border:1px solid #2f3440; }
+    .b .icon-button { color:#2f3440; background:#dcd3ee; border:2px solid #2f3440; border-radius:10px 7px 11px 8px; box-shadow:2px 2px 0 #2f3440; }
+    .b .context { background:#dcd3ee; border-bottom:2px solid #2f3440; }
+    .b .active-space strong { font-size:20px; }
+    .b .view-tabs button { color:#2f3440; background:transparent; border:2px solid #2f3440; border-radius:12px 8px 11px 9px; }
+    .b .view-tabs .active-tab { background:#8576a9; color:white; transform:rotate(-1deg); }
+    .b .shelf-zone { padding-top:13px; }
+    .b .shelf { background:#e8d6b5; border:2px solid #2f3440; border-bottom:0; border-radius:9px 10px 0 0; }
+    .b .shelf::after { background:#a46f4d; border:2px solid #2f3440; border-radius:3px; height:14px; left:-4px; right:-4px; }
+    .b .book { border:2px solid #2f3440; border-bottom:0; border-radius:7px 5px 1px 1px; box-shadow:2px 0 0 rgba(47,52,64,.15); }
+    .b .book:nth-of-type(3n+1) { background:#dd7b72; } .b .book:nth-of-type(3n+2) { background:#e8c36a; }
+    .b .book:nth-of-type(3n) { background:#76aaa1; }
+    .b .selected { outline-color:#8576a9; }
+    .b .book-tools { background:#fcfaf5; border:2px solid #2f3440; border-radius:10px 8px 11px 7px; box-shadow:3px 3px 0 #2f3440; }
+    .b .book-tools::after { background:#fcfaf5; border-right:2px solid #2f3440; border-bottom:2px solid #2f3440; }
+    .b .book-tools button { background:transparent; color:#2f3440; }
+    .b .book-tools button:last-child { color:#c94f5c; }
+    .b .object { background:#fff0bd; border:2px dashed #2f3440; border-radius:43% 48% 12px 12px; }
+    .b .plant-pot { background:#dd7b72; border:2px solid #2f3440; }
+    .b .leaf { background:#76aaa1; border:2px solid #2f3440; }
+    .b .to-sort { background:#fcfaf5; border-color:#8576a9; border-radius:5px; box-shadow:3px 3px 0 #8576a9; }
+    .b .pending-tag { background:#e8c36a; border:1px solid #2f3440; }
+    .b .footer-note { color:#5e5964; }
+
+    /* C — interface structurée, matière en accent */
+    .c .eyebrow { color:#6c665f; }
+    .c .app { color:#202326; background:#f7f6f2; }
+    .c .topbar { background:#fff; border-bottom:1px solid #d6d5d0; }
+    .c .brand { font-size:15px; letter-spacing:-.015em; }
+    .c .coin { background:#f5efe7; border:1px solid #d1c4b4; border-radius:6px; }
+    .c .coin-mark { background:#a9794f; color:white; }
+    .c .icon-button { color:#2e322f; background:#fff; border:1px solid #bbbdb8; border-radius:6px; }
+    .c .context { background:#f0efe9; border-bottom:1px solid #d6d5d0; }
+    .c .active-space strong { font-size:17px; font-weight:650; }
+    .c .view-tabs { padding:3px; width:max-content; margin-left:auto; margin-right:auto; background:#e3e2dd; border-radius:7px; }
+    .c .view-tabs button { color:#555a56; background:transparent; border-radius:5px; }
+    .c .view-tabs .active-tab { color:#202326; background:white; box-shadow:0 1px 3px rgba(0,0,0,.12); }
+    .c .shelf-zone { padding-top:13px; }
+    .c .shelf { background:#eceae4; border-left:1px solid #d4d0c7; border-right:1px solid #d4d0c7; }
+    .c .shelf::after { background:linear-gradient(#a9794f,#7a5437); height:9px; box-shadow:0 3px 5px rgba(0,0,0,.14); }
+    .c .book { border-color:rgba(32,35,38,.28); border-radius:2px 2px 0 0; }
+    .c .book:nth-of-type(3n+1) { background:#747d78; color:#fff; } .c .book:nth-of-type(3n+2) { background:#d1b69a; }
+    .c .book:nth-of-type(3n) { background:#596875; color:#fff; }
+    .c .selected { outline-color:#202326; }
+    .c .book-tools { background:#202326; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,.24); }
+    .c .book-tools::after { background:#202326; }
+    .c .book-tools button { background:transparent; color:white; }
+    .c .book-tools button:last-child { color:#ff928b; }
+    .c .object { background:#f1eee7; border:1px solid #d5cfc5; border-radius:5px; }
+    .c .plant-pot { background:#a9794f; }
+    .c .leaf { background:#697d6b; }
+    .c .to-sort { background:#fff; border-color:#8a7058; box-shadow:0 2px 6px rgba(0,0,0,.12); }
+    .c .pending-tag { background:#eee0cf; color:#62462e; }
+    .c .footer-note { color:#666a66; }
+    .legend {
+      display:flex; gap:12px; padding:0 32px 28px; font-size:12px; color:#62615d;
+    }
+    .legend strong { color:#292a28; }
+  </style>
+</head>
+<body>
+  <header class="page-head">
+    <div>
+      <h1>Quel degré de réalisme pour My BookShelf&nbsp;?</h1>
+      <p>Trois personnalités appliquées au même écran «&nbsp;Bibliothèque principale · Terminés&nbsp;». Comparez surtout la sensation d’espace, la présence de la matière et la place laissée à l’interface.</p>
+    </div>
+    <div class="provisional">Couleurs et typographies provisoires</div>
+  </header>
+
+  <main class="comparison">
+    <section class="direction a">
+      <div class="direction-copy">
+        <div class="eyebrow">Direction A</div>
+        <h2>Immersion physique réaliste</h2>
+        <p>La bibliothèque se vit comme un meuble éclairé, profond et habité. Les commandes restent discrètes jusqu’à l’action, tandis que bois, ombres et variations de Tranches portent l’illusion matérielle.</p>
+      </div>
+      <div class="browser">
+        <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div>
+        <div class="app">
+          <header class="topbar">
+            <span class="brand">My BookShelf</span>
+            <div class="top-actions"><span class="coin"><i class="coin-mark">●</i> 340 pièces</span><button class="icon-button">Objets</button></div>
+          </header>
+          <div class="context">
+            <div class="swipe-map"><span class="side-space">‹ Envie de lire</span><div class="active-space"><strong>Terminés</strong><span>Bibliothèque principale</span></div><span class="side-space">En cours ›</span></div>
+            <div class="view-tabs"><button class="active-tab">Tranches</button><button>Couvertures</button></div>
+          </div>
+          <div class="shelf-zone">
+            <div class="room-label"><span>Étagère du haut</span><span class="pending">1 livre à ranger</span></div>
+            <div class="shelf">
+              <div class="book b1"><span>L’Écume des jours</span></div><div class="book b4"><span>Le Château ambulant</span></div>
+              <div class="book b2 selected"><span>La Horde du Contrevent</span></div>
+              <div class="book-tools" aria-label="Actions du livre"><button title="Déplacer">↔</button><button title="Sélection multiple">☷</button><button title="Retirer">♲</button></div>
+              <div class="book b3"><span>Beloved</span></div><div class="book b5"><span>Persépolis</span></div>
+              <div class="object" title="Plante décorative"><i class="leaf l1"></i><i class="leaf l2"></i><i class="plant-pot"></i></div>
+              <div class="book b6"><span>Dune</span></div><div class="book b8"><span>Les Misérables</span></div>
+              <div class="to-sort"><span>La Passe-miroir</span><b class="pending-tag">À ranger</b></div>
+            </div>
+            <div class="shelf">
+              <div class="book b5"><span>Akira 01</span></div><div class="book b8"><span>L’Ombre du vent</span></div><div class="book b6"><span>Jane Eyre</span></div><div class="book b2"><span>Sapiens</span></div><div class="book b7"><span>Le Nom de la rose</span></div><div class="book b4"><span>Fondation</span></div><div class="book b3"><span>La Couleur des sentiments</span></div>
+            </div>
+          </div>
+          <div class="footer-note"><span class="arrow">‹</span><strong>Faites glisser la pièce pour changer de bibliothèque</strong><span class="arrow">›</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="direction b">
+      <div class="direction-copy">
+        <div class="eyebrow">Direction B</div>
+        <h2>Illustration tactile et stylisée</h2>
+        <p>Le meuble devient un décor dessiné, chaleureux et légèrement ludique. Les objets et interactions assument des contours expressifs et des formes irrégulières, comme une collection personnelle manipulable.</p>
+      </div>
+      <div class="browser">
+        <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div>
+        <div class="app">
+          <header class="topbar">
+            <span class="brand">My BookShelf</span>
+            <div class="top-actions"><span class="coin"><i class="coin-mark">●</i> 340 pièces</span><button class="icon-button">Ma collection d’objets</button></div>
+          </header>
+          <div class="context">
+            <div class="swipe-map"><span class="side-space">← Envie de lire</span><div class="active-space"><strong>Terminés</strong><span>ma bibliothèque principale</span></div><span class="side-space">En cours →</span></div>
+            <div class="view-tabs"><button class="active-tab">Voir les tranches</button><button>Voir les couvertures</button></div>
+          </div>
+          <div class="shelf-zone">
+            <div class="room-label"><span>Mes lectures</span><span class="pending">À ranger · 1</span></div>
+            <div class="shelf">
+              <div class="book b1"><span>L’Écume des jours</span></div><div class="book b4"><span>Le Château ambulant</span></div>
+              <div class="book b2 selected"><span>La Horde du Contrevent</span></div>
+              <div class="book-tools" aria-label="Actions du livre"><button title="Déplacer">↔</button><button title="Sélection multiple">☷</button><button title="Retirer">♲</button></div>
+              <div class="book b3"><span>Beloved</span></div><div class="book b5"><span>Persépolis</span></div>
+              <div class="object" title="Plante décorative"><i class="leaf l1"></i><i class="leaf l2"></i><i class="plant-pot"></i></div>
+              <div class="book b6"><span>Dune</span></div><div class="book b8"><span>Les Misérables</span></div>
+              <div class="to-sort"><span>La Passe-miroir</span><b class="pending-tag">À ranger</b></div>
+            </div>
+            <div class="shelf">
+              <div class="book b5"><span>Akira 01</span></div><div class="book b8"><span>L’Ombre du vent</span></div><div class="book b6"><span>Jane Eyre</span></div><div class="book b2"><span>Sapiens</span></div><div class="book b7"><span>Le Nom de la rose</span></div><div class="book b4"><span>Fondation</span></div><div class="book b3"><span>La Couleur des sentiments</span></div>
+            </div>
+          </div>
+          <div class="footer-note"><span class="arrow">←</span><strong>Glissez pour parcourir vos trois bibliothèques</strong><span class="arrow">→</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="direction c">
+      <div class="direction-copy">
+        <div class="eyebrow">Direction C</div>
+        <h2>Hybride sobre interface + matière</h2>
+        <p>Une interface calme structure la navigation et les actions, tandis que les étagères, les Tranches et les objets conservent juste assez de matière. Le réalisme soutient la collection sans concurrencer la lisibilité.</p>
+      </div>
+      <div class="browser">
+        <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div>
+        <div class="app">
+          <header class="topbar">
+            <span class="brand">My BookShelf</span>
+            <div class="top-actions"><span class="coin"><i class="coin-mark">●</i> 340 pièces</span><button class="icon-button">Collection d’objets</button></div>
+          </header>
+          <div class="context">
+            <div class="swipe-map"><span class="side-space">← Envie de lire</span><div class="active-space"><strong>Terminés</strong><span>Bibliothèque principale</span></div><span class="side-space">En cours →</span></div>
+            <div class="view-tabs"><button class="active-tab">Tranches</button><button>Couvertures</button></div>
+          </div>
+          <div class="shelf-zone">
+            <div class="room-label"><span>Étagère 1</span><span class="pending">À ranger (1)</span></div>
+            <div class="shelf">
+              <div class="book b1"><span>L’Écume des jours</span></div><div class="book b4"><span>Le Château ambulant</span></div>
+              <div class="book b2 selected"><span>La Horde du Contrevent</span></div>
+              <div class="book-tools" aria-label="Actions du livre"><button title="Déplacer">↔</button><button title="Sélection multiple">☷</button><button title="Retirer">♲</button></div>
+              <div class="book b3"><span>Beloved</span></div><div class="book b5"><span>Persépolis</span></div>
+              <div class="object" title="Plante décorative"><i class="leaf l1"></i><i class="leaf l2"></i><i class="plant-pot"></i></div>
+              <div class="book b6"><span>Dune</span></div><div class="book b8"><span>Les Misérables</span></div>
+              <div class="to-sort"><span>La Passe-miroir</span><b class="pending-tag">À ranger</b></div>
+            </div>
+            <div class="shelf">
+              <div class="book b5"><span>Akira 01</span></div><div class="book b8"><span>L’Ombre du vent</span></div><div class="book b6"><span>Jane Eyre</span></div><div class="book b2"><span>Sapiens</span></div><div class="book b7"><span>Le Nom de la rose</span></div><div class="book b4"><span>Fondation</span></div><div class="book b3"><span>La Couleur des sentiments</span></div>
+            </div>
+          </div>
+          <div class="footer-note"><span class="arrow">←</span><strong>Bibliothèque 2 sur 3 · glisser ou utiliser les flèches</strong><span class="arrow">→</span></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="legend">
+    <strong>Constantes dans les trois directions :</strong>
+    <span>même architecture, mêmes contenus et mêmes capacités — seul le registre visuel change.</span>
+  </footer>
+</body>
+</html>

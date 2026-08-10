@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My BookShelf — Boutique</title>
+<style>
+/* Sections de spine gouvernantes :
+   DESIGN.md — Brand & Style ; Colors ; Typography ; Layout & Spacing ;
+   Elevation & Depth ; Shapes ; Components (`carte-produit`, boutons, badges).
+   EXPERIENCE.md — Information Architecture (« Boutique », « Inventaire d’objets ») ;
+   Voice and Tone ; Component Patterns (`carte-produit`, `inventaire-objets`,
+   `dialogue-confirmation`) ; State Patterns (« Achat en cours/réussi »,
+   « Objet possédé », « Solde insuffisant ») ; Accessibility Floor ;
+   Parcours « Acheter, placer puis retirer un Bibelot », étapes 1 à 3.
+*/
+:root{
+  color-scheme:light dark;
+  --accent:#9a3412;--accent-soft:#fff0e6;--on-accent:#fff;
+  --bg:#f4f5f6;--surface:#fff;--surface-2:#fafafa;--text:#1c232b;
+  --muted:#626d78;--line:#d7dce1;--disabled:#e7e9ec;--disabled-text:#5b6570;
+  --success:#246b45;--success-soft:#e5f5eb;--shadow:0 16px 42px rgb(24 31 39 / .1);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);line-height:1.45}
+button,input,select{font:inherit}
+.frame{max-width:1440px;min-height:920px;margin:28px auto;border:1px solid var(--line);border-radius:18px;background:var(--surface);box-shadow:var(--shadow);overflow:hidden}
+.topbar{height:72px;display:flex;align-items:center;gap:26px;padding:0 32px;border-bottom:1px solid var(--line)}
+.brand{font-family:Lora,Georgia,serif;font-size:1.35rem;font-weight:700}
+.nav{display:flex;gap:4px}
+.nav a{padding:10px 13px;border-radius:8px;color:var(--muted);font-size:.9rem;text-decoration:none}
+.nav .active{background:var(--accent-soft);color:var(--accent);font-weight:780}
+.inventory{margin-left:auto;border:1px solid var(--line);border-radius:9px;padding:9px 13px;background:var(--surface);color:var(--text);font-weight:700}
+.page{padding:34px}
+.heading{display:flex;justify-content:space-between;align-items:end;gap:28px;margin-bottom:26px}
+.eyebrow{margin:0 0 6px;color:var(--accent);font-weight:800;font-size:.77rem;letter-spacing:.08em;text-transform:uppercase}
+h1,h2{font-family:Lora,Georgia,serif}
+h1{margin:0;font-size:clamp(2rem,3vw,2.65rem);line-height:1.12}
+.lede{max-width:620px;margin:9px 0 0;color:var(--muted)}
+.balance{min-width:250px;padding:18px 20px;border:1px solid #edc4af;border-radius:12px;background:var(--accent-soft)}
+.balance small{display:block;color:#7c2d12;font-weight:700}
+.balance strong{display:flex;align-items:center;gap:9px;margin-top:3px;font-size:1.45rem}
+.coin{display:grid;width:29px;height:29px;place-items:center;border:2px solid #b45309;border-radius:50%;background:#fbbf24;color:#713f12;font-size:.75rem}
+.tools{display:flex;gap:12px;margin-bottom:24px}
+.search{flex:1;min-height:46px;border:1px solid var(--line);border-radius:9px;padding:0 14px;background:var(--surface);color:var(--text)}
+.filter{min-height:46px;border:1px solid var(--line);border-radius:9px;padding:0 34px 0 13px;background:var(--surface);color:var(--text)}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+.card{display:flex;min-width:0;flex-direction:column;border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
+.visual{height:178px;display:grid;place-items:center;background:linear-gradient(145deg,#f3eee8,#e8e0d6);border-bottom:1px solid var(--line)}
+.object{position:relative;width:98px;height:105px}
+.plant .pot{position:absolute;bottom:0;left:25px;width:54px;height:47px;border-radius:5px 5px 20px 20px;background:#b45309}
+.plant i{position:absolute;bottom:38px;left:44px;width:28px;height:59px;border-radius:80% 15% 80% 20%;background:#3f7652;transform-origin:bottom}
+.plant i:nth-child(2){transform:rotate(-42deg)}.plant i:nth-child(3){transform:rotate(42deg)}.plant i:nth-child(4){height:70px;transform:rotate(5deg)}
+.frame-art{width:110px;height:96px;border:11px solid #7c4a2e;background:linear-gradient(140deg,#c7d8df 45%,#d6b57b 46% 60%,#6d8465 61%);box-shadow:inset 0 0 0 3px #e6d3b4}
+.scene{position:relative;width:124px;height:92px;border:8px solid #684634;border-radius:5px;background:linear-gradient(#b9dbea 0 56%,#78a267 57%)}
+.scene::before{content:"";position:absolute;left:44px;bottom:0;width:31px;height:58px;background:#9a6b3d;clip-path:polygon(45% 0,60% 0,64% 54%,100% 100%,0 100%,39% 54%)}
+.figurine{position:relative;width:82px;height:112px}
+.figurine::before{content:"";position:absolute;top:7px;left:20px;width:43px;height:43px;border-radius:50%;background:#d5a879}
+.figurine::after{content:"";position:absolute;left:13px;bottom:0;width:57px;height:68px;border-radius:22px 22px 8px 8px;background:#4f657e}
+.content{display:flex;flex:1;flex-direction:column;padding:17px}
+.category{margin:0 0 5px;color:var(--muted);font-size:.76rem;font-weight:750;text-transform:uppercase;letter-spacing:.06em}
+.content h2{margin:0;font-size:1.12rem}
+.description{margin:8px 0 16px;color:var(--muted);font-size:.87rem}
+.meta{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:auto;margin-bottom:13px}
+.price{display:flex;align-items:center;gap:6px;font-weight:850}
+.price .coin{width:22px;height:22px;font-size:.6rem}
+.state{padding:5px 8px;border-radius:999px;font-size:.74rem;font-weight:800;white-space:nowrap}
+.available{background:var(--accent-soft);color:var(--accent)}
+.owned{background:var(--success-soft);color:var(--success)}
+.missing{background:var(--disabled);color:var(--disabled-text)}
+.button{width:100%;min-height:44px;border:1px solid transparent;border-radius:9px;padding:10px 12px;font-weight:780}
+.primary{background:var(--accent);color:var(--on-accent);cursor:pointer}
+.secondary{border-color:var(--line);background:var(--surface);color:var(--text);cursor:pointer}
+.blocked{border-color:var(--line);background:var(--disabled);color:var(--disabled-text);cursor:not-allowed}
+.assist{margin:8px 0 0;color:var(--muted);font-size:.77rem}
+:focus-visible{outline:3px solid #fdba74;outline-offset:3px}
+@media(prefers-color-scheme:dark){
+  :root{--accent:#fdba74;--accent-soft:#4a2415;--on-accent:#431407;--bg:#11151a;--surface:#1b2026;--surface-2:#22282f;--text:#f2f4f7;--muted:#aeb7c1;--line:#3b444e;--disabled:#303740;--disabled-text:#bec5ce;--success:#8ce6b3;--success-soft:#193b2a;--shadow:0 18px 54px rgb(0 0 0 / .35)}
+  .balance{border-color:#7d4027}.balance small{color:#fed7aa}.visual{background:linear-gradient(145deg,#2b2a29,#23272b)}
+}
+@media(max-width:1050px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.frame{margin:0;border:0;border-radius:0}.topbar{padding:0 18px}.nav{display:none}.page{padding:22px}.heading{align-items:stretch;flex-direction:column}.balance{min-width:0}.tools{flex-direction:column}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main class="frame">
+  <header class="topbar">
+    <div class="brand">My BookShelf</div>
+    <nav class="nav" aria-label="Navigation principale">
+      <a href="#">Bibliothèques</a>
+      <a class="active" href="#" aria-current="page">Boutique</a>
+    </nav>
+    <button class="inventory" type="button">Mes objets <span aria-hidden="true">·</span> 7</button>
+  </header>
+  <section class="page" aria-labelledby="shop-title">
+    <header class="heading">
+      <div>
+        <p class="eyebrow">Décoration</p>
+        <h1 id="shop-title">Boutique</h1>
+        <p class="lede">Choisis des objets pour personnaliser tes étagères. Tes achats restent dans Mes objets jusqu’à ce que tu décides de les placer.</p>
+      </div>
+      <div class="balance" aria-label="Ton solde : 384 Pièces"><small>Ton solde</small><strong><span class="coin" aria-hidden="true">P</span>384 Pièces</strong></div>
+    </header>
+    <div class="tools" role="search">
+      <label style="position:absolute;clip:rect(0 0 0 0);clip-path:inset(50%);width:1px;height:1px;overflow:hidden" for="search">Rechercher un objet</label>
+      <input class="search" id="search" type="search" placeholder="Rechercher un objet">
+      <label style="position:absolute;clip:rect(0 0 0 0);clip-path:inset(50%);width:1px;height:1px;overflow:hidden" for="category">Catégorie</label>
+      <select class="filter" id="category"><option>Toutes les catégories</option><option>Plantes</option><option>Cadres</option><option>Scènes</option><option>Figurines</option></select>
+    </div>
+    <div class="grid">
+      <article class="card">
+        <div class="visual" aria-hidden="true"><div class="object plant"><i></i><i></i><i></i><span class="pot"></span></div></div>
+        <div class="content">
+          <p class="category">Plante</p><h2>Petite plante</h2>
+          <p class="description">Une touche de verdure à intercaler entre tes livres.</p>
+          <div class="meta"><span class="price"><span class="coin" aria-hidden="true">P</span>120</span><span class="state available">Disponible</span></div>
+          <button class="button primary" type="button" aria-label="Acheter Petite plante pour 120 Pièces">Acheter</button>
+          <p class="assist">Une confirmation sera demandée avant le débit.</p>
+        </div>
+      </article>
+      <article class="card">
+        <div class="visual" aria-hidden="true"><div class="frame-art"></div></div>
+        <div class="content">
+          <p class="category">Cadre</p><h2>Cadre illustré</h2>
+          <p class="description">Une image encadrée pour personnaliser une étagère.</p>
+          <div class="meta"><span class="price"><span class="coin" aria-hidden="true">P</span>180</span><span class="state owned">Possédé</span></div>
+          <button class="button secondary" type="button">Voir dans Mes objets</button>
+          <p class="assist">Tu peux le placer maintenant ou plus tard.</p>
+        </div>
+      </article>
+      <article class="card">
+        <div class="visual" aria-hidden="true"><div class="scene"></div></div>
+        <div class="content">
+          <p class="category">Scène lumineuse</p><h2>Petit jardin</h2>
+          <p class="description">Une scène décorative à placer entre deux groupes de livres.</p>
+          <div class="meta"><span class="price"><span class="coin" aria-hidden="true">P</span>520</span><span class="state missing">Solde insuffisant</span></div>
+          <button class="button blocked" type="button" aria-disabled="true" aria-describedby="missing-garden">Achat indisponible</button>
+          <p class="assist" id="missing-garden">Il te manque 136 Pièces.</p>
+        </div>
+      </article>
+      <article class="card">
+        <div class="visual" aria-hidden="true"><div class="figurine"></div></div>
+        <div class="content">
+          <p class="category">Figurine</p><h2>Lectrice assise</h2>
+          <p class="description">Une petite figurine sobre pour accompagner ta collection.</p>
+          <div class="meta"><span class="price"><span class="coin" aria-hidden="true">P</span>260</span><span class="state available">Disponible</span></div>
+          <button class="button primary" type="button" aria-label="Acheter Lectrice assise pour 260 Pièces">Acheter</button>
+          <p class="assist">Cet objet peut être acheté en plusieurs exemplaires.</p>
+        </div>
+      </article>
+    </div>
+  </section>
+</main>
+</body>
+</html>

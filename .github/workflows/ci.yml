@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APP_ENV: local
+      TARGET_FINGERPRINT: local-mbs-v1
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_ANON_KEY: local-ci-only-anon-key
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.18.0
+          cache: npm
+      - run: npm ci
+      - run: npm run ci:lint
+      - run: npm run ci:types
+      - run: npm run ci:unit
+      - run: npm run ci:integration
+      - run: npm run ci:leak
+      - run: npm run ci:environment
+      - run: npm run ci:static
+      - run: npm run ci:mutations
+
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.18.0
+          cache: npm
+      - run: npm ci
+      - run: npm run ci:database
+
+  recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.18.0
+          cache: npm
+      - run: npm ci
+      - run: npm run ci:recovery
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.18.0
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run ci:e2e
+      - run: npm run ci:budgets
+      - name: Conserver les preuves en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: browser-reports
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore

@@ -12,7 +12,7 @@
 
 [core]
 project_name = "Bibiliothéque virtuelle"
-document_output_language = "English"
+document_output_language = "French"
 output_folder = "_bmad-output"
 
 [modules.bmm]

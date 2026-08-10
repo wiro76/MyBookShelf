@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aperçu exploratoire — Configurateur initial My BookShelf</title>
+  <style>
+    /*
+      Aperçu exploratoire, palette non décisionnelle.
+      Encres : #24221f, #5f5a52
+      Surfaces : #f7f5f0, #ffffff, #ece8df
+      Matières : #b98b5f, #80593a, #e9e4da
+      Accent fonctionnel : #315f57
+    */
+    * { box-sizing: border-box; }
+    :root {
+      color-scheme: light;
+      --ink: #24221f;
+      --muted: #5f5a52;
+      --paper: #f7f5f0;
+      --white: #ffffff;
+      --line: #d9d3c8;
+      --accent: #315f57;
+      --accent-soft: #e2ece9;
+      --wood: #b98b5f;
+      --wood-dark: #80593a;
+      --shadow: 0 22px 55px rgba(55, 42, 31, .14);
+    }
+    body {
+      margin: 0;
+      min-width: 1100px;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 84% 8%, rgba(185,139,95,.15), transparent 28rem),
+        var(--paper);
+      font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .shell {
+      width: min(1440px, calc(100vw - 48px));
+      margin: 24px auto;
+      overflow: hidden;
+      border: 1px solid #cec7bb;
+      border-radius: 20px;
+      background: rgba(255,255,255,.86);
+      box-shadow: var(--shadow);
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 17px 24px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.92);
+    }
+    .brand { font-size: 18px; font-weight: 760; letter-spacing: -.02em; }
+    .tag {
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: var(--paper);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+    }
+    main {
+      display: grid;
+      grid-template-columns: 410px 1fr;
+      min-height: 770px;
+    }
+    .controls {
+      padding: 30px;
+      border-right: 1px solid var(--line);
+      background: #fff;
+    }
+    .eyebrow { color: var(--accent); font-size: 13px; font-weight: 760; }
+    h1 { margin: 8px 0 8px; font-size: 30px; line-height: 1.12; letter-spacing: -.035em; }
+    .intro { margin: 0 0 28px; color: var(--muted); }
+    .step { position: relative; padding-left: 38px; }
+    .step + .step { margin-top: 26px; }
+    .step::before {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: grid;
+      width: 26px;
+      height: 26px;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      content: attr(data-step);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .step + .step::after {
+      position: absolute;
+      left: 12px;
+      bottom: calc(100% + 3px);
+      width: 1px;
+      height: 24px;
+      background: var(--line);
+      content: "";
+    }
+    h2 { margin: 2px 0 5px; font-size: 17px; }
+    .hint { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+    .choices { display: grid; gap: 9px; }
+    .choice {
+      display: grid;
+      grid-template-columns: 54px 1fr 22px;
+      gap: 12px;
+      align-items: center;
+      min-height: 72px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+    .choice.selected {
+      border: 2px solid var(--accent);
+      padding: 9px;
+      background: var(--accent-soft);
+    }
+    .mini {
+      display: grid;
+      width: 54px;
+      height: 48px;
+      place-items: center;
+      border: 1px solid #c3b3a4;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #d8b28e, #8b603f);
+      box-shadow: inset 0 -5px 0 rgba(74,44,24,.22);
+      color: #fff;
+      font-size: 18px;
+    }
+    .mini.open { border-width: 0 0 6px; border-radius: 0; background: transparent; color: var(--wood-dark); }
+    .mini.frame { border: 5px solid var(--wood); background: #f4ede5; color: var(--wood-dark); box-shadow: none; }
+    .choice strong { display: block; font-size: 14px; }
+    .choice small { display: block; margin-top: 2px; color: var(--muted); line-height: 1.25; }
+    .radio {
+      display: grid;
+      width: 18px;
+      height: 18px;
+      place-items: center;
+      border: 2px solid #999187;
+      border-radius: 50%;
+    }
+    .selected .radio { border-color: var(--accent); }
+    .selected .radio::after { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); content: ""; }
+    .finishes { display: flex; gap: 9px; }
+    .finish {
+      flex: 1;
+      min-height: 67px;
+      padding: 8px 5px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 690;
+    }
+    .finish.selected { border: 2px solid var(--accent); background: var(--accent-soft); }
+    .swatch {
+      display: block;
+      width: 30px;
+      height: 30px;
+      margin: 0 auto 5px;
+      border: 1px solid rgba(0,0,0,.18);
+      border-radius: 50%;
+    }
+    .swatch.white { background: #f5f2ea; }
+    .swatch.brown { background: #80593a; }
+    .swatch.wood {
+      background: repeating-linear-gradient(8deg, #b98b5f 0 4px, #a5764e 5px 7px, #c69a70 8px 12px);
+    }
+    .economy {
+      margin-top: 22px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: #f2eee6;
+      color: #4e4942;
+      font-size: 13px;
+    }
+    .preview {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      padding: 26px 30px 30px;
+      overflow: hidden;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.72), rgba(247,245,240,.4)),
+        repeating-linear-gradient(90deg, transparent 0 119px, rgba(104,83,64,.035) 120px);
+    }
+    .preview-top { display: flex; align-items: center; justify-content: space-between; }
+    .preview-title strong { display: block; font-size: 16px; }
+    .preview-title span { color: var(--muted); font-size: 13px; }
+    .not-final {
+      display: inline-flex;
+      gap: 7px;
+      align-items: center;
+      padding: 7px 10px;
+      border-radius: 8px;
+      background: #fff5d7;
+      color: #6d5416;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .stage {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      min-height: 590px;
+    }
+    .room {
+      position: relative;
+      width: 690px;
+      height: 500px;
+      border-radius: 16px;
+      background:
+        linear-gradient(rgba(255,255,255,.14), transparent),
+        #e7e0d6;
+      box-shadow: inset 0 -46px 50px rgba(89,69,51,.09);
+    }
+    .shelf-unit {
+      position: absolute;
+      left: 72px;
+      right: 72px;
+      top: 52px;
+      bottom: 48px;
+      padding: 20px 24px 22px;
+      border: 15px solid var(--wood-dark);
+      border-radius: 8px 8px 4px 4px;
+      background:
+        radial-gradient(circle at 60% 20%, rgba(255,255,255,.18), transparent 32%),
+        repeating-linear-gradient(6deg, #bd9068 0 7px, #b2845d 8px 10px, #c49770 11px 17px);
+      box-shadow: 0 23px 27px rgba(69,47,30,.22), inset 0 0 25px rgba(67,43,24,.18);
+    }
+    .row {
+      position: relative;
+      display: flex;
+      align-items: end;
+      height: 104px;
+      padding: 0 10px 10px;
+      border-bottom: 12px solid var(--wood-dark);
+      gap: 4px;
+    }
+    .row + .row { margin-top: 12px; }
+    .book {
+      display: flex;
+      width: 28px;
+      height: var(--h);
+      align-items: center;
+      justify-content: center;
+      border-radius: 3px 3px 1px 1px;
+      background: var(--c);
+      box-shadow: inset 3px 0 rgba(255,255,255,.16), 2px 2px 4px rgba(40,28,20,.22);
+      color: rgba(255,255,255,.94);
+      font-size: 8px;
+      font-weight: 750;
+      letter-spacing: .03em;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+    }
+    .plant {
+      display: grid;
+      width: 78px;
+      height: 78px;
+      margin: 0 8px;
+      align-items: end;
+      justify-items: center;
+    }
+    .leaves { color: #3e6a51; font-size: 47px; line-height: .7; filter: drop-shadow(2px 3px 2px rgba(0,0,0,.15)); }
+    .pot { width: 42px; height: 30px; border-radius: 4px 4px 12px 12px; background: #bf744f; box-shadow: inset -7px -4px rgba(89,45,26,.15); }
+    .caption {
+      position: absolute;
+      right: 20px;
+      bottom: 16px;
+      padding: 8px 11px;
+      border: 1px solid rgba(77,62,49,.18);
+      border-radius: 8px;
+      background: rgba(255,255,255,.9);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .access {
+      max-width: 690px;
+      margin: -5px auto 0;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+    footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 17px 24px;
+      border-top: 1px solid var(--line);
+      background: #fff;
+    }
+    footer p { margin: 0; color: var(--muted); font-size: 13px; }
+    .actions { display: flex; gap: 9px; }
+    .btn {
+      min-height: 42px;
+      padding: 0 16px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 720;
+    }
+    .btn.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .btn.apply { border-color: var(--accent); color: var(--accent); }
+  </style>
+</head>
+<body>
+  <section class="shell" aria-label="Aperçu exploratoire du configurateur initial">
+    <header>
+      <div class="brand">My BookShelf</div>
+      <div class="tag">Aperçu exploratoire · ordinateur</div>
+    </header>
+
+    <main>
+      <aside class="controls">
+        <div class="eyebrow">Première connexion</div>
+        <h1>Créez votre bibliothèque</h1>
+        <p class="intro">Choisissez une structure, puis une finition. Votre rangement restera identique si vous changez de style plus tard.</p>
+
+        <section class="step" data-step="1" aria-labelledby="structure-title">
+          <h2 id="structure-title">Choisir une structure</h2>
+          <p class="hint">Trois pistes compatibles avec la même géométrie logique.</p>
+          <div class="choices" role="radiogroup" aria-label="Structure de bibliothèque">
+            <div class="choice selected" role="radio" aria-checked="true" tabindex="0">
+              <div class="mini" aria-hidden="true">▥</div>
+              <div><strong>Meuble fermé</strong><small>Un module encadré, d’allure matérielle.</small></div>
+              <span class="radio" aria-hidden="true"></span>
+            </div>
+            <div class="choice" role="radio" aria-checked="false" tabindex="0">
+              <div class="mini open" aria-hidden="true">╺━━╸</div>
+              <div><strong>Étagères ouvertes</strong><small>Des tablettes visibles dans un espace plus ouvert.</small></div>
+              <span class="radio" aria-hidden="true"></span>
+            </div>
+            <div class="choice" role="radio" aria-checked="false" tabindex="0">
+              <div class="mini frame" aria-hidden="true">▦</div>
+              <div><strong>Cadre modulaire</strong><small>Une structure lisible autour des étagères.</small></div>
+              <span class="radio" aria-hidden="true"></span>
+            </div>
+          </div>
+        </section>
+
+        <section class="step" data-step="2" aria-labelledby="finish-title">
+          <h2 id="finish-title">Choisir une finition</h2>
+          <p class="hint">Aperçu immédiat, sans modifier vos livres.</p>
+          <div class="finishes" role="radiogroup" aria-label="Finition de la bibliothèque">
+            <button class="finish" role="radio" aria-checked="false"><span class="swatch white"></span>Blanc</button>
+            <button class="finish" role="radio" aria-checked="false"><span class="swatch brown"></span>Marron</button>
+            <button class="finish selected" role="radio" aria-checked="true"><span class="swatch wood"></span>Effet bois</button>
+          </div>
+        </section>
+
+        <p class="economy"><strong>Ces variantes de base sont gratuites.</strong><br>Les Pièces servent uniquement à obtenir des ornements et fioritures cosmétiques.</p>
+      </aside>
+
+      <section class="preview" aria-label="Aperçu de la bibliothèque choisie">
+        <div class="preview-top">
+          <div class="preview-title"><strong>Votre aperçu</strong><span>Meuble fermé · Effet bois</span></div>
+          <div class="not-final">◇ Piste visuelle, non décidée</div>
+        </div>
+        <div class="stage">
+          <div class="room">
+            <div class="shelf-unit" aria-label="Bibliothèque avec livres présentés sur leur tranche et une plante décorative">
+              <div class="row">
+                <span class="book" style="--h:77px;--c:#365c64">La Horde</span>
+                <span class="book" style="--h:84px;--c:#935246">Dune</span>
+                <span class="book" style="--h:73px;--c:#6a5075">Tome 01</span>
+                <span class="book" style="--h:87px;--c:#b07b36">Fondation</span>
+                <span class="book" style="--h:80px;--c:#486b43">Le Hobbit</span>
+                <span class="book" style="--h:70px;--c:#9a6250">Tome 02</span>
+                <div class="plant" aria-label="Bibelot : plante"><span class="leaves">✦</span><span class="pot"></span></div>
+                <span class="book" style="--h:82px;--c:#3f526d">Sillage</span>
+                <span class="book" style="--h:75px;--c:#a37d3c">Tome 03</span>
+              </div>
+              <div class="row">
+                <span class="book" style="--h:85px;--c:#7a4247">1984</span>
+                <span class="book" style="--h:72px;--c:#356a60">Tome 04</span>
+                <span class="book" style="--h:79px;--c:#8a663d">Beloved</span>
+                <span class="book" style="--h:88px;--c:#515b86">Piranèse</span>
+                <span class="book" style="--h:76px;--c:#8a4e62">Tome 05</span>
+                <span class="book" style="--h:81px;--c:#536d3d">Solaris</span>
+              </div>
+              <div class="row">
+                <span class="book" style="--h:76px;--c:#596774">Tome 06</span>
+                <span class="book" style="--h:86px;--c:#9d593f">Shōgun</span>
+                <span class="book" style="--h:69px;--c:#42605b">Tome 07</span>
+                <span class="book" style="--h:82px;--c:#7f5b80">Circé</span>
+                <span class="book" style="--h:78px;--c:#9d7839">Tome 08</span>
+              </div>
+            </div>
+            <div class="caption">Même rangement dans tous les styles</div>
+          </div>
+        </div>
+        <p class="access">Accessibilité de l’aperçu : chaque choix est nommé et l’état sélectionné est indiqué par un contour, un repère radio et un libellé — jamais par la couleur seule.</p>
+      </section>
+    </main>
+
+    <footer>
+      <p>Vous pourrez modifier ce choix plus tard depuis « Personnaliser ma bibliothèque ».</p>
+      <div class="actions">
+        <button class="btn">Retour</button>
+        <button class="btn">Continuer</button>
+        <button class="btn apply">Appliquer cet aperçu</button>
+      </div>
+    </footer>
+  </section>
+</body>
+</html>

@@ -1,0 +1,18 @@
+begin;
+select plan(9);
+insert into auth.users (id) values ('a4111111-1111-4111-8111-111111111111'), ('a4222222-2222-4222-8222-222222222222');
+select ok(has_table_privilege('authenticated', 'library.works', 'insert'), 'le serveur peut résoudre un work');
+select ok(has_table_privilege('authenticated', 'library.editions', 'insert'), 'le serveur peut résoudre une edition');
+select ok(has_table_privilege('authenticated', 'library.library_add_receipts', 'select'), 'le propriétaire peut relire son reçu');
+select ok(not has_table_privilege('anon', 'library.works', 'select'), 'anon ne lit pas le canon');
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'a4111111-1111-4111-8111-111111111111', true);
+insert into library.works (canonical_key, title, provenance) values ('candidate_' || repeat('a', 64), 'Titre', '["google-books"]');
+select results_eq('select count(*)::bigint from library.works', array[1::bigint], 'le serveur crée un work');
+select set_config('request.jwt.claim.sub', 'a4222222-2222-4222-8222-222222222222', true);
+select results_eq('select count(*)::bigint from library.works', array[1::bigint], 'le canon est lisible sans donnée privée');
+select throws_ok($$ insert into library.library_add_receipts (user_id, command_id, request_sha256, copy_id, placement_id, result_revision) values ('a4111111-1111-4111-8111-111111111111', gen_random_uuid(), repeat('a', 64), gen_random_uuid(), gen_random_uuid(), 1) $$, '42501', null, 'un autre utilisateur ne forge pas un reçu');
+select ok(not has_table_privilege('anon', 'library.editions', 'select'), 'anon ne lit pas les editions');
+select ok(not has_table_privilege('authenticated', 'library.library_add_receipts', 'insert'), 'le reçu n est pas insérable directement');
+select * from finish();
+rollback;
