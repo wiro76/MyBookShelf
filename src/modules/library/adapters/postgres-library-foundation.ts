@@ -64,12 +64,14 @@ export function createPostgresLibraryFoundationRepository(transaction: Transacti
           work_title: string | null;
           work_author: string | null;
           edition_title: string | null;
+          preferred_cover_asset_id: string | null;
         }>(`
           select modules.id as module_id, modules.status, modules.module_position, modules.capacity_units,
             shelves.id as shelf_id, shelves.shelf_position, shelves.capacity_units as shelf_capacity_units,
             coalesce((select sum(occupied.width_units) from library.placements occupied where occupied.shelf_id = shelves.id and occupied.user_id = modules.user_id), 0)::int as occupied_units,
             placements.id as placement_id, placements.copy_id, placements.item_position, placements.width_units,
-            works.title as work_title, works.author as work_author, editions.title as edition_title
+            works.title as work_title, works.author as work_author, editions.title as edition_title,
+            copies.preferred_cover_asset_id
           from library.modules modules
           join library.shelves shelves on shelves.module_id = modules.id and shelves.user_id = modules.user_id
           left join library.placements placements on placements.shelf_id = shelves.id and placements.user_id = modules.user_id
@@ -103,6 +105,7 @@ export function createPostgresLibraryFoundationRepository(transaction: Transacti
               editionTitle: row.edition_title ?? "Édition indisponible",
               itemPosition: row.item_position,
               widthUnits: row.width_units,
+              ...(row.preferred_cover_asset_id ? { coverAssetId: row.preferred_cover_asset_id } : {}),
               coverStatus: "not-provided",
             });
           }
