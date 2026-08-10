@@ -13,17 +13,20 @@ type Props = Readonly<{
   groups: readonly LibraryGroup[];
   themes: readonly LibraryTheme[];
   themeAction: (state: ThemeActionState, formData: FormData) => Promise<ThemeActionState>;
+  themeAssignmentAction: (state: ThemeActionState, formData: FormData) => Promise<ThemeActionState>;
 }>;
 
 const initialState: GroupActionState = { status: "idle" };
 
-export function LibraryGroupsForm({ projection, action, groups, themes, themeAction }: Props) {
+export function LibraryGroupsForm({ projection, action, groups, themes, themeAction, themeAssignmentAction }: Props) {
   const items: readonly LibraryItem[] = projection.statuses.flatMap((entry) => entry.modules.flatMap((module) => module.shelves.flatMap((shelf) => shelf.items)));
   const [state, formAction] = useActionState(action, initialState);
   const [themeState, themeFormAction] = useActionState(themeAction, initialState);
+  const [assignmentState, assignmentFormAction] = useActionState(themeAssignmentAction, initialState);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [commandId, setCommandId] = useState(crypto.randomUUID());
   const [themeCommandId] = useState(crypto.randomUUID());
+  const [assignmentCommandId] = useState(crypto.randomUUID());
   const toggle = (copyId: string) => setSelected((current) => {
     const next = new Set(current);
     if (next.has(copyId)) next.delete(copyId); else next.add(copyId);
@@ -74,6 +77,14 @@ export function LibraryGroupsForm({ projection, action, groups, themes, themeAct
           {themeState.status === "confirmed" || themeState.status === "replayed" ? <p role="status" className="catalog-selection-status">Repère enregistré. Le libellé reste disponible sans la couleur.</p> : themeState.status === "invalid" ? <p role="status" className="catalog-selection-status">Le repère n’a pas pu être enregistré.</p> : null}
         </form>
         {themes.length > 0 ? <ul className="library-theme-list">{themes.map((theme) => <li key={theme.id}><span className="library-theme-swatch" style={theme.color ? { backgroundColor: theme.color } : undefined} aria-hidden="true" /> <strong>{theme.label}</strong><small>{[theme.icon, theme.pattern].filter(Boolean).join(" · ") || "Repère textuel"}</small></li>)}</ul> : null}
+        {themes.length > 0 ? <form action={assignmentFormAction} className="library-theme-assignment-form">
+          <h4>Associer le repère aux exemplaires sélectionnés</h4>
+          <input type="hidden" name="commandId" value={assignmentCommandId} />
+          {Array.from(selected, (copyId) => <input key={copyId} type="hidden" name="copyId" value={copyId} />)}
+          <label>Repère<select name="themeId" required defaultValue=""><option value="" disabled>Choisir un repère</option>{themes.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}</select></label>
+          <button className="primary-action" type="submit" disabled={selected.size === 0}>Associer le repère</button>
+          {assignmentState.status === "confirmed" || assignmentState.status === "replayed" ? <p role="status" className="catalog-selection-status">Repère associé. Les placements restent inchangés.</p> : assignmentState.status === "invalid" ? <p role="status" className="catalog-selection-status">Le repère n’a pas pu être associé.</p> : null}
+        </form> : null}
       </div>
     </section>
   );

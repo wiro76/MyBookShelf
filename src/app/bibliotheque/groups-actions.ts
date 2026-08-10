@@ -39,3 +39,20 @@ export async function creerTheme(previousState: ThemeActionState, formData: Form
     return previousState.status === "confirmed" ? previousState : { status: "invalid" };
   }
 }
+
+export async function associerTheme(previousState: ThemeActionState, formData: FormData): Promise<ThemeActionState> {
+  const session = await getVerifiedSession();
+  if (session.status !== "authenticated") return { status: "unavailable" };
+  const commandId = String(formData.get("commandId") ?? "");
+  const themeId = String(formData.get("themeId") ?? "");
+  const copyIds = formData.getAll("copyId").map(String);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(commandId)) return { status: "invalid" };
+  try {
+    const receipt = await createPostgresLibraryGroupsRepository().assignTheme(session.user.id, commandId, { themeId, copyIds });
+    revalidatePath("/bibliotheque");
+    return { status: receipt.status };
+  } catch (error) {
+    if (error instanceof Error && error.message === "LIBRARY_THEME_COMMAND_REUSED") return { status: "conflict" };
+    return previousState.status === "confirmed" ? previousState : { status: "invalid" };
+  }
+}
