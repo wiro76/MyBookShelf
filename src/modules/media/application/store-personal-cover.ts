@@ -25,7 +25,8 @@ export async function storePersonalCover(
   processor: PersonalCoverProcessor,
   dependencies: Readonly<{ objects: PersonalCoverObjectStore; repository: PersonalCoverRepository }>,
 ): Promise<{ assetId: string }> {
-  const prepared = await preparePersonalCover(input, processor);
+  const preparedBase = await preparePersonalCover(input, processor);
+  const prepared = { ...preparedBase, assetId: userScopedAssetId(userId, preparedBase.originalSha256) };
   const originalObjectKey = `covers/${userId}/${prepared.assetId}/original`;
   const variantObjectKey = `covers/${userId}/${prepared.assetId}/variant.webp`;
   await dependencies.objects.putObject(originalObjectKey, input.bytes, input.declaredMimeType);
@@ -39,4 +40,11 @@ export async function storePersonalCover(
     variantObjectKey,
   });
   return { assetId: prepared.assetId };
+}
+
+function userScopedAssetId(userId: string, originalSha256: string): string {
+  const hex = createHash("sha256").update(`${userId}:${originalSha256}`).digest("hex").slice(0, 32).split("");
+  hex[12] = "5";
+  hex[16] = ["8", "9", "a", "b"][Number.parseInt(hex[16], 16) % 4];
+  return `${hex.slice(0, 8).join("")}-${hex.slice(8, 12).join("")}-${hex.slice(12, 16).join("")}-${hex.slice(16, 20).join("")}-${hex.slice(20).join("")}`;
 }
