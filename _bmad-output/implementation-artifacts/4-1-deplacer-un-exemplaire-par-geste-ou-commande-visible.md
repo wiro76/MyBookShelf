@@ -2,13 +2,13 @@
 story_id: "4.1"
 story_key: "4-1-deplacer-un-exemplaire-par-geste-ou-commande-visible"
 epic: 4
-status: ready-for-dev
+status: in-progress
 created: "2026-08-10"
 ---
 
 # Story 4.1 : Déplacer un exemplaire par geste ou commande visible
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
@@ -24,11 +24,17 @@ afin de ranger selon ma logique avec toute modalité d’interaction.
 
 ## Tâches
 
-- [ ] Définir le contrat de déplacement et la vérification de version.
-- [ ] Ajouter le repository SQL transactionnel avec idempotence et ownership.
-- [ ] Implémenter la prévisualisation et la confirmation accessible.
+- [x] Définir le contrat de déplacement et la vérification de version.
+- [x] Ajouter le repository SQL transactionnel avec idempotence et ownership.
+- [x] Implémenter la commande visible et la confirmation accessible.
 - [ ] Ajouter les chemins souris, tactile et clavier vers le même cas d’usage.
-- [ ] Tester capacité, conflit, rejeu et absence de mutation optimiste.
+- [x] Tester capacité, conflit de version, rejeu et absence de mutation optimiste.
+
+## Avancement d'implémentation
+
+- Le planificateur de domaine recompose les étagères source et destination à partir de frontières de largeur, sans mutation avant confirmation.
+- Le repository verrouille l'acteur et les lignes concernées, contrôle `expectedVersion`, utilise une contrainte unique différable et enregistre un reçu idempotent.
+- La commande « Déplacer » est visible sur chaque exemplaire de la bibliothèque. Le glisser-déposer et les raccourcis Monter/Descendre restent à compléter sur la même commande.
 
 ## Définition de terminé
 

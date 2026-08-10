@@ -373,6 +373,34 @@ h1 {
   white-space: nowrap;
 }
 
+.library-move {
+  grid-column: 1 / -1;
+  font-size: 0.75rem;
+}
+
+.library-move summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.library-move form {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.library-move label {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.library-move select,
+.library-move input,
+.library-move button {
+  min-width: 0;
+  font: inherit;
+}
+
 .library-item-copy small {
   color: var(--ink-secondary);
   font-size: 0.75rem;

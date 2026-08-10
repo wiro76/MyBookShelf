@@ -65,6 +65,7 @@ export function createPostgresLibraryFoundationRepository(
           copy_id: string | null;
           item_position: number | null;
           width_units: number | null;
+          version: string | number | null;
           work_title: string | null;
           work_author: string | null;
           edition_title: string | null;
@@ -73,7 +74,7 @@ export function createPostgresLibraryFoundationRepository(
           select modules.id as module_id, modules.status, modules.module_position, modules.capacity_units,
             shelves.id as shelf_id, shelves.shelf_position, shelves.capacity_units as shelf_capacity_units,
             coalesce((select sum(occupied.width_units) from library.placements occupied where occupied.shelf_id = shelves.id and occupied.user_id = modules.user_id), 0)::int as occupied_units,
-            placements.id as placement_id, placements.copy_id, placements.item_position, placements.width_units,
+            placements.id as placement_id, placements.copy_id, placements.item_position, placements.width_units, placements.version,
             works.title as work_title, works.author as work_author, editions.title as edition_title,
             copies.preferred_cover_asset_id
           from library.modules modules
@@ -109,6 +110,7 @@ export function createPostgresLibraryFoundationRepository(
               editionTitle: row.edition_title ?? "Édition indisponible",
               itemPosition: row.item_position,
               widthUnits: row.width_units,
+              ...(row.version !== null ? { version: Number(row.version) } : {}),
               ...(row.preferred_cover_asset_id ? { coverAssetId: row.preferred_cover_asset_id } : {}),
               coverStatus: "not-provided",
             });
