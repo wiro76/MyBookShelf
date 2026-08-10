@@ -7,12 +7,15 @@ import type { MoveSelectionActionState } from "@/app/bibliotheque/move-actions";
 type SelectionAction = (state: MoveSelectionActionState, formData: FormData) => Promise<MoveSelectionActionState>;
 const initialState: MoveSelectionActionState = { status: "idle" };
 
-export function LibrarySelectionMoveForm({ items, shelves, action, onClear }: Readonly<{ items: readonly LibraryItem[]; shelves: readonly LibraryShelf[]; action: SelectionAction; onClear: () => void }>) {
+export function LibrarySelectionMoveForm({ items, shelves, action, undoAction, onClear }: Readonly<{ items: readonly LibraryItem[]; shelves: readonly LibraryShelf[]; action: SelectionAction; undoAction?: SelectionAction; onClear: () => void }>) {
   const [commandId] = useState(() => crypto.randomUUID());
   const [state, formAction, pending] = useActionState(action, initialState);
+  const noUndoAction: SelectionAction = async () => initialState;
+  const [undoState, undoFormAction, undoPending] = useActionState(undoAction ?? noUndoAction, initialState);
   const [shelfId, setShelfId] = useState(shelves[0]?.id ?? "");
   const [position, setPosition] = useState(0);
   const commandIdRef = useRef<HTMLInputElement>(null);
+  const undoCommandId = useState(() => crypto.randomUUID())[0];
   const versions = Object.fromEntries(items.map((item) => [item.id, item.version ?? 1]));
   return (
     <section className="library-selection" aria-labelledby="library-selection-title">
@@ -29,6 +32,14 @@ export function LibrarySelectionMoveForm({ items, shelves, action, onClear }: Re
         <button type="submit" disabled={pending}>{pending ? "Déplacement…" : "Déplacer la sélection"}</button>
         <span role="status">{state.status === "conflict" ? "La sélection a changé. Recharge puis réessaie." : state.status === "invalid" ? "Déplacement impossible pour toute la sélection." : state.status === "confirmed" || state.status === "replayed" ? "Sélection déplacée intégralement." : null}</span>
       </form>
+      {undoAction && state.commandId && (state.status === "confirmed" || state.status === "replayed") ? (
+        <form action={undoFormAction} onSubmit={(event) => { const form = event.currentTarget; const field = form.elements.namedItem("undoCommandId"); if (field instanceof HTMLInputElement) field.value = undoCommandId; }}>
+          <input type="hidden" name="originalCommandId" value={state.commandId} readOnly />
+          <input type="hidden" name="undoCommandId" value="" readOnly />
+          <button type="submit" disabled={undoPending}>Annuler le déplacement</button>
+          <span role="status">{undoState.status === "conflict" ? "Annulation refusée : la bibliothèque a changé." : undoState.status === "confirmed" || undoState.status === "replayed" ? "Déplacement annulé." : null}</span>
+        </form>
+      ) : null}
     </section>
   );
 }

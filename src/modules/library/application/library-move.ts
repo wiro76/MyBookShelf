@@ -18,9 +18,18 @@ export type LibrarySelectionMoveReceipt = Readonly<{
   confirmedAt: string;
 }>;
 
+export type LibrarySelectionUndoReceipt = Readonly<{
+  commandId: string;
+  commandType: "library.placement.selection-undo";
+  status: "confirmed" | "replayed";
+  placementIds: readonly string[];
+  confirmedAt: string;
+}>;
+
 export interface LibraryMoveRepository {
   move(userId: string, commandId: string, input: MovePlacementInput): Promise<LibraryPlacementMoveReceipt>;
   moveSelection(userId: string, commandId: string, input: MoveSelectionInput): Promise<LibrarySelectionMoveReceipt>;
+  undoSelection(userId: string, undoCommandId: string, originalCommandId: string): Promise<LibrarySelectionUndoReceipt>;
 }
 
 export const placementMoveRequestDigest = (commandId: string, userId: string, input: MovePlacementInput) =>

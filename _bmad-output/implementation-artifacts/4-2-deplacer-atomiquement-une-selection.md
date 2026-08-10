@@ -42,6 +42,7 @@ afin de ranger une série sans mouvement partiel.
 - `src/modules/library/ui/library-projection.tsx`
 - `src/app/globals.css`
 - `supabase/migrations/20260810000400_library_selection_move_receipts.sql`
+- `supabase/migrations/20260810000500_library_selection_move_undo.sql`
 - `tests/unit/library-move.test.mjs`
 - `tests/e2e/bibliotheque-projection.spec.ts`
 
@@ -50,15 +51,18 @@ afin de ranger une série sans mouvement partiel.
 - La sélection est native, accessible par clic, toucher et Espace, avec compte visible.
 - La planification retire toutes les cibles, les ordonne canoniquement et les insère comme bloc.
 - Le repository verrouille les placements et étagères dans un ordre déterministe et confirme ou annule toute la transaction.
-- L’annulation contrôlée par versions reste à implémenter avant la clôture de la story.
+- L’annulation conserve les affectations précédentes et refuse la restauration si une version a divergé.
 
 ### Validation
 
 - `npm run typecheck`
 - `npm run lint` (un avertissement préexistant sur `<img>`, aucune erreur)
 - `npm run ci:unit` : 214 tests passants
+- `npm run ci:database` : migrations et canaris base passants
 - E2E complet : 196 scénarios passants
+- E2E Story 4.2 : déplacement et annulation validés sur quatre profils d’affichage
 
 ### Change Log
 
 - 2026-08-10 : contrat, transaction groupée, sélection accessible et reçu idempotent ajoutés.
+- 2026-08-10 : annulation contrôlée par versions ajoutée avec conservation de l’état précédent.

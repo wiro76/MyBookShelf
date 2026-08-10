@@ -5,7 +5,7 @@ import { createPostgresLibraryMoveRepository } from "@/modules/library/adapters/
 import { getVerifiedSession } from "@/modules/identity/application/session";
 
 export type MoveActionState = Readonly<{ status: "idle" | "confirmed" | "replayed" | "invalid" | "conflict" | "unavailable" }>;
-export type MoveSelectionActionState = MoveActionState;
+export type MoveSelectionActionState = Readonly<MoveActionState & { commandId?: string }>;
 
 export async function deplacerExemplaire(previousState: MoveActionState, formData: FormData): Promise<MoveActionState> {
   const session = await getVerifiedSession();
@@ -28,6 +28,22 @@ export async function deplacerExemplaire(previousState: MoveActionState, formDat
   }
 }
 
+export async function annulerDeplacementSelection(previousState: MoveSelectionActionState, formData: FormData): Promise<MoveSelectionActionState> {
+  const session = await getVerifiedSession();
+  if (session.status !== "authenticated") return { status: "unavailable" };
+  const originalCommandId = String(formData.get("originalCommandId") ?? "");
+  const undoCommandId = String(formData.get("undoCommandId") ?? "");
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(originalCommandId) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(undoCommandId)) return { status: "invalid" };
+  try {
+    const receipt = await createPostgresLibraryMoveRepository().undoSelection(session.user.id, undoCommandId, originalCommandId);
+    revalidatePath("/bibliotheque");
+    return { status: receipt.status, commandId: originalCommandId };
+  } catch (error) {
+    if (error instanceof Error && error.message === "LIBRARY_MOVE_VERSION_CONFLICT") return { status: "conflict", commandId: originalCommandId };
+    return previousState.status === "confirmed" ? previousState : { status: "invalid", commandId: originalCommandId };
+  }
+}
+
 export async function deplacerSelection(previousState: MoveSelectionActionState, formData: FormData): Promise<MoveSelectionActionState> {
   const session = await getVerifiedSession();
   if (session.status !== "authenticated") return { status: "unavailable" };
@@ -45,7 +61,7 @@ export async function deplacerSelection(previousState: MoveSelectionActionState,
   try {
     const receipt = await createPostgresLibraryMoveRepository().moveSelection(session.user.id, commandId, { placementIds: placementIds as string[], destinationShelfId, destinationPosition, expectedVersions: expectedVersions as Record<string, number> });
     revalidatePath("/bibliotheque");
-    return { status: receipt.status };
+    return { status: receipt.status, commandId: receipt.commandId };
   } catch (error) {
     if (error instanceof Error && error.message === "LIBRARY_MOVE_VERSION_CONFLICT") return { status: "conflict" };
     return previousState.status === "confirmed" ? previousState : { status: "invalid" };

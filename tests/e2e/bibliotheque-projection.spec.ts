@@ -75,9 +75,11 @@ test.describe("Story 3.2 — projection des trois bibliothèques", () => {
     const checkboxes = page.locator(".library-item-select");
     await expect(checkboxes).toHaveCount(2);
     await checkboxes.nth(0).check({ force: true });
-    await checkboxes.nth(1).press("Space", { force: true });
+    await checkboxes.nth(1).press("Space");
     await expect(selection.getByText("2 exemplaires sélectionnés")).toBeVisible();
     await selection.getByRole("button", { name: "Déplacer la sélection" }).click();
-    await expect(selection.getByRole("status")).toHaveText("Sélection déplacée intégralement.");
+    await expect(selection.locator('span[role="status"]').filter({ hasText: "Sélection déplacée intégralement." })).toHaveText("Sélection déplacée intégralement.");
+    await selection.getByRole("button", { name: "Annuler le déplacement" }).click();
+    await expect(selection.locator('span[role="status"]').filter({ hasText: "Déplacement annulé." })).toHaveText("Déplacement annulé.");
   });
 });

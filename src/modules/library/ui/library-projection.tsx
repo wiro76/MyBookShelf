@@ -12,6 +12,7 @@ type LibraryProjectionProps = Readonly<{
   resumeCopyId?: string | null;
   moveAction?: (state: MoveActionState, formData: FormData) => Promise<MoveActionState>;
   selectionMoveAction?: (state: MoveSelectionActionState, formData: FormData) => Promise<MoveSelectionActionState>;
+  selectionUndoAction?: (state: MoveSelectionActionState, formData: FormData) => Promise<MoveSelectionActionState>;
 }>;
 
 const statusLabel = (status: string) => status === "want-to-read" ? "Envie de lire" : status === "reading" ? "En cours" : "Terminés";
@@ -51,7 +52,7 @@ function navigateProjection(event: KeyboardEvent<HTMLElement>) {
   return focus(nextModule?.querySelector<HTMLElement>(".library-item") ?? nextModule?.querySelector<HTMLElement>(".library-items"));
 }
 
-export function LibraryProjection({ projection, resumeCopyId = null, moveAction, selectionMoveAction }: LibraryProjectionProps) {
+export function LibraryProjection({ projection, resumeCopyId = null, moveAction, selectionMoveAction, selectionUndoAction }: LibraryProjectionProps) {
   const shelves = projection.statuses.flatMap((entry) => entry.modules.flatMap((module) => module.shelves));
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dropRequest, setDropRequest] = useState<MoveDropRequest | null>(null);
@@ -68,7 +69,7 @@ export function LibraryProjection({ projection, resumeCopyId = null, moveAction,
   const selectedItems = shelves.flatMap((shelf) => shelf.items.filter((item) => selectedIds.has(item.id)));
   return (
     <div id="library-projection" onKeyDownCapture={navigateProjection} aria-label="Projection des bibliothèques">
-      {selectionMoveAction && selectedItems.length > 0 ? <LibrarySelectionMoveForm items={selectedItems} shelves={shelves} action={selectionMoveAction} onClear={() => setSelectedIds(new Set())} /> : null}
+      {selectionMoveAction && selectedItems.length > 0 ? <LibrarySelectionMoveForm items={selectedItems} shelves={shelves} action={selectionMoveAction} undoAction={selectionUndoAction} onClear={() => setSelectedIds(new Set())} /> : null}
       <div className="library-status-grid">
       {projection.statuses.map((entry) => (
         <section className="library-status-section" key={entry.status} aria-labelledby={`library-status-${entry.status}`}>

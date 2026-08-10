@@ -80,11 +80,32 @@ export function createPostgresLibraryMoveRepository(transaction: Transaction = a
         const destinationShelf = shelves.find((shelf) => shelf.id === destinationRow.id);
         if (!destinationShelf) throw new LibraryMoveError("LIBRARY_MOVE_DESTINATION_MISSING");
         const plan = planPlacementSelectionMove(shelves, destinationShelf, input);
+        const previousAssignments = placements.rows.map((row) => ({ placementId: row.id, shelfId: row.shelf_id, moduleId: row.module_id, status: row.status, itemPosition: row.item_position, version: Number(row.version) }));
         await client.query("set constraints placements_shelf_item_position_unique deferred");
         for (const assignment of plan.assignments) await client.query("update library.placements set shelf_id = $1, module_id = $2, status = $3, item_position = $4, version = version + 1 where id = $5 and user_id = $6", [assignment.shelfId, assignment.moduleId, assignment.status, assignment.itemPosition, assignment.placementId, userId]);
         const now = await client.query<{ at: Date | string }>("select now() as at");
-        await client.query("select library.record_placement_selection_move_receipt($1, $2, $3, $4::uuid[], $5)", [userId, commandId, digest, placementIds, now.rows[0].at]);
+        await client.query("select library.record_placement_selection_move_receipt($1, $2, $3, $4::uuid[], $5, $6::jsonb)", [userId, commandId, digest, placementIds, now.rows[0].at, JSON.stringify(previousAssignments)]);
         return { commandId, commandType: "library.placement.selection-move", status: "confirmed", placementIds, confirmedAt: iso(now.rows[0].at) };
+      });
+    },
+    undoSelection(userId, undoCommandId, originalCommandId) {
+      if (!UUID.test(userId) || !UUID.test(undoCommandId) || !UUID.test(originalCommandId)) return Promise.reject(new LibraryMoveError());
+      return transaction(userId, async (client) => {
+        await client.query("select pg_advisory_xact_lock(hashtextextended($1 || ':placement-selection-move', 0))", [userId]);
+        const receipt = await client.query<{ placement_ids: string[]; previous_assignments: Array<{ placementId: string; shelfId: string; moduleId: string; status: LibraryShelf["status"]; itemPosition: number; version: number }>; undone_at: Date | string | null }>("select placement_ids, previous_assignments, undone_at from library.placement_selection_move_receipts where user_id = $1 and command_id = $2 for update", [userId, originalCommandId]);
+        const row = receipt.rows[0];
+        const replay = await client.query<{ original_command_id: string }>("select command_id as original_command_id from library.placement_selection_move_receipts where user_id = $1 and undo_command_id = $2", [userId, undoCommandId]);
+        if (replay.rows[0]) return { commandId: undoCommandId, commandType: "library.placement.selection-undo", status: "replayed", placementIds: row?.placement_ids ?? [], confirmedAt: new Date().toISOString() };
+        if (!row || row.undone_at) throw new LibraryMoveError("LIBRARY_MOVE_UNDO_UNAVAILABLE");
+        const assignments = row.previous_assignments;
+        const ids = assignments.map((assignment) => assignment.placementId).sort();
+        const current = await client.query<{ id: string; version: string | number }>("select id, version from library.placements where user_id = $1 and id = any($2::uuid[]) for update", [userId, ids]);
+        if (current.rows.length !== ids.length || current.rows.some((placement) => Number(placement.version) !== assignments.find((assignment) => assignment.placementId === placement.id)!.version + 1)) throw new LibraryMoveError("LIBRARY_MOVE_VERSION_CONFLICT");
+        await client.query("set constraints placements_shelf_item_position_unique deferred");
+        for (const assignment of assignments) await client.query("update library.placements set shelf_id = $1, module_id = $2, status = $3, item_position = $4, version = version + 1 where id = $5 and user_id = $6", [assignment.shelfId, assignment.moduleId, assignment.status, assignment.itemPosition, assignment.placementId, userId]);
+        const now = await client.query<{ at: Date | string }>("select now() as at");
+        await client.query("update library.placement_selection_move_receipts set undone_at = $1, undo_command_id = $2 where user_id = $3 and command_id = $4", [now.rows[0].at, undoCommandId, userId, originalCommandId]);
+        return { commandId: undoCommandId, commandType: "library.placement.selection-undo", status: "confirmed", placementIds: row.placement_ids, confirmedAt: iso(now.rows[0].at) };
       });
     },
   };
