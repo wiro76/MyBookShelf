@@ -207,7 +207,8 @@ h1 {
 
 .library-status-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(18rem, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-width: 0;
   gap: 1rem;
   margin-top: 1.5rem;
 }
@@ -263,7 +264,8 @@ h1 {
 }
 
 .library-shelf-heading {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   justify-content: space-between;
   gap: 0.75rem;
   color: var(--ink-secondary);
@@ -272,6 +274,7 @@ h1 {
 
 .library-items {
   display: flex !important;
+  flex-wrap: wrap;
   width: 100%;
   max-width: 100%;
   align-items: end;
@@ -280,7 +283,7 @@ h1 {
   margin: 0.5rem 0 0 !important;
   padding: 0 0 0.25rem !important;
   border-bottom: 0.25rem solid var(--border-strong);
-  overflow-x: auto;
+  overflow: visible;
 }
 
 .library-item {
@@ -289,6 +292,7 @@ h1 {
   align-items: stretch;
   min-width: 3rem;
   min-height: 3.5rem;
+  max-width: 100%;
   padding: 0;
   border: 1px solid var(--border-default);
   background: var(--surface-subtle);
@@ -795,6 +799,7 @@ h1 {
 
 .auth-card.library-card {
   width: min(100%, 110rem);
+  min-width: 0;
 }
 
 .auth-form {

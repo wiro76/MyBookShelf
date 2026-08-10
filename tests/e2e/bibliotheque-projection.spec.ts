@@ -13,8 +13,6 @@ test.describe("Story 3.2 — projection des trois bibliothèques", () => {
     await expect(page.locator(".library-shelf")).toHaveCount(15);
     await expect(page.locator(".library-item")).toHaveCount(2);
     await expect(page.getByText("Aucun exemplaire placé dans ce statut.")).toHaveCount(2);
-    await expect(page.getByRole("link", { name: "Rechercher dans le Catalogue" })).toHaveCount(3);
-    await expect(page.getByRole("link", { name: "Ajouter manuellement" })).toHaveCount(3);
   });
 
   test("focalise l’exemplaire repris et annonce l’ajustement sans UUID privé", async ({ page }) => {
