@@ -730,7 +730,7 @@ h1 {
     grid-template-columns: 1fr;
   }
 
-  .library-card {
+  .auth-card.library-card {
     width: min(100%, 44rem);
   }
 }
@@ -791,6 +791,10 @@ h1 {
 
 .auth-card {
   width: min(100%, 34rem);
+}
+
+.auth-card.library-card {
+  width: min(100%, 110rem);
 }
 
 .auth-form {
