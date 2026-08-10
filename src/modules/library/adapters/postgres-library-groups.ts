@@ -1,7 +1,7 @@
 import type { PoolClient } from "pg";
 import { authenticatedTransaction } from "@/shared/kernel";
-import { LibraryGroupsError, validateAssignThemeInput, validateCreateGroupInput, validateCreateThemeInput, type LibraryGroup, type LibraryTheme } from "../domain/library-groups";
-import { groupRequestDigest, themeAssignmentDigest, themeRequestDigest, type LibraryGroupReceipt, type LibraryGroupsRepository, type LibraryThemeReceipt } from "../application/library-groups";
+import { LibraryGroupsError, validateAssignThemeInput, validateCreateGroupInput, validateCreateThemeInput, validateRemoveGroupMemberInput, validateRemoveThemeMemberInput, type LibraryGroup, type LibraryTheme } from "../domain/library-groups";
+import { groupMemberRemovalDigest, groupRequestDigest, themeAssignmentDigest, themeMemberRemovalDigest, themeRequestDigest, type LibraryGroupReceipt, type LibraryGroupsRepository, type LibraryMembershipReceipt, type LibraryThemeReceipt } from "../application/library-groups";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 type Transaction = <T>(userId: string, work: (client: PoolClient) => Promise<T>) => Promise<T>;
@@ -94,6 +94,45 @@ export function createPostgresLibraryGroupsRepository(transaction: Transaction =
         const createdAt = new Date();
         await client.query("insert into library.library_theme_receipts (user_id, command_id, request_sha256, theme_id, command_type, created_at) values ($1, $2, $3, $4, 'assign', $5)", [userId, commandId, requestSha, input.themeId, createdAt]);
         return { commandId, commandType: "library.theme.assign", status: "confirmed", theme: await loadTheme(client, userId, input.themeId), confirmedAt: createdAt.toISOString() } satisfies LibraryThemeReceipt;
+      });
+    },
+    removeGroupMember(userId, commandId, rawInput) {
+      if (!UUID.test(userId) || !UUID.test(commandId)) return Promise.reject(new LibraryGroupsError());
+      const input = validateRemoveGroupMemberInput(rawInput);
+      const requestSha = groupMemberRemovalDigest(commandId, userId, input);
+      return transaction(userId, async (client) => {
+        await client.query("select pg_advisory_xact_lock(hashtextextended($1 || ':library-groups', 0))", [userId]);
+        const replay = await client.query<{ request_sha256: string; target_id: string; copy_id: string; created_at: Date | string }>("select request_sha256, target_id, copy_id, created_at from library.library_membership_removal_receipts where user_id = $1 and command_id = $2", [userId, commandId]);
+        if (replay.rows[0]) {
+          if (replay.rows[0].request_sha256 !== requestSha) throw new LibraryGroupsError("LIBRARY_GROUP_COMMAND_REUSED");
+          return { commandId, commandType: "library.group.remove-member", status: "replayed", targetId: replay.rows[0].target_id, copyId: replay.rows[0].copy_id, confirmedAt: iso(replay.rows[0].created_at) } satisfies LibraryMembershipReceipt;
+        }
+        await client.query("select id from library.library_groups where user_id = $1 and id = $2 for update", [userId, input.groupId]);
+        const deleted = await client.query("delete from library.library_group_members where user_id = $1 and group_id = $2 and copy_id = $3", [userId, input.groupId, input.copyId]);
+        if (deleted.rowCount !== 1) throw new LibraryGroupsError("LIBRARY_GROUP_MEMBER_NOT_FOUND");
+        await client.query("delete from library.library_groups groups where groups.user_id = $1 and groups.id = $2 and not exists (select 1 from library.library_group_members members where members.user_id = groups.user_id and members.group_id = groups.id)", [userId, input.groupId]);
+        const createdAt = new Date();
+        await client.query("insert into library.library_membership_removal_receipts (user_id, command_id, request_sha256, target_type, target_id, copy_id, created_at) values ($1, $2, $3, 'group', $4, $5, $6)", [userId, commandId, requestSha, input.groupId, input.copyId, createdAt]);
+        return { commandId, commandType: "library.group.remove-member", status: "confirmed", targetId: input.groupId, copyId: input.copyId, confirmedAt: createdAt.toISOString() } satisfies LibraryMembershipReceipt;
+      });
+    },
+    removeThemeMember(userId, commandId, rawInput) {
+      if (!UUID.test(userId) || !UUID.test(commandId)) return Promise.reject(new LibraryGroupsError());
+      const input = validateRemoveThemeMemberInput(rawInput);
+      const requestSha = themeMemberRemovalDigest(commandId, userId, input);
+      return transaction(userId, async (client) => {
+        await client.query("select pg_advisory_xact_lock(hashtextextended($1 || ':library-groups', 0))", [userId]);
+        const replay = await client.query<{ request_sha256: string; target_id: string; copy_id: string; created_at: Date | string }>("select request_sha256, target_id, copy_id, created_at from library.library_membership_removal_receipts where user_id = $1 and command_id = $2", [userId, commandId]);
+        if (replay.rows[0]) {
+          if (replay.rows[0].request_sha256 !== requestSha) throw new LibraryGroupsError("LIBRARY_THEME_COMMAND_REUSED");
+          return { commandId, commandType: "library.theme.remove-member", status: "replayed", targetId: replay.rows[0].target_id, copyId: replay.rows[0].copy_id, confirmedAt: iso(replay.rows[0].created_at) } satisfies LibraryMembershipReceipt;
+        }
+        await client.query("select id from library.library_themes where user_id = $1 and id = $2 for update", [userId, input.themeId]);
+        const deleted = await client.query("delete from library.library_theme_members where user_id = $1 and theme_id = $2 and copy_id = $3", [userId, input.themeId, input.copyId]);
+        if (deleted.rowCount !== 1) throw new LibraryGroupsError("LIBRARY_THEME_MEMBER_NOT_FOUND");
+        const createdAt = new Date();
+        await client.query("insert into library.library_membership_removal_receipts (user_id, command_id, request_sha256, target_type, target_id, copy_id, created_at) values ($1, $2, $3, 'theme', $4, $5, $6)", [userId, commandId, requestSha, input.themeId, input.copyId, createdAt]);
+        return { commandId, commandType: "library.theme.remove-member", status: "confirmed", targetId: input.themeId, copyId: input.copyId, confirmedAt: createdAt.toISOString() } satisfies LibraryMembershipReceipt;
       });
     },
   };

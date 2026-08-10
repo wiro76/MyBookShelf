@@ -14,7 +14,7 @@ registerHooks({
   },
 });
 
-const { validateAssignThemeInput, validateCreateGroupInput, validateCreateThemeInput } = await import(pathToFileURL(resolve(ROOT, "src/modules/library/domain/library-groups.ts")).href);
+const { validateAssignThemeInput, validateCreateGroupInput, validateCreateThemeInput, validateRemoveGroupMemberInput, validateRemoveThemeMemberInput } = await import(pathToFileURL(resolve(ROOT, "src/modules/library/domain/library-groups.ts")).href);
 const copyA = "c4111111-1111-4111-8111-111111111111";
 const copyB = "c4222222-2222-4222-8222-222222222222";
 const theme = "e4111111-1111-4111-8111-111111111111";
@@ -32,4 +32,10 @@ test("valide un thème accessible avec repère non exclusivement coloré", () =>
 test("refuse une association vers un thème ou des copies invalides", () => {
   assert.deepEqual(validateAssignThemeInput({ themeId: theme, copyIds: [copyA] }), { themeId: theme, copyIds: [copyA] });
   assert.throws(() => validateAssignThemeInput({ themeId: "theme", copyIds: [copyA] }), { code: "LIBRARY_GROUPS_INVALID" });
+});
+
+test("valide le retrait ciblé et borné d’une association", () => {
+  assert.deepEqual(validateRemoveGroupMemberInput({ groupId: theme, copyId: copyA }), { groupId: theme, copyId: copyA });
+  assert.deepEqual(validateRemoveThemeMemberInput({ themeId: theme, copyId: copyA }), { themeId: theme, copyId: copyA });
+  assert.throws(() => validateRemoveThemeMemberInput({ themeId: theme, copyId: "copy" }), { code: "LIBRARY_GROUPS_INVALID" });
 });

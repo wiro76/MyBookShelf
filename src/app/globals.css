@@ -880,6 +880,27 @@ h1 {
   color: var(--ink-secondary);
 }
 
+.library-membership-list {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+.library-membership-list form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--border-default);
+}
+
+.library-membership-list button {
+  padding: 0.35rem 0.55rem;
+  font-size: 0.8rem;
+}
+
 .library-theme-list li {
   grid-template-columns: auto 1fr;
   align-items: center;

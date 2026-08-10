@@ -21,6 +21,8 @@ export type LibraryTheme = Readonly<{
 export type CreateGroupInput = Readonly<{ name: string; copyIds: readonly string[] }>;
 export type CreateThemeInput = Readonly<{ name: string; label: string; icon?: string | null; pattern?: string | null; color?: string | null }>;
 export type AssignThemeInput = Readonly<{ themeId: string; copyIds: readonly string[] }>;
+export type RemoveGroupMemberInput = Readonly<{ groupId: string; copyId: string }>;
+export type RemoveThemeMemberInput = Readonly<{ themeId: string; copyId: string }>;
 
 export class LibraryGroupsError extends Error {
   readonly code: string;
@@ -57,4 +59,19 @@ export function validateAssignThemeInput(value: unknown): AssignThemeInput {
   const input = value as Record<string, unknown>;
   if (typeof input.themeId !== "string" || !UUID.test(input.themeId) || !ids(input.copyIds)) throw new LibraryGroupsError();
   return { themeId: input.themeId, copyIds: [...input.copyIds] };
+}
+
+const validateRemoval = (value: unknown, key: "groupId" | "themeId"): string => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new LibraryGroupsError();
+  const input = value as Record<string, unknown>;
+  if (typeof input[key] !== "string" || !UUID.test(input[key] as string) || typeof input.copyId !== "string" || !UUID.test(input.copyId)) throw new LibraryGroupsError();
+  return input[key] as string;
+};
+
+export function validateRemoveGroupMemberInput(value: unknown): RemoveGroupMemberInput {
+  return { groupId: validateRemoval(value, "groupId"), copyId: (value as { copyId: string }).copyId };
+}
+
+export function validateRemoveThemeMemberInput(value: unknown): RemoveThemeMemberInput {
+  return { themeId: validateRemoval(value, "themeId"), copyId: (value as { copyId: string }).copyId };
 }

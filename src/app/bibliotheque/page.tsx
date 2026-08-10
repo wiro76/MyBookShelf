@@ -18,7 +18,7 @@ import { annulerDeplacementSelection, deplacerExemplaire, deplacerSelection } fr
 import { creerGroupe } from "./groups-actions";
 import { LibraryGroupsForm } from "@/modules/library/ui/library-groups-form";
 import { createPostgresLibraryGroupsRepository } from "@/modules/library/adapters/postgres-library-groups";
-import { associerTheme, creerTheme } from "./groups-actions";
+import { associerTheme, creerTheme, retirerDuGroupe, retirerDuTheme } from "./groups-actions";
 import type { LibraryGroup, LibraryTheme } from "@/modules/library/domain/library-groups";
 
 /**
@@ -196,7 +196,7 @@ export default async function BibliothequePage() {
           <h2 id="library-foundation-title">Ton rangement réel</h2>
           <p className="project-status">Chaque statut possède maintenant son module et ses étagères persistants. La projection ci-dessous reflète uniquement les exemplaires réellement placés.</p>
           <LibraryProjection projection={projection} resumeTargetId={resumeTargetId} moveAction={deplacerExemplaire} selectionMoveAction={deplacerSelection} selectionUndoAction={annulerDeplacementSelection} />
-          <LibraryGroupsForm projection={projection} groups={groups} themes={themes} action={creerGroupe} themeAction={creerTheme} themeAssignmentAction={associerTheme} />
+          <LibraryGroupsForm projection={projection} groups={groups} themes={themes} action={creerGroupe} themeAction={creerTheme} themeAssignmentAction={associerTheme} removeGroupMemberAction={retirerDuGroupe} removeThemeMemberAction={retirerDuTheme} />
           <CoverUpload projection={projection} />
         </section>
         <nav className="library-actions" aria-label="Actions de la bibliothèque">

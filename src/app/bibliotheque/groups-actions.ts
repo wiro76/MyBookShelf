@@ -56,3 +56,21 @@ export async function associerTheme(previousState: ThemeActionState, formData: F
     return previousState.status === "confirmed" ? previousState : { status: "invalid" };
   }
 }
+
+export async function retirerDuGroupe(formData: FormData): Promise<void> {
+  const session = await getVerifiedSession();
+  if (session.status !== "authenticated") return;
+  try {
+    await createPostgresLibraryGroupsRepository().removeGroupMember(session.user.id, String(formData.get("commandId") ?? ""), { groupId: String(formData.get("groupId") ?? ""), copyId: String(formData.get("copyId") ?? "") });
+    revalidatePath("/bibliotheque");
+  } catch { /* L’interface conserve son état ; le prochain rafraîchissement relira la projection autorisée. */ }
+}
+
+export async function retirerDuTheme(formData: FormData): Promise<void> {
+  const session = await getVerifiedSession();
+  if (session.status !== "authenticated") return;
+  try {
+    await createPostgresLibraryGroupsRepository().removeThemeMember(session.user.id, String(formData.get("commandId") ?? ""), { themeId: String(formData.get("themeId") ?? ""), copyId: String(formData.get("copyId") ?? "") });
+    revalidatePath("/bibliotheque");
+  } catch { /* L’interface conserve son état ; le prochain rafraîchissement relira la projection autorisée. */ }
+}

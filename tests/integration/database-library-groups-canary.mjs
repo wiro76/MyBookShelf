@@ -32,6 +32,9 @@ const EDITION = "b5222222-2222-4222-8222-222222222222";
 const GROUP_COMMAND = "d5111111-1111-4111-8111-111111111111";
 const THEME_COMMAND = "d5222222-2222-4222-8222-222222222222";
 const ASSIGN_COMMAND = "d5333333-3333-4333-8333-333333333333";
+const REMOVE_THEME_COMMAND = "d5444444-4444-4444-8444-444444444444";
+const REMOVE_GROUP_A_COMMAND = "d5555555-5555-4555-8555-555555555555";
+const REMOVE_GROUP_B_COMMAND = "d5666666-6666-4666-8666-666666666666";
 const admin = new pg.Client({ connectionString: databaseUrl });
 await admin.connect();
 try {
@@ -51,7 +54,17 @@ try {
   const themeRows = await admin.query("select count(*)::int as count from library.library_theme_members where user_id = $1", [OWNER]);
   assert.equal(rows.rows[0].count, 2);
   assert.equal(themeRows.rows[0].count, 1);
-  process.stdout.write("Canari groupes: groupe persistant, thème many-to-many, rejeu et repère non chromatique confirmés.\n");
+  const removedTheme = await repository.removeThemeMember(OWNER, REMOVE_THEME_COMMAND, { themeId: theme.theme.id, copyId: COPIES[0] });
+  const replayedTheme = await repository.removeThemeMember(OWNER, REMOVE_THEME_COMMAND, { themeId: theme.theme.id, copyId: COPIES[0] });
+  assert.equal(removedTheme.status, "confirmed");
+  assert.equal(replayedTheme.status, "replayed");
+  const removedGroupA = await repository.removeGroupMember(OWNER, REMOVE_GROUP_A_COMMAND, { groupId: group.group.id, copyId: COPIES[0] });
+  assert.equal(removedGroupA.status, "confirmed");
+  const removedGroupB = await repository.removeGroupMember(OWNER, REMOVE_GROUP_B_COMMAND, { groupId: group.group.id, copyId: COPIES[1] });
+  assert.equal(removedGroupB.status, "confirmed");
+  const emptyGroups = await admin.query("select count(*)::int as count from library.library_groups where user_id = $1", [OWNER]);
+  assert.equal(emptyGroups.rows[0].count, 0);
+  process.stdout.write("Canari groupes: création, association, retrait idempotent et suppression atomique du groupe vide confirmés.\n");
 } finally {
   await closeDatabasePool().catch(() => {});
   await admin.query("delete from auth.users where id = $1", [OWNER]).catch(() => {});
