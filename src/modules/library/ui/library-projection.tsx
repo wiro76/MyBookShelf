@@ -1,8 +1,8 @@
 "use client";
 
-import type { KeyboardEvent } from "react";
+import { useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import type { LibraryProjection } from "../domain/library-foundation";
-import { LibraryMoveForm } from "./library-move-form";
+import { LibraryMoveForm, type MoveDropRequest } from "./library-move-form";
 import type { MoveActionState } from "@/app/bibliotheque/move-actions";
 
 type LibraryProjectionProps = Readonly<{
@@ -50,6 +50,17 @@ function navigateProjection(event: KeyboardEvent<HTMLElement>) {
 
 export function LibraryProjection({ projection, resumeCopyId = null, moveAction }: LibraryProjectionProps) {
   const shelves = projection.statuses.flatMap((entry) => entry.modules.flatMap((module) => module.shelves));
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+  const [dropRequest, setDropRequest] = useState<MoveDropRequest | null>(null);
+  const dropSequence = useRef(0);
+  const requestDrop = (event: DragEvent<HTMLElement>, shelfId: string, position: number) => {
+    event.preventDefault();
+    const sourceItemId = event.dataTransfer.getData("text/plain") || draggedItemId;
+    if (!sourceItemId) return;
+    dropSequence.current += 1;
+    setDropRequest({ sourceItemId, shelfId, position, requestId: dropSequence.current });
+    setDraggedItemId(null);
+  };
   return (
     <div id="library-projection" className="library-status-grid" onKeyDownCapture={navigateProjection} aria-label="Projection des bibliothèques">
       {projection.statuses.map((entry) => (
@@ -60,7 +71,7 @@ export function LibraryProjection({ projection, resumeCopyId = null, moveAction 
               <strong>Module {module.modulePosition + 1}</strong>
               <ul aria-label={`Étagères du module ${module.modulePosition + 1}`}>
                 {module.shelves.map((shelf) => (
-                  <li key={shelf.id} tabIndex={shelf.items.length === 0 ? 0 : undefined} className="library-shelf">
+                  <li key={shelf.id} tabIndex={shelf.items.length === 0 ? 0 : undefined} className="library-shelf" onDragOver={(event) => event.preventDefault()} onDrop={(event) => requestDrop(event, shelf.id, shelf.occupiedUnits)}>
                     <div className="library-shelf-heading">
                       <span>Étagère {shelf.shelfPosition + 1}</span>
                       <span>{shelf.occupiedUnits} / {shelf.capacityUnits} unités</span>
@@ -68,7 +79,7 @@ export function LibraryProjection({ projection, resumeCopyId = null, moveAction 
                     {shelf.items.length > 0 ? (
                       <ol tabIndex={0} className="library-items" aria-label={`Exemplaires de l’étagère ${shelf.shelfPosition + 1}`}>
                         {shelf.items.map((item) => (
-                          <li key={item.id} id={item.copyId === resumeCopyId ? "library-resume-target" : undefined} tabIndex={-1} className="library-item" aria-label={`${item.title}${item.author ? `, ${item.author}` : ""}, position ${item.itemPosition + 1}`}>
+                          <li key={item.id} id={item.copyId === resumeCopyId ? "library-resume-target" : undefined} tabIndex={-1} draggable={Boolean(moveAction)} onDragStart={(event) => { event.dataTransfer.setData("text/plain", item.id); event.dataTransfer.effectAllowed = "move"; setDraggedItemId(item.id); }} onDragEnd={() => setDraggedItemId(null)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.stopPropagation(); const rect = event.currentTarget.getBoundingClientRect(); const before = event.clientX < rect.left + rect.width / 2; requestDrop(event, shelf.id, before ? item.itemPosition : item.itemPosition + item.widthUnits); }} className={`library-item${draggedItemId === item.id ? " is-dragging" : ""}`} aria-label={`${item.title}${item.author ? `, ${item.author}` : ""}, position ${item.itemPosition + 1}`}>
                             {item.coverStatus === "available" && item.coverUrl ? (
                               <img className="library-cover" src={item.coverUrl} alt={`Couverture de ${item.title}`} />
                             ) : (
@@ -79,7 +90,7 @@ export function LibraryProjection({ projection, resumeCopyId = null, moveAction 
                               <strong>{item.title}</strong>
                               <small>{item.author ?? item.editionTitle}</small>
                             </span>
-                            {moveAction ? <LibraryMoveForm item={item} shelves={shelves} action={moveAction} /> : null}
+                            {moveAction ? <LibraryMoveForm item={item} sourceShelfId={shelf.id} sourceShelf={shelf} shelves={shelves} action={moveAction} dropRequest={dropRequest} /> : null}
                           </li>
                         ))}
                       </ol>

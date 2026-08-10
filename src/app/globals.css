@@ -302,6 +302,17 @@ h1 {
   background: var(--surface-subtle);
 }
 
+.library-item[draggable="true"] {
+  cursor: grab;
+  touch-action: manipulation;
+}
+
+.library-item[draggable="true"]:active,
+.library-item.is-dragging {
+  cursor: grabbing;
+  opacity: 0.7;
+}
+
 .library-item:focus-visible {
   outline: 3px solid var(--focus-light);
   outline-offset: 2px;
@@ -387,6 +398,12 @@ h1 {
   display: grid;
   gap: 0.35rem;
   margin-top: 0.35rem;
+}
+
+.library-move-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
 }
 
 .library-move label {

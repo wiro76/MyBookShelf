@@ -2,13 +2,13 @@
 story_id: "4.1"
 story_key: "4-1-deplacer-un-exemplaire-par-geste-ou-commande-visible"
 epic: 4
-status: in-progress
+status: done
 created: "2026-08-10"
 ---
 
 # Story 4.1 : Déplacer un exemplaire par geste ou commande visible
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -27,7 +27,7 @@ afin de ranger selon ma logique avec toute modalité d’interaction.
 - [x] Définir le contrat de déplacement et la vérification de version.
 - [x] Ajouter le repository SQL transactionnel avec idempotence et ownership.
 - [x] Implémenter la commande visible et la confirmation accessible.
-- [ ] Ajouter les chemins souris, tactile et clavier vers le même cas d’usage.
+- [x] Ajouter les chemins souris, tactile et clavier vers le même cas d’usage.
 - [x] Tester capacité, conflit de version, rejeu et absence de mutation optimiste.
 
 ## Avancement d'implémentation
@@ -41,3 +41,30 @@ afin de ranger selon ma logique avec toute modalité d’interaction.
 - Aucun déplacement partiel ni état optimiste confirmé.
 - Le reflow est local, déterministe et réversible avant confirmation.
 - Les tests E2E couvrent souris, tactile, clavier, conflit et restauration du focus.
+
+## Dev Agent Record
+
+### Completion Notes
+
+- Le glisser-déposer cible une frontière de largeur et soumet la même commande serveur que le formulaire « Déplacer ».
+- Les commandes tactiles et clavier Monter, Descendre, Avant et Après utilisent les mêmes champs de destination.
+- Les contrôles restent accessibles sur les écrans tactiles et les identifiants de commande ne sont pas rendus dans le HTML public.
+
+### Validation
+
+- `npm run typecheck`
+- `npm run lint` (un avertissement préexistant sur `<img>`, aucune erreur)
+- `npm run ci:unit` : 212 tests passants
+- E2E Story 4.1 : 8 scénarios passants sur souris, clavier et tablette
+
+### File List
+
+- `src/modules/library/ui/library-move-form.tsx`
+- `src/modules/library/ui/library-projection.tsx`
+- `src/app/globals.css`
+- `src/app/__e2e__/bibliotheque/page.tsx`
+- `tests/e2e/bibliotheque-projection.spec.ts`
+
+### Change Log
+
+- 2026-08-10 : Story 4.1 complétée avec déplacement par geste, commandes relatives et validation E2E.

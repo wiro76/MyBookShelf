@@ -58,4 +58,15 @@ test.describe("Story 3.2 — projection des trois bibliothèques", () => {
     const accessibility = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag22aa"]).analyze();
     expect(accessibility.violations).toEqual([]);
   });
+
+  test("Story 4.1 — expose le même déplacement par geste et commandes tactiles", async ({ page }) => {
+    const items = page.locator(".library-item");
+    await expect(items).toHaveCount(2);
+    await expect(items.first()).toHaveAttribute("draggable", "true");
+    await items.first().locator("summary").click();
+    await expect(items.first().getByRole("button", { name: "Avant" })).toBeDisabled();
+    await expect(items.first().getByRole("button", { name: "Après" })).toBeEnabled();
+    await items.first().dragTo(items.nth(1));
+    await expect(items.first().locator(".library-move").getByRole("status")).toHaveText("Exemplaire déplacé.");
+  });
 });
